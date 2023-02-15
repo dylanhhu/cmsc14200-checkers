@@ -87,7 +87,7 @@ class Piece:
     TODO: Add getter functions
     """
 
-    def __init__(self, pos: Tuple[int, int], color: PlayerColor) -> None:
+    def __init__(self, pos: Position, color: PlayerColor) -> None:
         """
         Constructor for a piece
 
@@ -121,7 +121,7 @@ class Move:
     TODO: Add getter methods
     """
 
-    def __init__(self, piece: Piece, new_pos: Tuple[int, int]) -> None:
+    def __init__(self, piece: Piece, new_pos: Position) -> None:
         """
         Creates a new move object.
 
@@ -144,7 +144,7 @@ class Jump(Move):
 
     def __init__(self,
                  piece: Piece,
-                 new_pos: Tuple[int, int],
+                 new_pos: Position,
                  opponent_piece: Piece) -> None:
         """
         Creates a new jump object.
