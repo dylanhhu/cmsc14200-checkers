@@ -99,7 +99,6 @@ class Piece:
     Represents a piece on the board.
 
     TODO: Consider making this a dataclass
-    TODO: Add getter functions
     """
 
     def __init__(self, pos: Position, color: PieceColor) -> None:
@@ -209,9 +208,6 @@ class Piece:
 class Move:
     """
     Represents a move that can be done by a piece.
-
-    TODO: Consider making this a dataclass
-    TODO: Add getter methods
     """
 
     def __init__(self, piece: Piece, new_pos: Position) -> None:
@@ -222,8 +218,34 @@ class Move:
             piece (Piece): the piece this move belongs to
             new_pos (Position): the new position after the move
         """
-        self.piece = piece
-        self.new_x, self.new_y = new_pos
+        self._piece = piece  # the piece to be moved
+
+        # The new position. If it is (-1, -1) then it is not a "move" per se
+        self._new_x, self._new_y = new_pos
+
+    def get_new_position(self) -> Position:
+        """
+        Getter for the new position of the piece after the move.
+
+        Args:
+            None
+
+        Returns:
+            Position of the piece after the move
+        """
+        raise NotImplementedError
+
+    def get_piece(self) -> Piece:
+        """
+        Getter for the piece that will move.
+
+        Args:
+            None
+
+        Returns:
+            Piece to be moved
+        """
+        raise NotImplementedError
 
 
 class Jump(Move):
@@ -266,6 +288,36 @@ class Resignation(Move):
         """
         super().__init__(None, (-1, -1))
 
+    def get_new_position(self) -> Position:
+        """
+        Overrides the parent Piece getter function. Raises TypeError.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            TypeError, as this class does not contain valid values to get
+        """
+        raise TypeError
+
+    def get_piece(self) -> Piece:
+        """
+        Overrides the parent Piece getter function. Raises TypeError.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            TypeError, as this class does not contain valid values to get
+        """
+        raise TypeError
+
 
 class DrawOffer(Move):
     """
@@ -292,6 +344,36 @@ class DrawOffer(Move):
         super().__init__(None, (-1, -1))
 
         self.offering_color = offering_color
+
+    def get_new_position(self) -> Position:
+        """
+        Overrides the parent Piece getter function. Raises TypeError.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            TypeError, as this class does not contain valid values to get
+        """
+        raise TypeError
+
+    def get_piece(self) -> Piece:
+        """
+        Overrides the parent Piece getter function. Raises TypeError.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            TypeError, as this class does not contain valid values to get
+        """
+        raise TypeError
 
 
 # ===============
