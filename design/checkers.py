@@ -526,13 +526,15 @@ class CheckersBoard:
         # subsequent jumps
         raise NotImplementedError
 
-    def get_piece_moves(self, piece: Piece) -> List[Move]:
+    def get_piece_moves(self, piece: Piece,
+                        jumps_only: bool = False) -> List[Move]:
         """
         Returns a list of possible moves (moves and jumps) for a piece. If
         jump(s) are possible, then only jumps will be returned.
 
         Args:
             piece (Piece): the piece being queried
+            jumps_only (bool): only jumps or an empty list will be returned
 
         Returns:
             List[Move]: the list of moves (move(s) XOR jump(s)) for that piece
@@ -598,21 +600,6 @@ class CheckersBoard:
             Dict[PieceColor, Dict[Position, Piece]]: Dictionary containing
                 a dictionary of piece locations and pieces for each player
         """
-        raise NotImplementedError
-
-    def _get_piece_jumps(self, piece: Piece) -> List[Jump]:
-        """
-        Private method that returns a list of possible jumps for a piece.
-
-        Args:
-            piece (Piece): the piece being queried
-
-        Returns:
-            List[Jump]: the list of jumps for that piece
-        """
-
-        # This function would just filter the results from
-        # self.get_piece_moves()
         raise NotImplementedError
 
     def _handle_draw_offer(self, offer: DrawOffer) -> List:
