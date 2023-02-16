@@ -271,7 +271,7 @@ class Jump(Move):
 
     def get_captured_piece(self) -> Piece:
         """
-        Getter method that returns the piece that would be captured after the 
+        Getter method that returns the piece that would be captured after the
         jump.
 
         Args:
@@ -353,7 +353,8 @@ class DrawOffer(Move):
         """
         super().__init__(None, (-1, -1))
 
-        self.offering_color = offering_color
+        # The color of the player offering the draw
+        self._offering_color = offering_color
 
     def get_new_position(self) -> Position:
         """
