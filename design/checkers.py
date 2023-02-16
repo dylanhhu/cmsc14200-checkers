@@ -220,7 +220,7 @@ class Move:
 
         Args:
             piece (Piece): the piece this move belongs to
-            new_pos (Tuple[int, int]): the new position after the move
+            new_pos (Position): the new position after the move
         """
         self.piece = piece
         self.new_x, self.new_y = new_pos
@@ -244,10 +244,10 @@ class Jump(Move):
 
         Args:
             piece (Piece): the piece this move belongs to
-            new_pos (Tuple[int, int]): the new position after the jump
+            new_pos (Position): the new position after the jump
             opponent_piece (Piece): the piece that will be captured
         """
-        super.__init__(self, piece, new_pos)
+        super().__init__(self, piece, new_pos)
         self.opponent_piece = opponent_piece
 
 
@@ -291,7 +291,7 @@ class DrawOffer(Move):
         """
         super().__init__(None, (-1, -1))
 
-        self.offering_color = PieceColor
+        self.offering_color = offering_color
 
 
 # ===============
@@ -333,7 +333,7 @@ class CheckersBoard:
             PieceColor.RED: False
         }
 
-        self._game_state = GameStatus.IN_PROGRESS
+        self._game_state = GameStatus.IN_PROGRESS  # the game state
 
     def complete_move(self, move: Move) -> List[Jump]:
         """
@@ -377,7 +377,7 @@ class CheckersBoard:
             piece (Piece): the piece being queried
 
         Returns:
-            List[Move]: the list of moves for that piece
+            List[Move]: the list of moves (move(s) XOR jump(s)) for that piece
         """
         raise NotImplementedError
 
