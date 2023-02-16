@@ -96,7 +96,7 @@ class GameStatus(Enum):
 
 class Piece:
     """
-    Represents a piece on the board
+    Represents a piece on the board.
 
     TODO: Consider making this a dataclass
     TODO: Add getter functions
@@ -104,20 +104,98 @@ class Piece:
 
     def __init__(self, pos: Position, color: PieceColor) -> None:
         """
-        Constructor for a piece
+        Constructor for a piece.
 
         Args:
             pos (Tuple[int, int]): the position of the piece on the board
             color (PieceColor): The color of the piece
         """
 
-        self.x, self.y = pos
-        self.color = color
-        self.is_king = False
+        self._x, self._y = pos  # the piece's position
+        self._color = color  # the piece's color
+        self._king = False  # is this piece a king?
+
+    def get_position(self) -> Position:
+        """
+        Getter function that returns the piece's position.
+
+        Args:
+            None
+
+        Returns:
+            Position of the piece
+        """
+        raise NotImplementedError
+
+    def set_position(self, new_pos: Position) -> None:
+        """
+        Setter for the piece's position. If an invalid position is provided,
+        ValueError will be raised.
+
+        Args:
+            new_pos (Position): the new position of the piece
+
+        Returns:
+            None
+
+        Raises:
+            ValueError if invalid position is provided.
+        """
+        raise NotImplementedError
+
+    def set_captured(self) -> None:
+        """
+        Sets the piece's to captured. This cannot be undone, please make sure
+        you know what you're doing.
+
+        Args:
+            None
+
+        Returns:
+            None
+        """
+        raise NotImplementedError
+
+    def is_captured(self) -> bool:
+        """
+        Returns whether the piece is captured.
+
+        Args:
+            None
+
+        Returns:
+            True if captured otherwise False
+        """
+        raise NotImplementedError
+
+    def get_color(self) -> PieceColor:
+        """
+        Getter function that returns the piece's color.
+
+        Args:
+            None
+
+        Returns:
+            The color of the piece
+        """
+        raise NotImplementedError
+
+    def is_king(self) -> bool:
+        """
+        Getter function that returns whether this piece is a king.
+
+        Args:
+            None
+
+        Returns:
+            True if this is a king otherwise False
+        """
+        raise NotImplementedError
 
     def to_king(self) -> None:
         """
-        Update the piece to a king (aka 'kinging').
+        Update the piece to a king (aka 'kinging'). This can't be undone,
+        please make sure you know what you're doing.
 
         Args:
             None
