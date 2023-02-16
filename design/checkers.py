@@ -173,6 +173,49 @@ class Jump(Move):
         self.opponent_piece = opponent_piece
 
 
+class Resignation(Move):
+    """
+    Represents a resignation by one player. Upon resignation, an instance of
+    this class should be created by the GUI/TUI and be "played".
+    """
+
+    def __init__(self) -> None:
+        """
+        Create a new resignation object.
+
+        Args:
+            None
+        """
+        super().__init__(None, (-1, -1))
+
+
+class DrawOffer(Move):
+    """
+    Represents an offer/acceptance of a draw.
+
+    When offering a draw, the GUI/TUI must create an instance of this class and
+    "play" it.
+
+    When a draw is offered, the player will recieve it when getting all valid
+    moves for that player.
+
+    To accept a draw, the GUI/TUI must "play" the draw request. To reject,
+    play any other move.
+    """
+
+    def __init__(self, offering_color: PieceColor) -> None:
+        """
+        Create a new draw offer. The offering player's color is stored.
+
+        Args:
+            offering_color (PieceColor): the color of player that is offering
+                                         the draw
+        """
+        super().__init__(None, (-1, -1))
+
+        self.offering_color = PieceColor
+
+
 # ===============
 # GAME BOARD CLASS
 # ===============
@@ -206,6 +249,12 @@ class CheckersBoard:
             PieceColor.RED: []
         }
 
+        # Represents an outstanding draw offer and acceptance
+        self._draw_offer: Dict[PieceColor, bool] = {
+            PieceColor.BLACK: False,
+            PieceColor.RED: False
+        }
+
         self._game_state = GameStatus.IN_PROGRESS
 
     def complete_move(self, move: Move) -> List[Jump]:
@@ -220,6 +269,9 @@ class CheckersBoard:
 
         If a move results in kinging, the player's turn is over and nothing
         is returned.
+
+        If a resignation or draw offer is provided, the player's turn is over
+        and nothing is returned.
 
         TODO: Clarify moving into a position with subsequent jumps:
               Do we return this list or not?
@@ -258,11 +310,15 @@ class CheckersBoard:
 
         If there are any jumps possible, only jumps will be returned.
 
+        If there is a draw offer from the other player, a draw offer "move"
+        will be included.
+
         Args:
             color (PieceColor): the player being queried
 
         Returns:
-            List[Move]: list of possible moves (moves XOR jumps)
+            List[Move]: list of possible moves:
+                        ((moves XOR jumps) OR DrawOffer)
         """
         raise NotImplementedError
 
@@ -283,6 +339,8 @@ class CheckersBoard:
         """
         Returns the current game state. Checks for winning conditions before
         returning.
+
+        Should be called before every player's turn.
 
         Args:
             None
@@ -332,4 +390,17 @@ class CheckersBoard:
 
         # This function would just filter the results from
         # self.get_piece_moves()
+        raise NotImplementedError
+
+    def _handle_draw_offer(self, offer: DrawOffer) -> List:
+        """
+        Private method to handle draw offers. Intended to be called by
+        complete_move().
+
+        Args:
+            offer (DrawOffer): the draw offer
+
+        Returns:
+            An empty list
+        """
         raise NotImplementedError
