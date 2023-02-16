@@ -97,8 +97,6 @@ class GameStatus(Enum):
 class Piece:
     """
     Represents a piece on the board.
-
-    TODO: Consider making this a dataclass
     """
 
     def __init__(self, pos: Position, color: PieceColor) -> None:
@@ -252,9 +250,6 @@ class Jump(Move):
     """
     Represents a jump that can done by a piece. Includes the opponent's piece
     that will be captured if the jump is completed.
-
-    TODO: Consider making this a dataclass
-    TODO: Add getter methods
     """
 
     def __init__(self,
@@ -270,7 +265,22 @@ class Jump(Move):
             opponent_piece (Piece): the piece that will be captured
         """
         super().__init__(self, piece, new_pos)
-        self.opponent_piece = opponent_piece
+
+        # The Piece that would be captured during the move
+        self._opponent_piece = opponent_piece
+
+    def get_captured_piece(self) -> Piece:
+        """
+        Getter method that returns the piece that would be captured after the 
+        jump.
+
+        Args:
+            None
+
+        Returns:
+            The Piece that would be captured during the move
+        """
+        raise NotImplementedError
 
 
 class Resignation(Move):
@@ -374,6 +384,18 @@ class DrawOffer(Move):
             TypeError, as this class does not contain valid values to get
         """
         raise TypeError
+
+    def get_offering_color(self) -> PieceColor:
+        """
+        Getter to return the color that is offering the draw
+
+        Args:
+            None
+
+        Returns:
+            PieceColor of the player offering the draw
+        """
+        raise NotImplementedError
 
 
 # ===============
