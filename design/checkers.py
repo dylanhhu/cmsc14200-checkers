@@ -15,7 +15,7 @@ Examples:
 2) Checking if a given move is feasible:
 
     board = CheckersBoard(2)
-    move: Move = Move()  # For example only, this should be a proper move
+    move = Move()  # For example only, this should be a proper move
 
     validity = board.validate_move(move)
 
@@ -30,7 +30,7 @@ Examples:
 
 4) Getting all valid moves for a player:
 
-    current_player = PlayerColor.DARK  # for example, could be either
+    current_player = PieceColor.DARK  # for example, could be either
     player_moves = board.get_player_moves(current_player)
 
 
@@ -52,15 +52,21 @@ from enum import Enum
 from typing import Tuple, List, Dict
 
 
+# ===============
 # Type Aliases
+# ===============
+
 Position = Tuple[int, int]
 
 
+# ===============
 # ENUMS
+# ===============
 
-class PlayerColor(Enum):
+
+class PieceColor(Enum):
     """
-    An enumeration for the internal representation of a player's color.
+    An enumeration for the internal representation of a piece's color.
     """
 
     LIGHT = 0
@@ -78,7 +84,11 @@ class GameStatus(Enum):
     DRAW = 3
 
 
+# ===============
 # DATA CLASSES
+# ===============
+
+
 class Piece:
     """
     Represents a piece on the board
@@ -87,13 +97,13 @@ class Piece:
     TODO: Add getter functions
     """
 
-    def __init__(self, pos: Position, color: PlayerColor) -> None:
+    def __init__(self, pos: Position, color: PieceColor) -> None:
         """
         Constructor for a piece
 
         Args:
             pos (Tuple[int, int]): the position of the piece on the board
-            color (PlayerColor): The color of the piece
+            color (PieceColor): The color of the piece
         """
 
         self.x, self.y = pos
@@ -158,7 +168,10 @@ class Jump(Move):
         self.opponent_piece = opponent_piece
 
 
+# ===============
 # GAME BOARD CLASS
+# ===============
+
 
 class CheckersBoard:
     """
@@ -175,13 +188,13 @@ class CheckersBoard:
             n (int): the number of rows of pieces per player
         """
         # Dictionary of each player's pieces and their positions
-        self._pieces: Dict[PlayerColor,
+        self._pieces: Dict[PieceColor,
                            Dict[Position, Piece]] = self._generate_pieces(n)
 
         # Each player's pieces that have been captured by the other player
-        self._captured: Dict[PlayerColor, List[Piece]] = {
-            PlayerColor.LIGHT: [],
-            PlayerColor.DARK: []
+        self._captured: Dict[PieceColor, List[Piece]] = {
+            PieceColor.LIGHT: [],
+            PieceColor.DARK: []
         }
 
         self._game_state = GameStatus.IN_PROGRESS
@@ -216,13 +229,13 @@ class CheckersBoard:
         """
         raise NotImplementedError
 
-    def get_player_moves(self, color: PlayerColor) -> List[Move]:
+    def get_player_moves(self, color: PieceColor) -> List[Move]:
         """
         Returns a list of possible moves (moves and jumps) for a player's
         pieces. If this list is empty, the player is unable to make a move.
 
         Args:
-            color (PlayerColor): the player being queried
+            color (PieceColor): the player being queried
 
         Returns:
             List[Move]: list of possible moves (moves and jumps)
@@ -256,7 +269,7 @@ class CheckersBoard:
         raise NotImplementedError
 
     def _generate_pieces(self,
-                         n: int) -> Dict[PlayerColor, Dict[Position, Piece]]:
+                         n: int) -> Dict[PieceColor, Dict[Position, Piece]]:
         """
         Private method for setting up the pieces before the game begins.
 
@@ -264,18 +277,18 @@ class CheckersBoard:
             n (int): number of rows of pieces per player
 
         Returns:
-            Dict[PlayerColor, Dict[Position, Piece]]: Dictionary containing
+            Dict[PieceColor, Dict[Position, Piece]]: Dictionary containing
                 a dictionary of piece locations and pieces for each player
         """
         raise NotImplementedError
 
-    def _available_pieces(self, color: PlayerColor) -> List[Piece]:
+    def _available_pieces(self, color: PieceColor) -> List[Piece]:
         """
         Private method that returns a list of pieces still on the board for a
         given player.
 
         Args:
-            color (PlayerColor): the player being queried
+            color (PieceColor): the player being queried
 
         Returns:
             List[Piece]: list of pieces still on the board
