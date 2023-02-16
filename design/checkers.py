@@ -217,6 +217,10 @@ class CheckersBoard:
 
         Returns a list of possible subsequent jumps, if necessary, that follow
         the provided move. If this list is empty, the player's turn is over.
+
+        If a move results in kinging, the player's turn is over and nothing
+        is returned.
+
         TODO: Clarify moving into a position with subsequent jumps:
               Do we return this list or not?
 
