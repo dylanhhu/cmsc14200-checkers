@@ -255,39 +255,65 @@ class Move:
         # The new position. If it is (-1, -1) then it is not a "move" per se
         self._new_x, self._new_y = new_pos
 
-    def get_new_position(self) -> Position:
+    def get_new_position(self, _strict: bool = True) -> Position:
         """
-        Getter for the new position of the piece after the move.
+        Getter for the new position of the piece after the move. Raises
+        RuntimeError if the new position stored is not valid (greater than
+        (0, 0)).
 
         Args:
-            None
+            _strict (bool): private argument to disable position validity check
 
         Returns:
             Position of the piece after the move
+
+        Raises:
+            RuntimeError: if the new position is not greater than (0, 0)
         """
         raise NotImplementedError
 
     def get_piece(self) -> Piece:
         """
-        Getter for the piece that will move.
+        Getter for the piece that will move. If there is no piece associated
+        with this move then a RuntimeError will be raised.
 
         Args:
             None
 
         Returns:
             Piece to be moved
+
+        Raises:
+            RuntimeError: if this move has no piece
         """
         raise NotImplementedError
 
     def __str__(self) -> str:
         """
-        Returns a string representation of the move
+        Returns a string representation of the move. Raises RuntimeError if no
+        Piece is associated with this move or if the new position is invalid.
 
         Args:
             None
 
         Returns:
             str: String representation of the move
+
+        Raises:
+            RuntimeError: if this move has no piece
+            RuntimeError: if the new position is not greater than (0, 0)
+        """
+        raise NotImplementedError
+
+    def __repr__(self) -> str:
+        """
+        Returns the representation of the move. Intended for debugging.
+
+        Args:
+            None
+
+        Returns:
+            str: representation of the move
         """
         raise NotImplementedError
 
