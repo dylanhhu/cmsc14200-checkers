@@ -110,7 +110,7 @@ class Piece:
             king (bool): Is this a king? (Intended for debug scenarios)
         """
 
-        self._x, self._y = pos  # the piece's position
+        self.set_position(pos)  # initialize piece position
         self._color = color  # the piece's color
         self._king = king  # is this piece a king?
 
@@ -207,7 +207,8 @@ class Piece:
     def __str__(self) -> str:
         """
         Returns a string representation of the piece. Returns one character
-        which is uppercase if king otherwise lowercase.
+        which is uppercase if king otherwise lowercase. Raises RuntimeError if
+        the Piece's color is invalid.
 
         Red: 'r' or 'R'
         Black: 'b' or 'B'
@@ -217,6 +218,9 @@ class Piece:
 
         Returns:
             str: String representation of the piece
+
+        Raises:
+            RuntimeError: if piece's color is invalid (not in PieceColor)
         """
         raise NotImplementedError
 
