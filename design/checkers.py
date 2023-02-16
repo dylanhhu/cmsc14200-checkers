@@ -99,18 +99,20 @@ class Piece:
     Represents a piece on the board.
     """
 
-    def __init__(self, pos: Position, color: PieceColor) -> None:
+    def __init__(self, pos: Position, color: PieceColor,
+                 king: bool = False) -> None:
         """
         Constructor for a piece.
 
         Args:
             pos (Tuple[int, int]): the position of the piece on the board
             color (PieceColor): The color of the piece
+            king (bool): Is this a king? (Intended for debug scenarios)
         """
 
         self._x, self._y = pos  # the piece's position
         self._color = color  # the piece's color
-        self._king = False  # is this piece a king?
+        self._king = king  # is this piece a king?
 
     def get_position(self) -> Position:
         """
@@ -204,13 +206,29 @@ class Piece:
 
     def __str__(self) -> str:
         """
-        Returns a string representation of the piece.
+        Returns a string representation of the piece. Returns one character
+        which is uppercase if king otherwise lowercase.
+
+        Red: 'r' or 'R'
+        Black: 'b' or 'B'
 
         Args:
             None
 
         Returns:
             str: String representation of the piece
+        """
+        raise NotImplementedError
+
+    def __repr__(self) -> str:
+        """
+        Returns the representation of this piece. Meant for debugging.
+
+        Args:
+            None
+
+        Returns:
+            str: Debug representation of the piece
         """
         raise NotImplementedError
 
