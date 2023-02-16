@@ -422,7 +422,7 @@ class CheckersBoard:
         Args:
             n (int): the number of rows of pieces per player
         """
-        # Dictionary of each player's pieces and their positions
+        # Dictionary of each player's uncaptured pieces and their positions
         self._pieces: Dict[PieceColor,
                            Dict[Position, Piece]] = self._generate_pieces(n)
 
@@ -439,6 +439,59 @@ class CheckersBoard:
         }
 
         self._game_state = GameStatus.IN_PROGRESS  # the game state
+
+    def get_board_pieces(self) -> List[Piece]:
+        """
+        Getter method that returns a list of all pieces on the board.
+
+        Args:
+            None
+
+        Returns:
+            List[Piece]: list of pieces on the board
+        """
+        raise NotImplementedError
+
+    def get_captured_pieces(self) -> List[Piece]:
+        """
+        Getter method that reutrns a list of all captured pieces.
+
+        Args:
+            None
+
+        Returns:
+            List[Piece]: list of all captured pieces
+        """
+        raise NotImplementedError
+
+    def get_color_captured_pieces(self, color: PieceColor) -> List[Piece]:
+        """
+        Getter method that returns a list of captured pieces for a given player
+        color.
+
+        This method returns for a color, the pieces of that color that were
+        captured by the other player. It returns a list of pieces of the same
+        color that was provided.
+
+        Args:
+            color (PieceColor): the player being queried
+
+        Returns:
+            List[Piece]: list of captured pieces for a color"""
+        raise NotImplementedError
+
+    def get_color_avail_pieces(self, color: PieceColor) -> List[Piece]:
+        """
+        Getter that returns a list of pieces still on the board for a given
+        player color.
+
+        Args:
+            color (PieceColor): the player being queried
+
+        Returns:
+            List[Piece]: list of pieces still on the board for that color
+        """
+        raise NotImplementedError
 
     def complete_move(self, move: Move) -> List[Jump]:
         """
@@ -544,19 +597,6 @@ class CheckersBoard:
         Returns:
             Dict[PieceColor, Dict[Position, Piece]]: Dictionary containing
                 a dictionary of piece locations and pieces for each player
-        """
-        raise NotImplementedError
-
-    def _available_pieces(self, color: PieceColor) -> List[Piece]:
-        """
-        Private method that returns a list of pieces still on the board for a
-        given player.
-
-        Args:
-            color (PieceColor): the player being queried
-
-        Returns:
-            List[Piece]: list of pieces still on the board
         """
         raise NotImplementedError
 
