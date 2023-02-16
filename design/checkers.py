@@ -52,7 +52,7 @@ Examples:
 """
 
 from enum import Enum
-from typing import Tuple, List, Dict
+from typing import Tuple, List, Dict, Union
 
 
 # ===============
@@ -205,15 +205,15 @@ class Piece:
 
 class Move:
     """
-    Represents a move that can be done by a piece.
+    Represents a move that can be done by a piece or a resignation/draw offer.
     """
 
-    def __init__(self, piece: Piece, new_pos: Position) -> None:
+    def __init__(self, piece: Union[Piece, None], new_pos: Position) -> None:
         """
         Creates a new move object.
 
         Args:
-            piece (Piece): the piece this move belongs to
+            piece (Piece or None): the piece this move belongs to
             new_pos (Position): the new position after the move
         """
         self._piece = piece  # the piece to be moved
@@ -264,7 +264,7 @@ class Jump(Move):
             new_pos (Position): the new position after the jump
             opponent_piece (Piece): the piece that will be captured
         """
-        super().__init__(self, piece, new_pos)
+        super().__init__(piece, new_pos)
 
         # The Piece that would be captured during the move
         self._opponent_piece = opponent_piece
