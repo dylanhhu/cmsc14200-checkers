@@ -202,6 +202,18 @@ class Piece:
         """
         raise NotImplementedError
 
+    def __str__(self) -> str:
+        """
+        Returns a string representation of the piece.
+
+        Args:
+            None
+
+        Returns:
+            str: String representation of the piece
+        """
+        raise NotImplementedError
+
 
 class Move:
     """
@@ -245,6 +257,18 @@ class Move:
         """
         raise NotImplementedError
 
+    def __str__(self) -> str:
+        """
+        Returns a string representation of the move
+
+        Args:
+            None
+
+        Returns:
+            str: String representation of the move
+        """
+        raise NotImplementedError
+
 
 class Jump(Move):
     """
@@ -279,6 +303,18 @@ class Jump(Move):
 
         Returns:
             The Piece that would be captured during the move
+        """
+        raise NotImplementedError
+
+    def __str__(self) -> str:
+        """
+        Returns a string representation of the move
+
+        Args:
+            None
+
+        Returns:
+            str: String representation of the move
         """
         raise NotImplementedError
 
@@ -327,6 +363,18 @@ class Resignation(Move):
             TypeError, as this class does not contain valid values to get
         """
         raise TypeError
+
+    def __str__(self) -> str:
+        """
+        Returns a string representation of the resignation
+
+        Args:
+            None
+
+        Returns:
+            str: String representation of the move
+        """
+        raise NotImplementedError
 
 
 class DrawOffer(Move):
@@ -395,6 +443,18 @@ class DrawOffer(Move):
 
         Returns:
             PieceColor of the player offering the draw
+        """
+        raise NotImplementedError
+
+    def __str__(self) -> str:
+        """
+        Returns a string representation of the draw offer
+
+        Args:
+            None
+
+        Returns:
+            str: String representation of the move
         """
         raise NotImplementedError
 
@@ -612,5 +672,17 @@ class CheckersBoard:
 
         Returns:
             An empty list
+        """
+        raise NotImplementedError
+
+    def __str__(self) -> str:
+        """
+        Returns a string representation of the board
+
+        Args:
+            None
+
+        Returns:
+            str: String representation of the board
         """
         raise NotImplementedError
