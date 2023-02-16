@@ -30,7 +30,7 @@ Examples:
 
 4) Getting all valid moves for a player:
 
-    current_player = PieceColor.DARK  # for example, could be either
+    current_player = PieceColor.BLACK  # for example, could be either
     player_moves = board.get_player_moves(current_player)
 
 
@@ -40,10 +40,10 @@ Examples:
 
     if game_status == GameStatus.IN_PROGRESS:
         print("Game in progress")
-    elif winner == GameStatus.LIGHT_WINS:
-        print("Light wins!")
-    elif winner == GameStatus.DARK_WINS:
-        print("Dark wins!")
+    elif winner == GameStatus.RED_WINS:
+        print("Red wins!")
+    elif winner == GameStatus.BLACK_WINS:
+        print("Black wins!")
     else:
         print("Draw!")
 """
@@ -69,19 +69,21 @@ class PieceColor(Enum):
     An enumeration for the internal representation of a piece's color.
     """
 
-    LIGHT = 0
-    DARK = 1
+    RED = 0
+    BLACK = 1
 
 
 class GameStatus(Enum):
     """
     An enumeration for the current game state.
     """
+    # Same as PieceColor values
+    RED_WINS = 0
+    BLACK_WINS = 1
 
-    IN_PROGRESS = 0
-    LIGHT_WINS = 1
-    DARK_WINS = 2
-    DRAW = 3
+    # Other statuses
+    IN_PROGRESS = 100
+    DRAW = 101
 
 
 # ===============
@@ -178,6 +180,10 @@ class CheckersBoard:
     Represents a checkers game. Provides methods for obtaining valid moves,
     validating moves, and acting upon moves according to the rules of checkers.
     Stores the board state along with all pieces, captured or uncaptured.
+
+    The board square grid begins with (0, 0), a light square, at the "top
+    left", where the top rows will contain the black pieces and the bottom rows
+    containing the red pieces.
     """
 
     def __init__(self, n: int) -> None:
@@ -193,15 +199,16 @@ class CheckersBoard:
 
         # Each player's pieces that have been captured by the other player
         self._captured: Dict[PieceColor, List[Piece]] = {
-            PieceColor.LIGHT: [],
-            PieceColor.DARK: []
+            PieceColor.BLACK: [],
+            PieceColor.RED: []
         }
 
         self._game_state = GameStatus.IN_PROGRESS
 
     def complete_move(self, move: Move) -> List[Jump]:
         """
-        Complete a move with a piece.
+        Complete a move with a piece. If the move is not valid, a ValueError is
+        raised.
 
         Returns a list of possible subsequent jumps, if necessary, that follow
         the provided move. If this list is empty, the player's turn is over.
@@ -211,6 +218,9 @@ class CheckersBoard:
 
         Returns:
             List[Jump]: list of subsequent jumps for current piece
+
+        Raises:
+            ValueError: If the move is not valid
         """
 
         # This function would call self._get_piece_jumps() for the list of
