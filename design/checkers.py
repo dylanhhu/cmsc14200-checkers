@@ -169,7 +169,7 @@ class Jump(Move):
             new_pos (Tuple[int, int]): the new position after the jump
             opponent_piece (Piece): the piece that will be captured
         """
-        Move.__init__(self, piece, new_pos)
+        super.__init__(self, piece, new_pos)
         self.opponent_piece = opponent_piece
 
 
