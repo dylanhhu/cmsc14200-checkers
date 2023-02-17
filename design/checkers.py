@@ -366,6 +366,18 @@ class Jump(Move):
         """
         raise NotImplementedError
 
+    def __repr__(self) -> str:
+        """
+        Returns the representation of the jump. Intended for debugging.
+
+        Args:
+            None
+
+        Returns:
+            str: representation of the jump
+        """
+        raise NotImplementedError
+
 
 class Resignation(Move):
     """
@@ -373,14 +385,17 @@ class Resignation(Move):
     this class should be created by the GUI/TUI and be "played".
     """
 
-    def __init__(self) -> None:
+    def __init__(self, color: PieceColor) -> None:
         """
-        Create a new resignation object.
+        Create a new resignation object. The color of the player that is
+        resigning must be provided.
 
         Args:
-            None
+            color (PieceColor): the color of the player that is resigning
         """
         super().__init__(None, (-1, -1))
+
+        self._resigning_color = color
 
     def get_new_position(self) -> Position:
         """
@@ -412,6 +427,18 @@ class Resignation(Move):
         """
         raise TypeError
 
+    def get_resigning_color(self) -> PieceColor:
+        """
+        Getter for the color of the player that is resigning.
+
+        Args:
+            None
+
+        Returns:
+            PieceColor: the color of the player that is resigning.
+        """
+        raise NotImplementedError
+
     def __str__(self) -> str:
         """
         Returns a string representation of the resignation
@@ -421,6 +448,18 @@ class Resignation(Move):
 
         Returns:
             str: String representation of the move
+        """
+        raise NotImplementedError
+
+    def __repr__(self) -> str:
+        """
+        Returns the representation of the resignation. Intended for debugging.
+
+        Args:
+            None
+
+        Returns:
+            str: representation of the resignation
         """
         raise NotImplementedError
 
@@ -503,6 +542,18 @@ class DrawOffer(Move):
 
         Returns:
             str: String representation of the move
+        """
+        raise NotImplementedError
+
+    def __repr__(self) -> str:
+        """
+        Returns the representation of the offer. Intended for debugging.
+
+        Args:
+            None
+
+        Returns:
+            str: representation of the offer
         """
         raise NotImplementedError
 
@@ -730,12 +781,25 @@ class CheckersBoard:
 
     def __str__(self) -> str:
         """
-        Returns a string representation of the board
+        Returns a string representation of the board only.
 
         Args:
             None
 
         Returns:
             str: String representation of the board
+        """
+        raise NotImplementedError
+
+    def __repr__(self) -> str:
+        """
+        Returns the representation of the board. Intended for debugging.
+        Includes captured pieces.
+
+        Args:
+            None
+
+        Returns:
+            str: representation of the board
         """
         raise NotImplementedError
