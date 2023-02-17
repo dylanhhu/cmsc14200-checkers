@@ -430,7 +430,7 @@ class DrawOffer(Move):
     Represents an offer/acceptance of a draw.
 
     When offering a draw, the GUI/TUI must create an instance of this class and
-    "play" it.
+    "play" it along with another "regular" move (move/jump).
 
     When a draw is offered, the player will recieve it when getting all valid
     moves for that player.
@@ -601,12 +601,13 @@ class CheckersBoard:
         """
         raise NotImplementedError
 
-    def complete_move(self, move: Move) -> List[Jump]:
+    def complete_move(self, move: Move,
+                      draw_offer: Union[DrawOffer, None] = None) -> List[Jump]:
         """
         Complete a move with a piece.
 
         If the move is not valid, a ValueError is raised. This includes when
-        a move is attempted when a jump is available.
+        a non-jumping move is attempted when a jump is available.
 
         Returns a list of possible subsequent jumps, if necessary, that follow
         the provided move. If this list is empty, the player's turn is over.
@@ -614,24 +615,28 @@ class CheckersBoard:
         If a move results in kinging, the player's turn is over and nothing
         is returned.
 
-        If a resignation or draw offer is provided, the player's turn is over
+        If a resignation is provided, the player's turn is over
         and nothing is returned.
+
+        To offer a draw, a regular move (move/jump) must be provided along with
+        a DrawOffer.
 
         TODO: Clarify moving into a position with subsequent jumps:
               Do we return this list or not?
 
         Args:
             move (Move): move to make
+            draw_offer (DrawOffer): optional argument for draw offers
 
         Returns:
-            List[Jump]: list of subsequent jumps for current piece
+            List[Jump]: list of subsequent jumps for current piece, if any
 
         Raises:
             ValueError: If the move is not valid
         """
 
-        # This function would call self._get_piece_jumps() for the list of
-        # subsequent jumps
+        # This function would call self.get_piece_moves(jumps_only = True)
+        # for the list of subsequent jumps
         raise NotImplementedError
 
     def get_piece_moves(self, piece: Piece,
@@ -656,7 +661,7 @@ class CheckersBoard:
 
         If there are any jumps possible, only jumps will be returned.
 
-        If there is a draw offer from the other player, a draw offer "move"
+        If there is a draw offer from the other player, a DrawOffer "move"
         will be included.
 
         Args:
