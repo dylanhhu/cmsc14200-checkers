@@ -496,7 +496,7 @@ class Resignation(Move):
         Returns:
             PieceColor: the color of the player that is resigning.
         """
-        raise NotImplementedError
+        return self._resigning_color
 
     def __str__(self) -> str:
         """
@@ -508,7 +508,15 @@ class Resignation(Move):
         Returns:
             str: String representation of the move
         """
-        raise NotImplementedError
+        if self._resigning_color == PieceColor.BLACK:
+            color = "black"
+        elif self._resigning_color == PieceColor.RED:
+            color = "red"
+        else:
+            raise RuntimeError(f"Resignations's color \
+({repr(self._resigning_color)}) was invalid")
+
+        return f'Resignation: {color} resigns'
 
     def __repr__(self) -> str:
         """
@@ -520,7 +528,7 @@ class Resignation(Move):
         Returns:
             str: representation of the resignation
         """
-        raise NotImplementedError
+        return f'{__name__}.Resignation({str(self._resigning_color)})'
 
 
 class DrawOffer(Move):
