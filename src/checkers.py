@@ -402,7 +402,7 @@ class Jump(Move):
         Returns:
             The Piece that would be captured during the move
         """
-        raise NotImplementedError
+        return self._opponent_piece
 
     def __str__(self) -> str:
         """
@@ -414,7 +414,10 @@ class Jump(Move):
         Returns:
             str: String representation of the move
         """
-        raise NotImplementedError
+        cap_loc = ' ' + str(self.get_captured_piece().get_position())
+        addl_txt = f', capturing {str(self.get_captured_piece())} at' + cap_loc
+
+        return "Jump" + super().__str__()[4:] + addl_txt
 
     def __repr__(self) -> str:
         """
@@ -426,7 +429,13 @@ class Jump(Move):
         Returns:
             str: representation of the jump
         """
-        raise NotImplementedError
+        args = [
+            repr(self._piece),
+            str(self.get_new_position(False)),
+            repr(self._opponent_piece)
+        ]
+
+        return f'{__name__}.Jump({", ".join(args)})'
 
 
 class Resignation(Move):
