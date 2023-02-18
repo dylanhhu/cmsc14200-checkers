@@ -765,6 +765,14 @@ class CheckersBoard:
             ValueError: If the move is not valid
         """
 
+        # Check if there is a draw_offer attached
+        if draw_offer is not None:
+            return self._handle_draw_offer(draw_offer)
+
+        # Check if there were any outstanding draw offers not accepted
+        if any(self._draw_offer.values()):
+            self._reset_draw_offers()
+
         # This function would call self.get_piece_moves(jumps_only = True)
         # for the list of subsequent jumps
         raise NotImplementedError
@@ -829,6 +837,11 @@ class CheckersBoard:
         Returns:
             GameStatus: the game state
         """
+
+        # Check if both colors agree to a draw
+        if all(self._draw_offer.values()):
+            return GameStatus.DRAW
+
         raise NotImplementedError
 
     def _generate_pieces(self,
@@ -856,7 +869,26 @@ class CheckersBoard:
         Returns:
             An empty list
         """
-        raise NotImplementedError
+        offering_color = offer.get_offering_color()
+
+        self._draw_offer[offering_color] = True
+
+        return []
+
+    def _reset_draw_offers(self) -> None:
+        """
+        Private method for resetting draw offers.
+
+        Args:
+            None
+
+        Returns:
+            None
+        """
+        self._draw_offer: Dict[PieceColor, bool] = {
+            PieceColor.BLACK: False,
+            PieceColor.RED: False
+        }
 
     def __str__(self) -> str:
         """
