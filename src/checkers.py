@@ -856,7 +856,38 @@ class CheckersBoard:
             Dict[PieceColor, Dict[Position, Piece]]: Dictionary containing
                 a dictionary of piece locations and pieces for each player
         """
-        raise NotImplementedError
+        board_length = 2 * n + 1  # 0 indexed max value of row, col
+
+        board: Dict[PieceColor, Dict[Position, Piece]] = {
+            PieceColor.BLACK: {},
+            PieceColor.RED: {}
+        }
+
+        # Generate black's pieces, iterating forwards
+        for row in range(0, n):
+            # Each row of pieces alternates starting in column 0 if odd or in
+            # column 1 if even
+            offset = 1 if (row % 2 == 0) else 0
+
+            for col in range(offset, board_length + offset, 2):
+                position = (col, row)
+
+                board[PieceColor.BLACK][position] = Piece(position,
+                                                          PieceColor.BLACK)
+
+        # Generate red's pieces, iterating backwards from the end of the board
+        for row in range(board_length, board_length - n, -1):
+            # Each row of pieces alternates starting in column 0 if odd or in
+            # column 1 if even
+            offset = 1 if (row % 2 == 0) else 0
+
+            for col in range(offset, board_length + offset, 2):
+                position = (col, row)
+
+                board[PieceColor.RED][position] = Piece(position,
+                                                        PieceColor.RED)
+
+        return board
 
     def _handle_draw_offer(self, offer: DrawOffer) -> List:
         """
