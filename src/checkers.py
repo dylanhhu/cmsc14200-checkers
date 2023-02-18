@@ -684,7 +684,10 @@ class CheckersBoard:
         Returns:
             List[Piece]: list of pieces on the board
         """
-        raise NotImplementedError
+        red_pieces = list(self._pieces[PieceColor.RED].values())
+        black_pieces = list(self._pieces[PieceColor.BLACK].values())
+
+        return red_pieces + black_pieces
 
     def get_captured_pieces(self) -> List[Piece]:
         """
@@ -696,7 +699,8 @@ class CheckersBoard:
         Returns:
             List[Piece]: list of all captured pieces
         """
-        raise NotImplementedError
+        return (self._captured[PieceColor.RED]
+                + self._captured[PieceColor.BLACK])
 
     def get_color_captured_pieces(self, color: PieceColor) -> List[Piece]:
         """
@@ -712,7 +716,7 @@ class CheckersBoard:
 
         Returns:
             List[Piece]: list of captured pieces for a color"""
-        raise NotImplementedError
+        return self._captured[color]
 
     def get_color_avail_pieces(self, color: PieceColor) -> List[Piece]:
         """
@@ -725,7 +729,7 @@ class CheckersBoard:
         Returns:
             List[Piece]: list of pieces still on the board for that color
         """
-        raise NotImplementedError
+        return list(self._pieces[color].values())
 
     def complete_move(self, move: Move,
                       draw_offer: Union[DrawOffer, None] = None) -> List[Jump]:
