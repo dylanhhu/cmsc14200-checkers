@@ -301,7 +301,11 @@ class Move:
         Raises:
             RuntimeError: if the new position is not greater than (0, 0)
         """
-        raise NotImplementedError
+        if _strict and ((self._new_x < 0) or (self._new_y < 0)):
+            pos = (self._new_x, self._new_y)
+            raise RuntimeError(f"Move's new position {pos} is invalid.")
+
+        return (self._new_x, self._new_y)
 
     def get_piece(self) -> Piece:
         """
@@ -317,7 +321,10 @@ class Move:
         Raises:
             RuntimeError: if this move has no piece
         """
-        raise NotImplementedError
+        if self._piece is None:
+            raise RuntimeError("Move has no piece!")
+
+        return self._piece
 
     def __str__(self) -> str:
         """
@@ -334,7 +341,14 @@ class Move:
             RuntimeError: if this move has no piece
             RuntimeError: if the new position is not greater than (0, 0)
         """
-        raise NotImplementedError
+        if self._piece is None:
+            raise RuntimeError("Move has no piece!")
+
+        piece = str(self._piece)
+        old_loc = self._piece.get_position()
+        new_loc = self.get_new_position()
+
+        return f'Move: {piece} from {old_loc} to {new_loc}'
 
     def __repr__(self) -> str:
         """
@@ -346,7 +360,12 @@ class Move:
         Returns:
             str: representation of the move
         """
-        raise NotImplementedError
+        args = [
+            repr(self._piece),
+            str(self.get_new_position(False)),
+        ]
+
+        return f'{__name__}.Move({", ".join(args)})'
 
 
 class Jump(Move):
