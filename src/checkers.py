@@ -124,7 +124,7 @@ class Piece:
         Returns:
             Position of the piece
         """
-        raise NotImplementedError
+        return (self._x, self._y)
 
     def set_position(self, new_pos: Position) -> None:
         """
@@ -140,7 +140,11 @@ class Piece:
         Raises:
             ValueError if invalid position is provided.
         """
-        raise NotImplementedError
+        # Check for invalid position
+        if new_pos[0] < 0 or new_pos[1] < 0:
+            raise ValueError(f"Argument new_pos {str(new_pos)} is invalid.")
+
+        self._x, self._y = new_pos
 
     def set_captured(self) -> None:
         """
@@ -153,7 +157,8 @@ class Piece:
         Returns:
             None
         """
-        raise NotImplementedError
+        self._x = -1
+        self._y = -1
 
     def is_captured(self) -> bool:
         """
@@ -165,7 +170,7 @@ class Piece:
         Returns:
             True if captured otherwise False
         """
-        raise NotImplementedError
+        return (self._x == -1) and (self._y == -1)
 
     def get_color(self) -> PieceColor:
         """
@@ -177,7 +182,7 @@ class Piece:
         Returns:
             The color of the piece
         """
-        raise NotImplementedError
+        return self._color
 
     def is_king(self) -> bool:
         """
@@ -189,7 +194,7 @@ class Piece:
         Returns:
             True if this is a king otherwise False
         """
-        raise NotImplementedError
+        return self._king
 
     def to_king(self) -> None:
         """
@@ -202,7 +207,7 @@ class Piece:
         Returns:
             None
         """
-        raise NotImplementedError
+        self._king = True
 
     def __str__(self) -> str:
         """
@@ -222,7 +227,21 @@ class Piece:
         Raises:
             RuntimeError: if piece's color is invalid (not in PieceColor)
         """
-        raise NotImplementedError
+        if self._king:
+            if self._color == PieceColor.BLACK:
+                return "B"
+            elif self._color == PieceColor.RED:
+                return "R"
+
+            raise RuntimeError(f"Piece's color ({repr(self._color)}) was \
+invalid")
+
+        if self._color == PieceColor.BLACK:
+            return "b"
+        elif self._color == PieceColor.RED:
+            return "r"
+
+        raise RuntimeError(f"Piece's color ({repr(self._color)}) was invalid")
 
     def __repr__(self) -> str:
         """
@@ -234,7 +253,19 @@ class Piece:
         Returns:
             str: Debug representation of the piece
         """
-        raise NotImplementedError
+        args = [
+            f'({self._x}, {self._y})'
+        ]
+
+        if self._color in PieceColor:
+            args.append(f'checkers.{self._color}')
+        else:
+            args.append(repr(self._color))
+
+        if self._king:
+            args.append(repr(self._king))
+
+        return f"{__name__}.Piece({', '.join(args)})"
 
 
 class Move:
