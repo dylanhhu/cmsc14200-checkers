@@ -598,7 +598,7 @@ class DrawOffer(Move):
         Returns:
             PieceColor of the player offering the draw
         """
-        raise NotImplementedError
+        return self._offering_color
 
     def __str__(self) -> str:
         """
@@ -610,7 +610,15 @@ class DrawOffer(Move):
         Returns:
             str: String representation of the move
         """
-        raise NotImplementedError
+        if self._offering_color == PieceColor.BLACK:
+            color = "black"
+        elif self._offering_color == PieceColor.RED:
+            color = "red"
+        else:
+            raise RuntimeError(f"DrawOffer's color \
+({repr(self._offering_color)}) was invalid")
+
+        return f'Draw offer: {color} offers a draw'
 
     def __repr__(self) -> str:
         """
@@ -622,7 +630,7 @@ class DrawOffer(Move):
         Returns:
             str: representation of the offer
         """
-        raise NotImplementedError
+        return f'{__name__}.DrawOffer({str(self._offering_color)})'
 
 
 # ===============
