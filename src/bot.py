@@ -414,7 +414,7 @@ class SmartBot(Bot):
 
     def _baseline_priority(self, mseq, weight) -> float:
         """
-        update the priority of each available move with the consideration
+        update the priority of the available MoveSequence with the consideration
         of holding the baseline
 
         More specifically, we are more inclined to hold the anchor checkers on the baseline as defense. The anchor checkers are the checkers that is on every other square starting from our double corner. For example, if we have an 8-columns board, so 4 checkers each row, the anchor checkers would be the first and the third checkers on our baseline row counting from the double corner
@@ -452,7 +452,7 @@ class SmartBot(Bot):
 
     def _king_priority(self, mseq, weight) -> float:
         """
-        update the priority of each available move with the consideration
+        update the priority of the available MoveSequence with the consideration
         of getting a king
 
         Parameters:
@@ -470,7 +470,7 @@ class SmartBot(Bot):
 
     def _trading_priority(self, priorityed_avail_moves) -> List[MoveSequence]:
         """
-        update the priority of each available move with the consideration
+        update the priority of the available MoveSequence with the consideration
         of trading
 
         Parameters:
@@ -481,18 +481,17 @@ class SmartBot(Bot):
         """
         raise NotImplementedError
 
-    def _captured_priority(self, priorityed_avail_moves) -> List[MoveSequence]:
+    def _captured_priority(self, mseq, weight) -> float:
         """
-        update the priority of each available move with the consideration
-        of capturing as many opponent pieces as possible
+        update the priority of the  available MoveSequence with the consideration of capturing as many opponent pieces as possible
 
         Parameters:
-            priorityed_avail_moves(List[Move, int]): a list of available moves with
-                                                   their corrent priority
+            mseq(MoveSequence): a MoveSequence whose priority is about to be updated
+            weight(float): a float that determine how much of an influence this strategy should be playing among all the strategies
 
-        Return: List[(Move, int)]: the updated list of priorityed available moves
+        Return: float: the new priority for mseq according to the capture priority
         """
-        raise NotImplementedError
+        return mseq.get_priority() + weight * len(mseq.get_move_list())
 
     def _push_priority(self, priorityed_avail_moves) -> List[MoveSequence]:
         """
@@ -509,7 +508,7 @@ class SmartBot(Bot):
 
     def _center_priority(self, mseq, weight) -> float:
         """
-        update the priority of each available move with the consideration
+        update the priority of the available MoveSeuqnce with the consideration
         of occupying the center
 
         For typical 8 * 8 checkerboards, the center refers to the 8 positions in the center 4 columns and the center 2 columns. We want to push into the center regions because we want to avoid staying on the side of the board Therefore, to generalize this to a w * w checkerboards, the center region shall be column 3 to column w -2 and the center rows that are without any pieces at the beginning of the round
