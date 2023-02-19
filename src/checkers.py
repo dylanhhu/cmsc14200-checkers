@@ -369,6 +369,23 @@ class Move:
 
         return (self._curr_x, self._curr_y)
 
+    def __eq__(self, other: object) -> bool:
+        """
+        Implements the equality operator for type Move
+
+        Args:
+           other (object): the object to be compared to
+
+        Returns:
+            bool: True if equal, False if not
+        """
+        if not isinstance(other, Move):
+            return False
+
+        return (self._piece is other._piece
+                and self._new_x == other._new_x
+                and self._new_y == other._new_y)
+
     def __str__(self) -> str:
         """
         Returns a string representation of the move. Raises RuntimeError if no
@@ -448,6 +465,24 @@ class Jump(Move):
             The Piece that would be captured during the move
         """
         return self._opponent_piece
+
+    def __eq__(self, other: object) -> bool:
+        """
+        Implements the equality operator for type Jump
+
+        Args:
+            other (object): the object to be compared to
+
+        Returns:
+            bool: True if equal, False if not
+        """
+        if not super().__eq__(other):
+            return False
+
+        if not isinstance(other, Jump):
+            return False
+
+        return self._opponent_piece is other._opponent_piece
 
     def __str__(self) -> str:
         """
@@ -558,6 +593,21 @@ class Resignation(Move):
             PieceColor: the color of the player that is resigning.
         """
         return self._resigning_color
+
+    def __eq__(self, other: object) -> bool:
+        """
+        Implements the equality operator for type Resignation
+
+        Args:
+            other (object): the object to be compared to
+
+        Returns:
+            bool: True if equal, False if not
+        """
+        if not isinstance(other, Resignation):
+            return False
+
+        return self._resigning_color == other._resigning_color
 
     def __str__(self) -> str:
         """
@@ -676,6 +726,21 @@ class DrawOffer(Move):
         """
         return self._offering_color
 
+    def __eq__(self, other: object) -> bool:
+        """
+        Implements the equality operator for type DrawOffer
+
+        Args:
+            other (object): the object to be compared to
+
+        Returns:
+            bool: True if equal, False if not
+        """
+        if not isinstance(other, DrawOffer):
+            return False
+
+        return self._offering_color == other._offering_color
+
     def __str__(self) -> str:
         """
         Returns a string representation of the draw offer
@@ -733,6 +798,7 @@ class CheckersBoard:
             n (int): the number of rows of pieces per player
         """
         self._n = n  # number of rows of pieces per player
+        self._board_length = 2 * (n + 1)  # length of board sides
 
         # Dictionary of all uncaptured pieces and their positions
         self._pieces: Dict[Position, Piece] = self._generate_pieces(n)
@@ -871,7 +937,48 @@ class CheckersBoard:
         Returns:
             List[Move]: the list of moves (move(s) XOR jump(s)) for that piece
         """
-        raise NotImplementedError
+        possible_moves: List[Move] = []
+        possible_jumps: List[Move] = []
+
+        curr_col, curr_row = piece.get_position()
+        positions = {
+            (curr_col - 1, curr_row - 1): (curr_col - 2, curr_row - 2),  # nw
+            (curr_col + 1, curr_row - 1): (curr_col + 2, curr_row - 2),  # ne
+            (curr_col + 1, curr_row + 1): (curr_col + 2, curr_row + 2),  # se
+            (curr_col - 1, curr_row + 1): (curr_col - 2, curr_row + 2)   # sw
+        }
+
+        # Loop thru immediate positions
+        for position in positions.keys():
+            # Make sure position is inside the board
+            if self._validate_position(position):
+                # Check if there's a piece already in the position
+                if (not jumps_only) and (position not in self._pieces):
+                    # Free space and we're not looking for only jumps
+                    possible_moves.append(Move(piece, position))
+                    continue
+
+                # There's a piece in this position, so we try to jump it by
+                # checking if the jump location is valid and whether the jump
+                # position is currently taken by another piece
+
+                jump_position = positions[position]
+                if (self._validate_position(jump_position)         # valid?
+                        and (jump_position not in self._pieces)):  # taken?
+
+                    # Make sure that we're not jumping our own pieces
+                    if (self._pieces[position].get_color()
+                            == piece.get_color()):
+                        continue
+
+                    # All clear to make the jump
+                    captured_piece = self._pieces[position]
+
+                    possible_jumps.append(Jump(piece,
+                                               jump_position,
+                                               captured_piece))
+
+        return possible_jumps if possible_jumps else possible_moves
 
     def get_player_moves(self, color: PieceColor) -> List[Move]:
         """
@@ -890,7 +997,25 @@ class CheckersBoard:
             List[Move]: list of possible moves:
                         ((moves XOR jumps) OR DrawOffer)
         """
-        raise NotImplementedError
+        possible_moves: List[Move] = []
+        possible_jumps: List[Move] = []
+
+        for piece in self.get_color_avail_pieces(color):
+            piece_moves = self.get_piece_moves(piece)
+
+            # Check if the piece is blocked to avoid further processing
+            if not piece_moves:
+                continue
+
+            # Check if the piece can only jump
+            if isinstance(piece_moves[0], Jump):
+                possible_jumps.extend(piece_moves)
+                continue
+
+            # Otherwise, just add the moves to possible_moves
+            possible_moves.extend(piece_moves)
+
+        return possible_jumps if possible_jumps else possible_moves
 
     def validate_move(self, move: Move) -> bool:
         """
@@ -903,7 +1028,35 @@ class CheckersBoard:
         Returns:
             bool: True if the move is valid, otherwise False
         """
-        raise NotImplementedError
+        # Validate type
+        if not isinstance(move, Move):
+            return False
+
+        # Make sure move contains a valid piece
+        if move.get_piece() not in self.get_board_pieces():
+            return False
+
+        # Make sure that new position is valid; comparing by equality and by
+        # whether they are the same object, see:
+        # https://docs.python.org/3.8/reference/expressions.html#membership-test-details
+        if move.get_new_position() not in self._pieces:
+            return False
+
+        # To be able to check for other jumps, we must get all moves
+        player_moves = self.get_player_moves(move.get_piece().get_color())
+
+        # Make sure that this move is a possible move for the player
+        # Since we already have all the moves, we can just test for membership
+        if move not in player_moves:
+            return False
+
+        # Make sure that there's not a Jump otherwise available
+        # We're guaranteed that player_moves isn't empty here from last check
+        if isinstance(move, Move) and isinstance(player_moves[0], Jump):
+            return False
+
+        # We are certain the move is valid!
+        return True
 
     def get_game_state(self) -> GameStatus:
         """
@@ -995,6 +1148,28 @@ class CheckersBoard:
             PieceColor.BLACK: False,
             PieceColor.RED: False
         }
+
+    def _validate_position(self, pos: Position) -> bool:
+        """
+        Helper method for checking if a provided position is on the board.
+
+        Args:
+            pos (Position): the position to validate
+
+        Returns:
+            bool: True if valid otherwise false
+        """
+        pos_col, pos_row = pos
+
+        # Check upper and left bounds
+        if (pos_col < 0) or (pos_row < 0):
+            return False
+
+        # Check right and lower bounds
+        if (pos_col >= self._board_length) or (pos_row >= self._board_length):
+            return False
+
+        return True
 
     def __str__(self) -> str:
         """
