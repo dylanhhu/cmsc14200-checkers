@@ -123,7 +123,7 @@ class MoveSequence:
     completing moves
     """
 
-    def __init__(self, move_list, result_board) -> None:
+    def __init__(self, move_list, result_board, kinged) -> None:
         """
         construct a movesequence
 
@@ -132,11 +132,13 @@ class MoveSequence:
                                    consecutively
             result_board(CheckersBoard): the result board state if the moves in 
                                          the move list is taken
+            kinged(Bool): indicate whether a piece is kinged by this MoveSequence
 
         Return: None
         """
         self._move_list = move_list
         self._result_board = result_board
+        self._kinged = kinged
 
         # initialize the priority of the move sequence to 0
         self._priority = 0
@@ -212,6 +214,16 @@ class MoveSequence:
         """
         self._priority = new_pri
 
+    def is_kinged(self) -> bool:
+        """
+        determine whether the target piece will be kinged by this sequence of move
+
+        Parameters: None
+
+        Return: bool: True if it is kinged, False otherwise
+        """
+        return self._kinged
+
 
 class SmartBot(Bot):
     """
@@ -284,7 +296,7 @@ class SmartBot(Bot):
         nxt_move_list = self.get_avail_move()
         Movesequence_list = []
 
-        def helper(move_list, curr_path, curr_board) -> None:
+        def helper(move_list, curr_path, curr_board, kinged) -> None:
             """
             a helper funciton to recursively find out all possible move
             sequences and update the output_list accordingly
@@ -294,6 +306,7 @@ class SmartBot(Bot):
                 curr_path(List[Move]): a list of that keeps track of the current
                                        path of moves taken
                 curr_board(CheckersBoard): represent the current board state
+                kinged(Bool): to record whether a piece is kinged during a MoveSequence
 
             Return: None
             """
@@ -302,7 +315,7 @@ class SmartBot(Bot):
                 # of one potential move list, create a corresponding
                 # MoveSequence and add that to the Movesequence_list with its
                 # priority
-                mseq = MoveSequence(curr_path, curr_board)
+                mseq = MoveSequence(curr_path, curr_board, kinged)
                 self._assign_priority(mseq, strategy_list)
                 Movesequence_list.append(mseq)
 
@@ -311,16 +324,32 @@ class SmartBot(Bot):
             for nxt_move in move_list:
                 # update the path and the board state
                 curr_path.append(nxt_move)
-                update_board = curr_board.deepcopy()
-                valid_nxt_list = update_board.complete(nxt_move)
+
+                # determine whether the piece about to be moved is a king now
+                if not nxt_move.get_piece().is_king():
+                    not_king = True
+                else:
+                    not_king = False
+
+                # complete the next move
+                valid_nxt_list = curr_board.complete(nxt_move)
+
+                # determine whether the piece is kinged by this next move
+                if not_king and nxt_move.get_piece().is_king():
+                    # kinged by next move
+                    kinged_by_move = True
+                else:
+                    # not kinged by this move, inherit the kinged from previous moves
+                    kinged_by_move = kinged
 
                 # the recursive step
-                helper(valid_nxt_list, curr_path, update_board)
+                helper(valid_nxt_list, curr_path, curr_board, kinged_by_move)
 
+                curr_board.undo_move(nxt_move)
                 curr_path.pop()
 
         # update the output_list
-        helper(nxt_move_list, [], self._experimentboard)
+        helper(nxt_move_list, [], self._experimentboard, False)
 
         return Movesequence_list
 
@@ -400,16 +429,18 @@ class SmartBot(Bot):
         origin_pos = mseq.get_origin_position()
         # initialize a list that's going to take the anchor positions
         anchor_pos_list = []
+        # get the borad witdh
+        boardwidth = self._experimentboard.get_width()
 
         # determine the anchor positions according to our piece color
         if self._own_color == PieceColor.RED:
             # we control the red piece
-            for n in range(self._experimentboard.get_width()//2 + 1):
+            for n in range(boardwidth/2 + 1):
                 anchor_pos_list.append(
-                    (2 * n, self._experimentboard.get_width()))
+                    (2 * n, boardwidth))
         elif self._own_color == PieceColor.BLACK:
             # we control the black piece
-            for n in range(self._experimentboard.get_width()//2):
+            for n in range(boardwidth/2):
                 anchor_pos_list.append((2 * n + 1, 0))
 
         baseline_score = 0
@@ -417,20 +448,25 @@ class SmartBot(Bot):
             # if the MoveSequence is going to move an anchor checker, decrease the baseline_score
             baseline_score -= 1
 
-        return mseq.priority + weight * baseline_score
+        return mseq.get_priority() + weight * baseline_score
 
-    def _king_priority(self, priorityed_avail_moves) -> List[MoveSequence]:
+    def _king_priority(self, mseq, weight) -> float:
         """
         update the priority of each available move with the consideration
         of getting a king
 
         Parameters:
-            priorityed_avail_moves(List[Move, int]): a list of available moves with
-                                                   their corrent priority
+            mseq(MoveSequence): a MoveSequence whose priority is about to be updated
+            weight(float): a float that determine how much of an influence this strategy should be playing among all the strategies
 
-        Return: List[(Move, int)]: the updated list of priorityed available moves
+        Return: float: the new priority for mseq according to the kinging strategy
         """
-        raise NotImplementedError
+        king_score = 0
+        if mseq.is_kinged():
+            # the MoveSequence is kinging a piece
+            king_score = 1
+
+        return mseq.get_priority() + weight * king_score
 
     def _trading_priority(self, priorityed_avail_moves) -> List[MoveSequence]:
         """
@@ -471,18 +507,37 @@ class SmartBot(Bot):
         """
         raise NotImplementedError
 
-    def _center_priority(self, priorityed_avail_moves) -> List[MoveSequence]:
+    def _center_priority(self, mseq, weight) -> float:
         """
         update the priority of each available move with the consideration
         of occupying the center
 
-        Parameters:
-            priorityed_avail_moves(List[Move, int]): a list of available moves with
-                                                   their corrent priority
+        For typical 8 * 8 checkerboards, the center refers to the 8 positions in the center 4 columns and the center 2 columns. We want to push into the center regions because we want to avoid staying on the side of the board Therefore, to generalize this to a w * w checkerboards, the center region shall be column 3 to column w -2 and the center rows that are without any pieces at the beginning of the round
 
-        Return: List[(Move, int)]: the updated list of priorityed available moves
+        Parameters:
+            mseq(MoveSequence): a MoveSequence whose priority is about to be updated
+            weight(float): a float that determine how much of an influence this strategy should be playing among all the strategies
+
+        Return: float: the new priority for mseq according to the center strategy
         """
-        raise NotImplementedError
+        # get the original position and the end position of the MoveSequence
+        origin_pos = mseq.get_origin_position()
+        end_pos = mseq.get_end_position()
+
+        # get the board width
+        boardwidth = self._experimentboard.get_width()
+
+        centering_score = 0
+        # specify the center region
+        center = [range(2, boardwidth - 2),
+                  range(boardwidth/2 - 1, boardwidth + 1)]
+        if origin_pos[0] not in center[0] and origin_pos[1] not in center[1]:
+            # the original position is not in the center region
+            if end_pos[0] in center[0] and end_pos[1] in center[1]:
+                # the end position is in center region
+                centering_score = 1
+
+        return mseq.get_priority() + weight * centering_score
 
     def _winning_priority(self, priorityed_avail_moves) -> List[MoveSequence]:
         """
