@@ -374,27 +374,50 @@ class SmartBot(Bot):
             oppo_double_pos = (self._experimentboard.get_width(),
                                self._experimentboard.get_width())
 
-        attack_weight = 0
+        attack_score = 0
         for oppo_piece in self._experimentboard.get_color_avail_pieces(self._oppo_color):
             if self._distance(oppo_piece, oppo_double_pos) <= math.sqrt(5):
                 # if there exists any opponent piece that is within 2 steps to opponents double corner, more inclined to move towards oppo's double corner
-                attack_weight = self._distance(
+                attack_score = self._distance(
                     oppo_double_pos, origin_pos) - self._distance(oppo_double_pos, end_pos)
 
-        return mseq.get_priority() + weight * attack_weight
+        return mseq.get_priority() + weight * attack_score
 
-    def _baseline_priority(self, priorityed_avail_moves) -> List[MoveSequence]:
+    def _baseline_priority(self, mseq, weight) -> float:
         """
         update the priority of each available move with the consideration
         of holding the baseline
 
-        Parameters:
-            priorityed_avail_moves(List[Move, int]): a list of available moves with
-                                                   their corrent priority
+        More specifically, we are more inclined to hold the anchor checkers on the baseline as defense. The anchor checkers are the checkers that is on every other square starting from our double corner. For example, if we have an 8-columns board, so 4 checkers each row, the anchor checkers would be the first and the third checkers on our baseline row counting from the double corner
 
-        Return: List[(Move, int)]: the updated list of priorityed available moves
+        Parameters:
+            mseq(MoveSequence): a MoveSequence whose priority is about to be updated
+            weight(float): a float that determine how much of an influence this strategy should be playing among all the strategies
+
+        Return: float: the new priority for mseq according to the hold base line strategy
         """
-        raise NotImplementedError
+        # set up the original position of the MoveSequence
+        origin_pos = mseq.get_origin_position()
+        # initialize a list that's going to take the anchor positions
+        anchor_pos_list = []
+
+        # determine the anchor positions according to our piece color
+        if self._own_color == PieceColor.RED:
+            # we control the red piece
+            for n in range(self._experimentboard.get_width()//2 + 1):
+                anchor_pos_list.append(
+                    (2 * n, self._experimentboard.get_width()))
+        elif self._own_color == PieceColor.BLACK:
+            # we control the black piece
+            for n in range(self._experimentboard.get_width()//2):
+                anchor_pos_list.append((2 * n + 1, 0))
+
+        baseline_score = 0
+        if origin_pos in anchor_pos_list:
+            # if the MoveSequence is going to move an anchor checker, decrease the baseline_score
+            baseline_score -= 1
+
+        return mseq.priority + weight * baseline_score
 
     def _king_priority(self, priorityed_avail_moves) -> List[MoveSequence]:
         """
