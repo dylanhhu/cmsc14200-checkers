@@ -273,18 +273,37 @@ class Move:
     Represents a move that can be done by a piece or a resignation/draw offer.
     """
 
-    def __init__(self, piece: Union[Piece, None], new_pos: Position) -> None:
+    def __init__(self, piece: Union[Piece, None], new_pos: Position,
+                 curr_pos: Union[Position, None] = None) -> None:
         """
         Creates a new move object.
+
+        Stores the piece to be moved, the new position after the move, and the
+        current position of the piece.
+
+        The current position will be either from:
+         1) curr_pos (if provided)
+         2) The piece itself (if provided)
+         3) (-1, -1), but will raise an error when getting (see method below)
 
         Args:
             piece (Piece or None): the piece this move belongs to
             new_pos (Position): the new position after the move
+            curr_pos (Position or None): optional parameter for the current
+                                         position of the piece
         """
         self._piece = piece  # the piece to be moved
 
         # The new position. If it is (-1, -1) then it is not a "move" per se
         self._new_x, self._new_y = new_pos
+
+        # Handle current piece location as specified in docstring
+        if curr_pos:
+            self._curr_x, self._curr_y = curr_pos
+        elif piece:
+            self._curr_x, self._curr_y = piece.get_position()
+        else:
+            self._curr_x, self._curr_y = (-1, -1)
 
     def get_new_position(self, _strict: bool = True) -> Position:
         """
@@ -326,6 +345,30 @@ class Move:
 
         return self._piece
 
+    def get_current_position(self, _strict: bool = True) -> Position:
+        """
+        Getter for the current position of the piece that will be moved. If
+        there is no position stored or if the position is invalid (captured)
+        then this method will raise RuntimeError.
+
+        Does not update the current position if the current position has
+        changed in the piece itself.
+
+        Args:
+            _strict (bool): private argument to disable position validity check
+
+        Returns:
+            Position: current position of the piece
+
+        Raises:
+            RuntimeError: if the position is invalid
+        """
+        # Check for invalid position
+        if _strict and (self._curr_x < 0 or self._curr_y < 0):
+            raise ValueError("Move's current position is invalid.")
+
+        return (self._curr_x, self._curr_y)
+
     def __str__(self) -> str:
         """
         Returns a string representation of the move. Raises RuntimeError if no
@@ -345,7 +388,7 @@ class Move:
             raise RuntimeError("Move has no piece!")
 
         piece = str(self._piece)
-        old_loc = self._piece.get_position()
+        old_loc = self.get_current_position()
         new_loc = self.get_new_position()
 
         return f'Move: {piece} from {old_loc} to {new_loc}'
@@ -363,6 +406,7 @@ class Move:
         args = [
             repr(self._piece),
             str(self.get_new_position(False)),
+            str(self.get_current_position(False))
         ]
 
         return f'{__name__}.Move({", ".join(args)})'
@@ -377,7 +421,8 @@ class Jump(Move):
     def __init__(self,
                  piece: Piece,
                  new_pos: Position,
-                 opponent_piece: Piece) -> None:
+                 opponent_piece: Piece,
+                 curr_pos: Union[Position, None] = None) -> None:
         """
         Creates a new jump object.
 
@@ -386,7 +431,7 @@ class Jump(Move):
             new_pos (Position): the new position after the jump
             opponent_piece (Piece): the piece that will be captured
         """
-        super().__init__(piece, new_pos)
+        super().__init__(piece, new_pos, curr_pos)
 
         # The Piece that would be captured during the move
         self._opponent_piece = opponent_piece
@@ -432,7 +477,8 @@ class Jump(Move):
         args = [
             repr(self._piece),
             str(self.get_new_position(False)),
-            repr(self._opponent_piece)
+            repr(self._opponent_piece),
+            str(self.get_current_position(False))
         ]
 
         return f'{__name__}.Jump({", ".join(args)})'
@@ -472,6 +518,21 @@ class Resignation(Move):
         raise TypeError
 
     def get_piece(self) -> Piece:
+        """
+        Overrides the parent Piece getter function. Raises TypeError.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            TypeError, as this class does not contain valid values to get
+        """
+        raise TypeError
+
+    def get_current_position(self) -> None:
         """
         Overrides the parent Piece getter function. Raises TypeError.
 
@@ -574,6 +635,21 @@ class DrawOffer(Move):
         raise TypeError
 
     def get_piece(self) -> Piece:
+        """
+        Overrides the parent Piece getter function. Raises TypeError.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            TypeError, as this class does not contain valid values to get
+        """
+        raise TypeError
+
+    def get_current_position(self) -> None:
         """
         Overrides the parent Piece getter function. Raises TypeError.
 
@@ -857,7 +933,7 @@ class CheckersBoard:
             n (int): number of rows of pieces per player
 
         Returns:
-            Dict[Position, Piece]: Dictionary containing piece locations and 
+            Dict[Position, Piece]: Dictionary containing piece locations and
                                    pieces for both players
         """
         board_length = 2 * n + 1  # 0 indexed max value of row, col
