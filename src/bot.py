@@ -493,18 +493,29 @@ class SmartBot(Bot):
         """
         return mseq.get_priority() + weight * len(mseq.get_move_list())
 
-    def _push_priority(self, priorityed_avail_moves) -> List[MoveSequence]:
+    def _push_priority(self, mseq, weight) -> float:
         """
-        update the priority of each available move with the consideration
+        update the priority of the available MoveSequence with the consideration
         of pushing forward
 
-        Parameters:
-            priorityed_avail_moves(List[Move, int]): a list of available moves with
-                                                   their corrent priority
+         Parameters:
+            mseq(MoveSequence): a MoveSequence whose priority is about to be updated
+            weight(float): a float that determine how much of an influence this strategy should be playing among all the strategies
 
-        Return: List[(Move, int)]: the updated list of priorityed available moves
+        Return: float: the new priority for mseq according to the push priority
         """
-        raise NotImplementedError
+        # get the original and end position for a MoveSequence
+        origin_pos = mseq.get_origin_position()
+        end_pos = mseq.get_end_position()
+
+        if self._own_color == PieceColor.RED:
+            # we control the red piece
+            push_score = origin_pos[1] - end_pos[1]
+        elif self._own_color == PieceColor.BLACK:
+            # we control the black piece
+            push_score = end_pos[1] - origin_pos[1]
+
+        return mseq.get_priority() + weight * push_score
 
     def _center_priority(self, mseq, weight) -> float:
         """
@@ -551,7 +562,7 @@ class SmartBot(Bot):
         """
         raise NotImplementedError
 
-    def _capture_priority(self, priorityed_avail_moves) -> List[MoveSequence]:
+    def _lose_priority(self, priorityed_avail_moves) -> List[MoveSequence]:
         """
         update the priority of each available move with the consideration
         of the existence of a losing move
