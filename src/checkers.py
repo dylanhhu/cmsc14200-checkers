@@ -658,9 +658,8 @@ class CheckersBoard:
         """
         self._n = n  # number of rows of pieces per player
 
-        # Dictionary of each player's uncaptured pieces and their positions
-        self._pieces: Dict[PieceColor,
-                           Dict[Position, Piece]] = self._generate_pieces(n)
+        # Dictionary of all uncaptured pieces and their positions
+        self._pieces: Dict[Position, Piece] = self._generate_pieces(n)
 
         # Each player's pieces that have been captured by the other player
         self._captured: Dict[PieceColor, List[Piece]] = {
@@ -686,10 +685,7 @@ class CheckersBoard:
         Returns:
             List[Piece]: list of pieces on the board
         """
-        red_pieces = list(self._pieces[PieceColor.RED].values())
-        black_pieces = list(self._pieces[PieceColor.BLACK].values())
-
-        return red_pieces + black_pieces
+        return list(self._pieces.values())
 
     def get_captured_pieces(self) -> List[Piece]:
         """
@@ -731,7 +727,14 @@ class CheckersBoard:
         Returns:
             List[Piece]: list of pieces still on the board for that color
         """
-        return list(self._pieces[color].values())
+        filtered_pieces: List[Piece] = []
+
+        # Sort each piece into the two colors
+        for piece in self._pieces.values():
+            if piece.get_color() == color:
+                filtered_pieces.append(piece)
+
+        return filtered_pieces
 
     def complete_move(self, move: Move,
                       draw_offer: Union[DrawOffer, None] = None) -> List[Jump]:
@@ -846,8 +849,7 @@ class CheckersBoard:
 
         raise NotImplementedError
 
-    def _generate_pieces(self,
-                         n: int) -> Dict[PieceColor, Dict[Position, Piece]]:
+    def _generate_pieces(self, n: int) -> Dict[Position, Piece]:
         """
         Private method for setting up the pieces before the game begins.
 
@@ -855,15 +857,12 @@ class CheckersBoard:
             n (int): number of rows of pieces per player
 
         Returns:
-            Dict[PieceColor, Dict[Position, Piece]]: Dictionary containing
-                a dictionary of piece locations and pieces for each player
+            Dict[Position, Piece]: Dictionary containing piece locations and 
+                                   pieces for both players
         """
         board_length = 2 * n + 1  # 0 indexed max value of row, col
 
-        board: Dict[PieceColor, Dict[Position, Piece]] = {
-            PieceColor.BLACK: {},
-            PieceColor.RED: {}
-        }
+        board: Dict[Position, Piece] = {}
 
         # Generate black's pieces, iterating forwards
         for row in range(0, n):
@@ -874,8 +873,7 @@ class CheckersBoard:
             for col in range(offset, board_length + offset, 2):
                 position = (col, row)
 
-                board[PieceColor.BLACK][position] = Piece(position,
-                                                          PieceColor.BLACK)
+                board[position] = Piece(position, PieceColor.BLACK)
 
         # Generate red's pieces, iterating backwards from the end of the board
         for row in range(board_length, board_length - n, -1):
@@ -886,8 +884,7 @@ class CheckersBoard:
             for col in range(offset, board_length + offset, 2):
                 position = (col, row)
 
-                board[PieceColor.RED][position] = Piece(position,
-                                                        PieceColor.RED)
+                board[position] = Piece(position, PieceColor.RED)
 
         return board
 
@@ -951,17 +948,13 @@ class CheckersBoard:
             for col in range(offset, board_length + offset, 2):
                 position = (col, row)
 
-                if position in self._pieces[PieceColor.BLACK]:
-                    board += str(self._pieces[PieceColor.BLACK]
-                                 [position]) + '   '
+                # Check for a piece in this position
+                if position in self._pieces:
+                    board += str(self._pieces[position]) + '   '
+                    continue
 
-                elif position in self._pieces[PieceColor.RED]:
-                    board += str(self._pieces[PieceColor.RED]
-                                 [position]) + '   '
-
-                else:
-                    # Blank black square, so use some other character
-                    board += 'x   '
+                # Blank black square, so use some other character
+                board += 'x   '
 
             # If offset, need to remove 2 spaces at end from the else above for
             # proper alignment of the trailing pipe character
