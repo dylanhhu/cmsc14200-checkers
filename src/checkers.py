@@ -656,6 +656,8 @@ class CheckersBoard:
         Args:
             n (int): the number of rows of pieces per player
         """
+        self._n = n  # number of rows of pieces per player
+
         # Dictionary of each player's uncaptured pieces and their positions
         self._pieces: Dict[PieceColor,
                            Dict[Position, Piece]] = self._generate_pieces(n)
@@ -931,7 +933,46 @@ class CheckersBoard:
         Returns:
             str: String representation of the board
         """
-        raise NotImplementedError
+        board_length = (self._n + 1) * 2  # max index of a board size plus one
+        board = '_' * ((board_length + 1) * 2) + '\n'
+
+        for row in range(board_length):
+            board += '|'
+
+            # Each row of pieces alternates starting in column 0 if odd or in
+            # column 1 if even
+            offset = 1 if (row % 2 == 0) else 0
+
+            # If there's an offset, need to add blank space to front of line
+            if offset:
+                board += '  '
+
+            # Only loop through columns that can have a piece
+            for col in range(offset, board_length + offset, 2):
+                position = (col, row)
+
+                if position in self._pieces[PieceColor.BLACK]:
+                    board += str(self._pieces[PieceColor.BLACK]
+                                 [position]) + '   '
+
+                elif position in self._pieces[PieceColor.RED]:
+                    board += str(self._pieces[PieceColor.RED]
+                                 [position]) + '   '
+
+                else:
+                    # Blank black square, so use some other character
+                    board += 'x   '
+
+            # If offset, need to remove 2 spaces at end from the else above for
+            # proper alignment of the trailing pipe character
+            if offset:
+                board = board[:-2]
+
+            board += '|\n'
+
+        board += '‾' * ((board_length + 1) * 2)
+
+        return board
 
     def __repr__(self) -> str:
         """
@@ -944,4 +985,12 @@ class CheckersBoard:
         Returns:
             str: representation of the board
         """
-        raise NotImplementedError
+        uncaptured_reprs = '\n\nUncaptured pieces:\n'
+        for piece in self.get_board_pieces():
+            uncaptured_reprs += repr(piece) + '\n'
+
+        captured_reprs = '\nCaptured pieces:\n'
+        for piece in self.get_captured_pieces():
+            captured_reprs += repr(piece) + '\n'
+
+        return self.__str__() + uncaptured_reprs + captured_reprs
