@@ -44,7 +44,7 @@ class Bot:
         # initialize a copy of the checkerboard
         self._experimentboard = self._checkersboard.deepcopy()
 
-    def get_avail_move(self) -> List[Move]:
+    def get_avail_moves(self) -> List[Move]:
         """
         get all the available moves for all pieces according to the color
         that the bot is in control of
@@ -57,6 +57,18 @@ class Bot:
         # return a list of all moves available on the experiment board
         return self._experimentboard.get_player_moves(self._own_color)
 
+    def get_oppo_avail_moves(self) -> List[Move]:
+        """
+        get all the available moves for all pieces of the opponent
+
+        Parameters: None
+
+        Return: List[Move]: a list of all the moves available
+        """
+
+        # return a list of all moves available on the experiment board
+        return self._experimentboard.get_player_moves(self._oppo_color)
+
     def complete_move(self, move_list) -> None:
         """
         complete a list of moves that is decided to be taken by the bot, if
@@ -68,7 +80,7 @@ class Bot:
         Return: None
         """
         # initialize a list of the possible next steps to take
-        valid_nxt_list = self.get_avail_move()
+        valid_nxt_list = self.get_avail_moves()
 
         # take the moves consecutively in the move_list
         for nxt_move in move_list:
@@ -293,7 +305,7 @@ class SmartBot(Bot):
                 A list of all possible MoveSequences with their updated priority
         """
         # get all the immediate next moves that are possible
-        nxt_move_list = self.get_avail_move()
+        nxt_move_list = self.get_avail_moves()
         Movesequence_list = []
 
         def helper(move_list, curr_path, curr_board, kinged) -> None:
@@ -415,7 +427,7 @@ class SmartBot(Bot):
     def _baseline_priority(self, mseq, weight) -> float:
         """
         update the priority of the available MoveSequence with the consideration
-        of holding the baseline
+        of holding the baseline. 
 
         More specifically, we are more inclined to hold the anchor checkers on the baseline as defense. The anchor checkers are the checkers that is on every other square starting from our double corner. For example, if we have an 8-columns board, so 4 checkers each row, the anchor checkers would be the first and the third checkers on our baseline row counting from the double corner
 
@@ -549,28 +561,85 @@ class SmartBot(Bot):
 
         return mseq.get_priority() + weight * centering_score
 
-    def _winning_priority(self, priorityed_avail_moves) -> List[MoveSequence]:
+    def _winning_priority(self, mseq) -> float:
         """
-        update the priority of each available move with the consideration
-        of the existence of a winning move
+        update the priority of the available MoveSequence with the consideration
+        of the existence of a winning move. 
+
+        If there exists a winning move in the given move sequence, this MoveSequence is automatically taken
 
         Parameters:
-            priorityed_avail_moves(List[Move, int]): a list of available moves with
-                                                   their corrent priority
+            mseq(MoveSequence): a MoveSequence whose priority is about to be updated
 
-        Return: List[(Move, int)]: the updated list of priorityed available moves
+        Return: float: the new priority for mseq according to the winning strategy, if the MoveSequence doesn't contain a winning move, we return the original priority, otherwise, we return inf
         """
-        raise NotImplementedError
+        # get all the moves that opponents can make if taking this MoveSequence
+        oppo_moves = self._experimentboard.get_oppo_avail_moves()
 
-    def _lose_priority(self, priorityed_avail_moves) -> List[MoveSequence]:
+        if oppo_moves:
+            # the MoveSequence contains no winning move
+            return mseq.priority
+        else:
+            # the MoveSequence contains a winning move
+            return math.inf
+
+    def _lose_priority(self, mseq) -> List[MoveSequence]:
         """
-        update the priority of each available move with the consideration
-        of the existence of a losing move
+        update the priority of the available MoveSequence with the consideration
+        of the existence of a losing move.
+
+        A losing move is defined as an move that will lead to the existence of a winning move for the opponent, i.e., the opponent can win next round. 
+
+        If there exists a losing move in a MoveSequence, we avoid taking that MoveSequence. However, if all the MoveSequences contains a losing move, we randomly select a move(at that point the game would already be over)
 
         Parameters:
-            priorityed_avail_moves(List[Move, int]): a list of available moves with
-                                                   their corrent priority
+            mseq(MoveSequence): a MoveSequence whose priority is about to be updated
 
-        Return: List[(Move, int)]: the updated list of priorityed available moves
+        Return: float: the new priority for mseq according to the lose strategy, if the MoveSequence doesn't contain a losing move, we return the original priority, otherwise, we return -math.inf
         """
-        raise NotImplementedError
+        # construct an instance of the opponent
+        Opponent = OppoBot(self._oppo_color, self._own_color,
+                           self._experimentboard)
+
+        # check whether there is a winning move for the opponent if we take this MoveSequence
+        if Opponent.contains_winning_mseq():
+            return -math.inf
+        else:
+            return mseq.get_priority()
+
+
+class OppoBot(SmartBot):
+    """
+    Represent a bot used to try what will the opponent do if the SmartBot has taken a MoveSequence.
+    Note that this bot is strictly for anticipation purposes of the SmartBot when making decisions.
+    """
+
+    def __init__(self, own_color, oppo_color, checkersboard) -> None:
+        """
+        Construct a bot that represents the opponent
+
+        Parameters:
+            own_color(PieceColor): the color of the piece that the bot is in control of
+            oppo_color(PieceColor): the color of the piece that the opponent is in control of
+            checkerboard(CheckersBoard): the checkerboard
+
+        Return: None
+        """
+        super().__init__(own_color, oppo_color, checkersboard)
+
+    def contains_winning_mseq(self) -> bool:
+        """
+        Examine whether there exists a MoveSequence that contains a winning move
+
+        Parameters: None
+
+        Return: bool: True if there exists a winning MoveSequence, False Otherwise
+        """
+        # get all the possible move sequences and examine whether they contain winning moves
+        mseq_list = self._get_mseq_list([self._winning_priority,])
+
+        for mseq in mseq_list:
+            if mseq.get_priority() == math.inf:
+                # there exists a winning MoveSequence
+                return True
+        return False
