@@ -1,5 +1,13 @@
 # Contributing to Checkers Game
 
+## Development environment and code styling
+We strongly recommend setting up a [Python virtual environment](README.md#setting-up-and-requirements) to prevent dependency conflicts.
+
+### Code Style
+The code style follows the PEP8 style guide. We recommend using a linter and autoformatter, such as flake8 and autopep8.
+
+For docstrings we are following the Google style Python docstrings. See [examples](https://gist.github.com/redlotus/3bc387c2591e3e908c9b63b97b11d24e).
+
 ## Planning a new feature / bug fix / documentation
 1. On GitHub, go to the Issues tab
 2. Click on "New issue"
