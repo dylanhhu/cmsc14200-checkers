@@ -87,6 +87,7 @@ class Bot:
             if nxt_move in valid_nxt_list:
                 # valid, take the move, and update the possible next steps to take
                 valid_nxt_list = self._checkersboard.complete_move(nxt_move)
+
             else:
                 # invalid, raise error
                 raise Exception("The bot is trying to take an invalid move")
@@ -327,7 +328,7 @@ class SmartBot(Bot):
                 # of one potential move list, create a corresponding
                 # MoveSequence and add that to the Movesequence_list with its
                 # priority
-                mseq = MoveSequence(curr_path, curr_board, kinged)
+                mseq = MoveSequence(curr_path[:], curr_board, kinged)
                 self._assign_priority(mseq, strategy_list)
                 Movesequence_list.append(mseq)
 
@@ -344,7 +345,7 @@ class SmartBot(Bot):
                     not_king = False
 
                 # complete the next move
-                valid_nxt_list = curr_board.complete(nxt_move)
+                valid_nxt_list = curr_board.complete_move(nxt_move)
 
                 # determine whether the piece is kinged by this next move
                 if not_king and nxt_move.get_piece().is_king():
