@@ -2,8 +2,8 @@ import heapq as hq
 import math
 from copy import deepcopy
 from enum import Enum
-from typing import List, Tuple
-from checkers import Piece, Move, CheckersBoard, PieceColor
+from typing import List, Tuple, Union
+from checkers import Piece, Move, CheckersBoard, PieceColor, Jump
 
 
 class SmartLevel(Enum):
@@ -480,18 +480,29 @@ class SmartBot(Bot):
 
         return mseq.get_priority() + weight * king_score
 
-    def _trading_priority(self, priorityed_avail_moves) -> List[MoveSequence]:
+    def _sacrifice_priority(self, mseq, weight) -> List[MoveSequence]:
         """
         update the priority of the available MoveSequence with the consideration
-        of trading
+        of sacrifice
+
+        Sometimes making a move means sacrificing the piece we are moving, we don't want to do this blindly so this function serves as a restricting method so that we don't blindly sacrifice our pieces for no reason.
 
         Parameters:
-            priorityed_avail_moves(List[Move, int]): a list of available moves with
-                                                   their corrent priority
+            mseq(MoveSequence): a MoveSequence whose priority is about to be updated
+            weight(float): a float that determine how much of an influence this strategy should be playing among all the strategies
 
-        Return: List[(Move, int)]: the updated list of priorityed available moves
+        Return: float: the new priority for mseq according to the sacrificing strategy
         """
-        raise NotImplementedError
+        # construct an instance of the opponent
+        Opponent = OppoBot(self._oppo_color, self._own_color,
+                           self._experimentboard)
+
+        if Opponent.get_induced_jump_mseq():
+            # this MoveSequence leads to a sacrifice
+            return mseq.get_priority() - weight * len(Opponent.get_induced_jump_mseq())
+
+        # this MoveSequence doesn't lead to a sacrifice
+        return mseq.get_priority()
 
     def _captured_priority(self, mseq, weight) -> float:
         """
@@ -611,10 +622,10 @@ class SmartBot(Bot):
 class OppoBot(SmartBot):
     """
     Represent a bot used to try what will the opponent do if the SmartBot has taken a MoveSequence.
-    Note that this bot is strictly for anticipation purposes of the SmartBot when making decisions.
+    Note that this bot is strictly for anticipation purposes of the SmartBot when making decisions. It works under the premise that the SmartBot has taken a specific MoveSequence and is used to show the corresponding reaction to this MoveSequence that the opponent would have
     """
 
-    def __init__(self, own_color, oppo_color, checkersboard) -> None:
+    def __init__(self, own_color, oppo_color, checkersboard, last_mseq) -> None:
         """
         Construct a bot that represents the opponent
 
@@ -622,10 +633,14 @@ class OppoBot(SmartBot):
             own_color(PieceColor): the color of the piece that the bot is in control of
             oppo_color(PieceColor): the color of the piece that the opponent is in control of
             checkerboard(CheckersBoard): the checkerboard
+            last_mseq(MoveSequence): represents the move sequence that we asssumed to be taken by the SmartBot
 
         Return: None
         """
         super().__init__(own_color, oppo_color, checkersboard)
+
+        # initialize the move sequence assumed to be taken by the SmartBot
+        self._last_mseq = last_mseq
 
     def contains_winning_mseq(self) -> bool:
         """
@@ -643,3 +658,23 @@ class OppoBot(SmartBot):
                 # there exists a winning MoveSequence
                 return True
         return False
+
+    def get_induced_jump_mseq(self) -> Union[MoveSequence, None]:
+        """
+        If the MoveSequence assumed to be taken by the SmartBot, which led to the OppoBot to be having a MoveSequence with the first move being a Jump over the piece that was moved in the MoveSequence by the SmartBot, and jump is the only available move of the Opponent, then return that Jump, otherwise, return None
+
+        Parameters: None
+
+        Return: Union[MoveSequence, None]: the MoveSequence with the first move beingt the jump induced by the last MoveSequence done by the SmartBot, or None if such induced jump doesn't exist or is not the only available move fro OppoBot
+        """
+        # get all the MoveSequences available for the OppoBot
+        mseq_list = self._get_mseq_list([])
+
+        if len(mseq_list) == 1:
+            # only one MoveSequence
+            first_move = mseq_list[0].get_move_list()[0]
+            if isinstance(first_move, Jump):
+                if first_move.get_captured_piece() == self._last_mseq.get_target_piece():
+                    # the first move of the MoveSequence is a Jump through the piece just moved by the SmartBot
+                    return mseq_list[0]
+        return None
