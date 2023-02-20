@@ -878,6 +878,18 @@ class CheckersBoard:
 
         return filtered_pieces
 
+    def get_board_width(self) -> int:
+        """
+        Getter method for the length of the board sides. 1-indexed.
+
+        Args:
+            None
+
+        Returns:
+            int: the length of the board sides"""
+
+        return self._board_length
+
     def complete_move(self, move: Move,
                       draw_offer: Union[DrawOffer, None] = None) -> List[Jump]:
         """
