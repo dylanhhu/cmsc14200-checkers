@@ -555,6 +555,35 @@ class SmartBot(Bot):
 
         return mseq.get_priority() + weight * push_score
 
+    def _stick_priority(self, mseq, weight) -> float:
+        """
+        update the priority of the available MoveSequence with the consideration of not leaving a single piece out
+
+        We want to favor MoveSequences that lead to the moved piece at least having one piece of our side around it.
+
+        Parameters:
+            mseq(MoveSequence): a MoveSequence whose priority is about to be updated
+            weight(float): a float that determine how much of an influence this strategy should be playing among all the strategies
+
+        Return: float: the new priority for mseq according to the stick strategy
+        """
+        # get the piece that is moved in this MoveSequence
+        target_piece = mseq.get_target_piece()
+
+        # get the end position of the target piece and construct the four possible positions that could be having a piece around it
+        piece_pos = target_piece.get_position()
+        near_region = [(piece_pos[0] - 1, piece_pos[0] - 1), (piece_pos[0] - 1, piece_pos[0] + 1),
+                       (piece_pos[0] + 1, piece_pos[0] - 1), (piece_pos[0] + 1, piece_pos[0] + 1)]
+
+        # check whether there exists a piece in the near region of the target piece
+        for piece in self._experimentboard.get_color_avail_pieces(self._own_color):
+            if piece.get_position() in near_region:
+                # there exists a piece in the near region
+                return mseq.get_priority()
+
+        # there's no piece around the near region
+        return mseq.get_priority() - weight
+
     def _center_priority(self, mseq, weight) -> float:
         """
         update the priority of the available MoveSeuqnce with the consideration
