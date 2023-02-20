@@ -6,6 +6,10 @@ We strongly recommend setting up a [Python virtual environment](README.md#settin
 ### Code Style
 The code style follows the PEP8 style guide. We recommend using a linter and autoformatter, such as flake8 and autopep8.
 
+#### Type Hinting
+Type hinting will use the built-in Python `typing` module. This is to ensure maximum compatibility between different Python versions. Please ensure that all type hints use the `typing` library as some type hints will not run under Python 3.8 or lower.
+
+#### Docstrings
 For docstrings we are following the Google style Python docstrings. See [examples](https://gist.github.com/redlotus/3bc387c2591e3e908c9b63b97b11d24e).
 
 ## Planning a new feature / bug fix / documentation
