@@ -267,6 +267,24 @@ invalid")
 
         return f"{__name__}.Piece({', '.join(args)})"
 
+    def __eq__(self, other: object) -> bool:
+        """
+        Implements the equality operator for type Piece
+
+        Args:
+           other (object): the object to be compared to
+
+        Returns:
+            bool: True if equal, False if not
+        """
+        if not isinstance(other, Piece):
+            return False
+
+        return (self._color == other._color
+                and self._king == other._king
+                and self._x == other._x
+                and self._y == other._y)
+
 
 class Move:
     """
@@ -382,7 +400,7 @@ class Move:
         if not isinstance(other, Move):
             return False
 
-        return (self._piece is other._piece
+        return (self._piece == other._piece
                 and self._new_x == other._new_x
                 and self._new_y == other._new_y)
 
@@ -482,7 +500,7 @@ class Jump(Move):
         if not isinstance(other, Jump):
             return False
 
-        return self._opponent_piece is other._opponent_piece
+        return self._opponent_piece == other._opponent_piece
 
     def __str__(self) -> str:
         """
