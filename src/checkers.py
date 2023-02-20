@@ -909,12 +909,13 @@ class CheckersBoard:
         return self._board_length
 
     def complete_move(self, move: Move,
-                      draw_offer: Union[DrawOffer, None] = None) -> List[Jump]:
+                      draw_offer: Union[DrawOffer, None] = None) -> List[Move]:
         """
         Complete a move with a piece.
 
         If the move is not valid, a ValueError is raised. This includes when
-        a non-jumping move is attempted when a jump is available.
+        a non-jumping move is attempted when a jump is available. Any provided
+        draw offers processed just before the error is raised will be undone.
 
         Returns a list of possible subsequent jumps, if necessary, that follow
         the provided move. If this list is empty, the player's turn is over.
@@ -928,8 +929,8 @@ class CheckersBoard:
         To offer a draw, a regular move (move/jump) must be provided along with
         a DrawOffer.
 
-        TODO: Clarify moving into a position with subsequent jumps:
-              Do we return this list or not?
+        To accept the draw offer, play the draw offer in both `move` and in
+        `draw_offer`.
 
         Args:
             move (Move): move to make
@@ -941,24 +942,99 @@ class CheckersBoard:
         Raises:
             ValueError: If the move is not valid
         """
+        # Check if this is someone resigning
+        if isinstance(move, Resignation):
+            resign_color = move.get_resigning_color()
+
+            # Set appropriate game state
+            if resign_color == PieceColor.BLACK:
+                self._game_state = GameStatus.RED_WINS
+            elif resign_color == PieceColor.RED:
+                self._game_state = GameStatus.BLACK_WINS
+            else:
+                # Shouldn't happen, but what if someone is messing with us?
+                raise ValueError(f"Resignation's color {repr(resign_color)} \
+was invalid.")
+
+            return []  # Resigned, their move's over
+
+        # Track whether we processed any draw offers. Used if undo is necessary
+        draw_offer_changed: Union[PieceColor, None] = None
 
         # Check if there is a draw_offer attached
         if draw_offer is not None:
-            return self._handle_draw_offer(draw_offer)
+            # We're not going to handle any errors that this may raise as we'd
+            # just like to pass them on to the frontend
+            draw_offer_changed = self._handle_draw_offer(draw_offer)
 
-        # Check if there were any outstanding draw offers not accepted
-        if any(self._draw_offer.values()):
-            self._reset_draw_offers()
+            # Is this a player accepting a draw?
+            if isinstance(move, DrawOffer):
+                return []  # Accepted, their turn is over
 
-        # This function would call self.get_piece_moves(jumps_only = True)
-        # for the list of subsequent jumps
-        raise NotImplementedError
+        else:
+            # No draw offer, so check if there were any outstanding draw offers
+            # that were not accepted
+            if any(self._draw_offer.values()):
+                self._reset_draw_offers()  # Offer rejected, clear them
+
+        # Make sure this is a valid move
+        if not self.validate_move(move):
+            # Invalid move, check if draw offer undo needed
+            if draw_offer_changed:
+                self._draw_offer[draw_offer_changed] = False  # undo draw offer
+
+            raise ValueError(f"Move {repr(move)} is not a valid move.")
+
+        # Process Move - "moving" the piece
+        curr_pos = move.get_current_position()
+        new_pos = move.get_new_position()
+
+        # Store the piece in a separate variable rather than later having to
+        # reference it inside of self._pieces and keeping track of where it is
+        piece = self._pieces[curr_pos]
+        piece.set_position(new_pos)     # "Move" the piece
+
+        # Replace with new Position
+        self._pieces[new_pos] = self._pieces.pop(curr_pos)
+
+        # Process kinging
+        piece_color = piece.get_color()
+        # Check if red piece gets to the top row
+        if (piece_color == PieceColor.RED) and (new_pos[1] == 0):
+            piece.to_king()
+            return []
+
+        # Check if black piece gets to bottom row
+        elif (piece_color == PieceColor.BLACK
+              and new_pos[1] == (self._board_length - 1)):
+            piece.to_king()
+            return []
+
+        # Handle the capture, if it's a Jump
+        if isinstance(move, Jump):
+            # Process the capture
+            cap_piece: Piece = move.get_captured_piece()  # type: ignore
+
+            # Move from board to captured pieces
+            cap_color = cap_piece.get_color()
+            cap_pos = cap_piece.get_position()
+            self._captured[cap_color].append(self._pieces.pop(cap_pos))
+
+            cap_piece.set_captured()
+
+            # Return list of following jumps, if any
+            return self.get_piece_moves(piece, jumps_only=True)
+
+        # Move completed, turn is over. See todo listed in docstring
+        return []
 
     def get_piece_moves(self, piece: Piece,
                         jumps_only: bool = False) -> List[Move]:
         """
         Returns a list of possible moves (moves and jumps) for a piece. If
         jump(s) are possible, then only jumps will be returned.
+
+        TODO: Make sure that the piece can only move forward, unless its a king
 
         Args:
             piece (Piece): the piece being queried
@@ -971,12 +1047,23 @@ class CheckersBoard:
         possible_jumps: List[Move] = []
 
         curr_col, curr_row = piece.get_position()
-        positions = {
-            (curr_col - 1, curr_row - 1): (curr_col - 2, curr_row - 2),  # nw
-            (curr_col + 1, curr_row - 1): (curr_col + 2, curr_row - 2),  # ne
-            (curr_col + 1, curr_row + 1): (curr_col + 2, curr_row + 2),  # se
-            (curr_col - 1, curr_row + 1): (curr_col - 2, curr_row + 2)   # sw
-        }
+        color = piece.get_color()
+        positions: Dict[Position, Position] = {}
+
+        # Add positions to check based on PieceColor or king status
+        # Black pieces can only go to south directions
+        if color == PieceColor.BLACK or piece.is_king():
+            positions[(curr_col + 1, curr_row + 1)] = (curr_col + 2,
+                                                       curr_row + 2)  # se
+            positions[(curr_col - 1, curr_row + 1)] = (curr_col - 2,
+                                                       curr_row + 2)  # sw
+
+        # Red pieces can only go to north directions
+        if color == PieceColor.RED or piece.is_king():
+            positions[(curr_col - 1, curr_row - 1)] = (curr_col - 2,
+                                                       curr_row - 2)  # nw
+            positions[(curr_col + 1, curr_row - 1)] = (curr_col + 2,
+                                                       curr_row - 2)  # ne
 
         # Loop thru immediate positions
         for position in positions.keys():
@@ -1069,7 +1156,7 @@ class CheckersBoard:
         # Make sure that new position is valid; comparing by equality and by
         # whether they are the same object, see:
         # https://docs.python.org/3.8/reference/expressions.html#membership-test-details
-        if move.get_new_position() not in self._pieces:
+        if move.get_new_position() in self._pieces:
             return False
 
         # To be able to check for other jumps, we must get all moves
@@ -1082,7 +1169,7 @@ class CheckersBoard:
 
         # Make sure that there's not a Jump otherwise available
         # We're guaranteed that player_moves isn't empty here from last check
-        if isinstance(move, Move) and isinstance(player_moves[0], Jump):
+        if not isinstance(move, Jump) and isinstance(player_moves[0], Jump):
             return False
 
         # We are certain the move is valid!
@@ -1147,7 +1234,7 @@ class CheckersBoard:
 
         return board
 
-    def _handle_draw_offer(self, offer: DrawOffer) -> List:
+    def _handle_draw_offer(self, offer: DrawOffer) -> PieceColor:
         """
         Private method to handle draw offers. Intended to be called by
         complete_move().
@@ -1156,13 +1243,33 @@ class CheckersBoard:
             offer (DrawOffer): the draw offer
 
         Returns:
-            An empty list
+            PieceColor: the color of the player offering the draw
+
+        Raises:
+            ValueError: if the offering color is invalid
+            RuntimeError: if the offering color already has a pending offer
         """
         offering_color = offer.get_offering_color()
 
+        # Check for bad offering color
+        if offering_color not in self._draw_offer:
+            msg = f"DrawOffer's offering color {repr(offering_color)} is not \
+in the supported colors."
+
+            # Shouldn't happen, but what if someone's messing with us?
+            raise ValueError(msg)
+
+        # Check if the player already has an outstanding draw offer
+        if self._draw_offer[offering_color]:
+            msg = f"DrawOffer's offering color {repr(offering_color)} already \
+has an outstanding draw offer."
+
+            # Shouldn't happen, but what if somewhere else has a bug?
+            raise RuntimeError(msg)
+
         self._draw_offer[offering_color] = True
 
-        return []
+        return offering_color
 
     def _reset_draw_offers(self) -> None:
         """
