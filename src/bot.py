@@ -1,4 +1,3 @@
-import heapq as hq
 import math
 from copy import deepcopy
 from enum import Enum
@@ -42,7 +41,7 @@ class Bot:
         self._oppo_color = oppo_color
         self._checkersboard = checkersboard
         # initialize a copy of the checkerboard
-        self._experimentboard = self._checkersboard.deepcopy()
+        self._experimentboard = deepcopy(self._checkersboard)
 
     def get_avail_moves(self) -> List[Move]:
         """
