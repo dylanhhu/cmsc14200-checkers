@@ -244,12 +244,13 @@ class SmartBot(Bot):
     1) more inclined to attack opponent's double corner
     2) more inclined to hold two anchor checkers in the base line
     3) more inclined to get kings
-    4) more inclined to trade pieces when leading
+    4) more inclined to sacrifice pieces when leading
     5) more inclined to pick the move that capture the most opponent pieces
     6) more inclined to push forward
     7) more inclined to occupy the center
     8) able to conduct the wining move if possible
     9) able to avoid a lossing move if possible
+    10) more inclined to conduct forcing
 
     citations for the strategies:
     https://www.ultraboardgames.com/checkers/tips.php
@@ -412,8 +413,8 @@ class SmartBot(Bot):
             oppo_double_pos = (0, 0)
 
         elif self._own_color == PieceColor.BLACK:
-            oppo_double_pos = (self._experimentboard.get_width(),
-                               self._experimentboard.get_width())
+            oppo_double_pos = (self._experimentboard.get_board_width(),
+                               self._experimentboard.get_board_width())
 
         attack_score = 0
         for oppo_piece in self._experimentboard.get_color_avail_pieces(self._oppo_color):
@@ -442,7 +443,7 @@ class SmartBot(Bot):
         # initialize a list that's going to take the anchor positions
         anchor_pos_list = []
         # get the borad witdh
-        boardwidth = self._experimentboard.get_width()
+        boardwidth = self._experimentboard.get_board_width()
 
         # determine the anchor positions according to our piece color
         if self._own_color == PieceColor.RED:
@@ -487,6 +488,8 @@ class SmartBot(Bot):
 
         Sometimes making a move means sacrificing the piece we are moving, we don't want to do this blindly so this function serves as a restricting method so that we don't blindly sacrifice our pieces for no reason.
 
+        However, we are more willing to sacrifice pieces when we are leading
+
         Parameters:
             mseq(MoveSequence): a MoveSequence whose priority is about to be updated
             weight(float): a float that determine how much of an influence this strategy should be playing among all the strategies
@@ -497,9 +500,21 @@ class SmartBot(Bot):
         Opponent = OppoBot(self._oppo_color, self._own_color,
                            self._experimentboard)
 
-        if Opponent.get_induced_jump_mseq():
+        oppo_jump = Opponent.get_induced_jump_mseq()
+        if oppo_jump:
             # this MoveSequence leads to a sacrifice
-            return mseq.get_priority() - weight * len(Opponent.get_induced_jump_mseq())
+
+            # get the initial number of pieces for each side and the current number of pieces for each side
+            num_piece = self._experimentboard.get_board_width()/2 - 1
+            my_pieces = self._experimentboard.get_color_avail_pieces(
+                self._own_color)
+            oppo_pieces = self._experimentboard.get_color_avail_pieces(
+                self._oppo_color)
+
+            # sacrifice core is bigger when (1)more pieces are captured (2)The more the opponent pieces is more than mine
+            sacrifice_score = len(
+                oppo_jump) * (num_piece - (len(my_pieces) - len(oppo_pieces)))
+            return mseq.get_priority() - weight * sacrifice_score
 
         # this MoveSequence doesn't lead to a sacrifice
         return mseq.get_priority()
@@ -558,7 +573,7 @@ class SmartBot(Bot):
         end_pos = mseq.get_end_position()
 
         # get the board width
-        boardwidth = self._experimentboard.get_width()
+        boardwidth = self._experimentboard.get_board_width()
 
         centering_score = 0
         # specify the center region
@@ -594,7 +609,7 @@ class SmartBot(Bot):
             # the MoveSequence contains a winning move
             return math.inf
 
-    def _lose_priority(self, mseq) -> List[MoveSequence]:
+    def _lose_priority(self, mseq) -> float:
         """
         update the priority of the available MoveSequence with the consideration
         of the existence of a losing move.
@@ -617,6 +632,53 @@ class SmartBot(Bot):
             return -math.inf
         else:
             return mseq.get_priority()
+
+    def force_priority(self) -> float:
+        """
+        update the priority of an avialable MoveSequence when that MoveSequence leads to forcing 
+
+        To be more precise, sometimes a MoveSequence will lead to a sacrifice, but sometimes this sacrifice is a part of the strategy called forcing. Basically, we force the opponent to capture our pieces only to build up a bridge for us to capture their pieces in our next round.
+
+        We call the forced jump and consecutive moves of the Opponent the induced jump MoveSequence, and our MoveSequence that can capture this piece moved by the induced jump MoveSequence in the following round response MoveSequence.
+
+        Parameters:
+            mseq(MoveSequence): a MoveSequence whose priority is about to be updated
+            weight(float): a float that determine how much of an influence this strategy should be playing among all the strategies
+
+        Return: float: the new priority for mseq according to the forcing strategy
+        """
+        # construct an instance of the opponent
+        Opponent = OppoBot(self._oppo_color, self._own_color,
+                           self._experimentboard)
+
+        # get the induced jump MoveSequence of the opponent
+        oppo_mseq = Opponent.get_induced_jump_mseq()
+        if oppo_mseq:
+            # if there is this induced jump MoveSequence, update the board to the state that assumes the opponent has taken this move
+            for move in oppo_mseq:
+                self._experimentboard.complete_move(move)
+
+            target_piece = oppo_mseq.get_target_piece()
+
+            # get what would our available MoveSequence be for the next turn if we forced the Opponent's induced jump MoveSequence
+            nxt_turn_mseq = self._get_mseq_list([])
+
+            # initialize a list to take the updated priority of Movesequences that are respnse MoveSequences
+            response_priority = []
+            for mseq in nxt_turn_mseq:
+                if mseq.get_target_piece() == target_piece:
+                    # this MoveSequence is a response Movesequence
+                    response_priority.append(self._captured_priority(mseq, 1))
+
+            # restore the board to the current round before we anticipate any opponents moves
+            for move in reversed(oppo_mseq):
+                self._experimentboard.undo_move(move)
+
+            # return the priority that corresponds to the most pieces captured in the response MoveSequence
+            return max(response_priority)
+
+        # our MoveSequence this round is not leading to an induced jump MoveSequence
+        return mseq.get_priority()
 
 
 class OppoBot(SmartBot):
