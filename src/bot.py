@@ -285,7 +285,11 @@ class SmartBot(Bot):
             (self._stick_priority, 1),
             (self._center_priority, 1),
             (self._force_priority, 1)
+
         ]
+
+        # this is just for test
+        self._strategy_list_test = [(self._lose_priority, None)]
 
     def choose_mseq(self) -> Move:
         """
@@ -387,11 +391,9 @@ class SmartBot(Bot):
         Return: None
         """
         # update the priority with respect to every strategy
-
         for strat_func, weight in strategy_list:
             if mseq.get_priority() not in [math.inf, -math.inf]:
                 # no winning or losing MoveSequence detected yet
-
                 if weight is not None:
                     # has a weight
                     mseq.set_priority(strat_func(mseq, weight))
