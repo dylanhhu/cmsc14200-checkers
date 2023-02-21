@@ -289,7 +289,7 @@ class SmartBot(Bot):
         ]
 
         # this is just for test
-        self._strategy_list_test = [(self._lose_priority, None)]
+        self._strategy_list_test = [(self._baseline_priority, 1)]
 
     def choose_mseq(self) -> Move:
         """
@@ -475,13 +475,13 @@ class SmartBot(Bot):
         # determine the anchor positions according to our piece color
         if self._own_color == PieceColor.RED:
             # we control the red piece
-            for n in range(int(boardwidth/2) + 1):
+            for n in range(boardwidth - 2, -1, -4):
                 anchor_pos_list.append(
-                    (2 * n, boardwidth))
+                    (n, boardwidth - 1))
         elif self._own_color == PieceColor.BLACK:
             # we control the black piece
-            for n in range(int(boardwidth/2)):
-                anchor_pos_list.append((2 * n + 1, 0))
+            for n in range(1, boardwidth, 4):
+                anchor_pos_list.append((n, 0))
 
         baseline_score = 0
         if origin_pos in anchor_pos_list:
