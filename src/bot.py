@@ -272,22 +272,38 @@ class SmartBot(Bot):
         # smart level of the bot, reflecting in how many strategies are adopted
         self._level = level
 
-    def choose_move(self, avail_moves) -> Move:
-        """
-        choose a move from avail_moves
+        # the weight dict that specifies how much influence should be put into each strategy: List[Tuple(strategy_method, weight)]
+        self._strategy_list = [
+            (self._winning_priority, ),
+            (self._lose_priority, ),
+            (self._corner_priority, 1),
+            (self._baseline_priority, 1),
+            (self._king_priority, 1),
+            (self._sacrifice_priority, 1),
+            (self._captured_priority, 1),
+            (self._push_priority, 1),
+            (self._stick_priority, 1),
+            (self._center_priority, 1),
+            (self._force_priority, 1)
+        ]
 
-        The move would be chosen according to the smart level of the
+    def choose_mseq(self) -> Move:
+        """
+        choose the MoveSequence to take
+
+        The MoveSequence would be chosen according to the smart level of the
         bot, the higher the smart level, the more strategies that the
         choosing would take into consideration
 
-        Parameters:
-            avail_moves(List[List[Move]]): a list of available moves sequences
-                                     that the smart bot is going to choose
-                                     from according to the strategy
+        Parameters: None
 
         Return: Move: the move that is chosen
         """
-        raise NotImplementedError
+        # get the MoveSequence list with the priority specified according to the stratgies
+        weighted_mseq_list = self._get_mseq_list([self._strategy_list])
+
+        # https://www.programiz.com/python-programming/methods/built-in/max
+        return max(weighted_mseq_list, key=lambda m: m.get_priority())
 
     def _get_mseq_list(self, strategy_list) -> List[MoveSequence]:
         """
@@ -372,7 +388,15 @@ class SmartBot(Bot):
         """
         # update the priority with respect to every strategy
         for strat_func, weight in strategy_list:
-            mseq.set_priority(strat_func(mseq, weight))
+            if mseq.get_priority() not in [math.inf, -math.inf]:
+                # no winning or losing MoveSequence detected yet
+                mseq.set_priority(strat_func(mseq, weight))
+            elif mseq.get_priority() == math.inf:
+                # exists a winning MoveSequence, take that to win the game
+                break
+            else:
+                # the current MoveSequence is a losing mseq, already set to -math.inf, pass
+                pass
 
     def _distance(pos1, pos2) -> float:
         """
@@ -672,7 +696,7 @@ class SmartBot(Bot):
         else:
             return mseq.get_priority()
 
-    def force_priority(self) -> float:
+    def _force_priority(self) -> float:
         """
         update the priority of an avialable MoveSequence when that MoveSequence leads to forcing 
 
