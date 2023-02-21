@@ -1066,20 +1066,22 @@ was invalid.")
                                                        curr_row - 2)  # ne
 
         # Loop thru immediate positions
-        for position in positions.keys():
+        for (position, jump_position) in positions.items():
             # Make sure position is inside the board
             if self._validate_position(position):
                 # Check if there's a piece already in the position
-                if (not jumps_only) and (position not in self._pieces):
-                    # Free space and we're not looking for only jumps
-                    possible_moves.append(Move(piece, position))
-                    continue
+                if position not in self._pieces:
+                    # Free space in the position
+                    if not jumps_only:
+                        # We're not looking for only jumps, add the Move
+                        possible_moves.append(Move(piece, position))
+
+                    continue  # We're done with this position
 
                 # There's a piece in this position, so we try to jump it by
-                # checking if the jump location is valid and whether the jump
-                # position is currently taken by another piece
+                # checking if the jump location is valid and whether the
+                # jump position is currently taken by another piece
 
-                jump_position = positions[position]
                 if (self._validate_position(jump_position)         # valid?
                         and (jump_position not in self._pieces)):  # taken?
 
