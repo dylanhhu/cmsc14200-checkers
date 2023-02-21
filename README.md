@@ -4,7 +4,7 @@ Final project for UChicago class CMSC 14200. Project members: Aidan Parker, Dyla
 
 ## Setting up and requirements
 
-This project targets Python versions 3.8 and above. This project requires a few libraries such as Pygame.
+This project targets Python versions 3.8 and above. This project requires a few libraries such as PyGame.
 
 We encourage the use of a Python virtual environment to install the dependencies required for this project. To get started, run the following from the root of the repository:
 
