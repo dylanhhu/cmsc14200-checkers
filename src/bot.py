@@ -530,12 +530,18 @@ class SmartBot(Bot):
         update the priority of the available MoveSequence with the consideration
         of pushing forward
 
+        Note that this strategy doesn't apply to kings as the major benefit of pushing forward is to get kings. 
+
          Parameters:
             mseq(MoveSequence): a MoveSequence whose priority is about to be updated
             weight(float): a float that determine how much of an influence this strategy should be playing among all the strategies
 
         Return: float: the new priority for mseq according to the push priority
         """
+        # if the MoveSequence is moving a king, then pass
+        if mseq.get_target_piece().is_king():
+            return mseq.get_priority()
+
         # get the original and end position for a MoveSequence
         origin_pos = mseq.get_origin_position()
         end_pos = mseq.get_end_position()
