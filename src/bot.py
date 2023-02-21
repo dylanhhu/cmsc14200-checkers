@@ -515,7 +515,7 @@ class SmartBot(Bot):
 
     def _captured_priority(self, mseq, weight) -> float:
         """
-        update the priority of the  available MoveSequence with the consideration of capturing as many opponent pieces as possible
+        update the priority of the available MoveSequence with the consideration of capturing as many opponent pieces as possible. Capturing a king weighs more than capturing a normal piece
 
         Parameters:
             mseq(MoveSequence): a MoveSequence whose priority is about to be updated
@@ -523,7 +523,17 @@ class SmartBot(Bot):
 
         Return: float: the new priority for mseq according to the capture priority
         """
-        return mseq.get_priority() + weight * len(mseq.get_move_list())
+        # initialize a score to record the significance of capture of this mseq
+        capture_score = 0
+        for move in mseq.get_move_list():
+            if isinstance(move, Jump):
+                # if the move is a jump, determine whether it's capturing a king or a normal piece
+                if move.get_captured_piece().is_king():
+                    capture_score += 2
+                else:
+                    capture_score += 1
+
+        return mseq.get_priority() + weight * capture_score
 
     def _push_priority(self, mseq, weight) -> float:
         """
