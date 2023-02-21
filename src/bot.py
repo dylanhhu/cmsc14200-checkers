@@ -179,7 +179,7 @@ class MoveSequence:
         """
         return self._move_list[0].get_piece()
 
-    def get_mseq_list(self) -> List[Move]:
+    def get_move_list(self) -> List[Move]:
         """
         getter function of the mseq_list of the MoveSequence
 
@@ -289,7 +289,7 @@ class SmartBot(Bot):
         ]
 
         # this is just for test
-        self._strategy_list_test = [(self._lose_priority, None)]
+        self._strategy_list_test = [(self._sacrifice_priority, 1)]
 
     def choose_mseq(self) -> Move:
         """
@@ -526,8 +526,8 @@ class SmartBot(Bot):
         Opponent = OppoBot(self._oppo_color, self._own_color,
                            self._experimentboard, mseq, self._level)
 
-        oppo_jump = Opponent.get_induced_jump_mseq()
-        if oppo_jump:
+        oppo_jump_list = Opponent.get_induced_jump_mseq()
+        if oppo_jump_list:
             # this MoveSequence leads to a sacrifice
 
             # get the initial number of pieces for each side and the current number of pieces for each side
@@ -537,10 +537,18 @@ class SmartBot(Bot):
             oppo_pieces = self._experimentboard.get_color_avail_pieces(
                 self._oppo_color)
 
-            # sacrifice core is bigger when (1)more pieces are captured (2)The more the opponent pieces is more than mine (3) a king is captured rather than a normal piece
-            sacrifice_score = OppoBot._captured_priority(
-                oppo_jump, 1) * (num_piece - (len(my_pieces) - len(oppo_pieces)))
-            return - weight * sacrifice_score
+            # intialize a list to take the sacrifice score
+            score_list = []
+            # traverse through all the induced jump movesequences
+            for oppo_jump in oppo_jump_list:
+                # depict the difference of the number of pieces between both sides, always negative, the more pieces we have over the opponent, the smaller the absolute value.
+                difference_factor = num_piece - \
+                    (len(my_pieces) - len(oppo_pieces))
+                # sacrifice core is bigger when (1)more pieces are captured (2)The more the opponent pieces is more than mine (3) a king is captured rather than a normal piece
+                score_list.append(Opponent._captured_priority(
+                    oppo_jump, 1) * difference_factor)
+
+            return - weight * max(score_list)
 
         # this MoveSequence doesn't lead to a sacrifice
         return 0
@@ -557,7 +565,7 @@ class SmartBot(Bot):
         """
         # initialize a score to record the significance of capture of this mseq
         capture_score = 0
-        for move in mseq.get_mseq_list():
+        for move in mseq.get_move_list():
             if isinstance(move, Jump):
                 # if the move is a jump, determine whether it's capturing a king or a normal piece
                 if move.get_captured_piece().is_king():
@@ -793,22 +801,25 @@ class OppoBot(SmartBot):
                 return True
         return False
 
-    def get_induced_jump_mseq(self) -> Union[MoveSequence, None]:
+    def get_induced_jump_mseq(self) -> List[Union[MoveSequence, None]]:
         """
-        If the MoveSequence assumed to be taken by the SmartBot, which led to the OppoBot to be having a MoveSequence with the first move being a Jump over the piece that was moved in the MoveSequence by the SmartBot, and jump is the only available move of the Opponent, then return that Jump, otherwise, return None
+        If the MoveSequence assumed to be taken by the SmartBot, which led to the OppoBot to be having a or more MoveSequence with the first move being a Jump over the piece that was moved in the MoveSequence by the SmartBot, and those jumps are the only available moves of the Opponent, then return a list of those MoveSequences that contains those jumps, otherwise, return None
 
         Parameters: None
 
-        Return: Union[MoveSequence, None]: the MoveSequence with the first move beingt the jump induced by the last MoveSequence done by the SmartBot, or None if such induced jump doesn't exist or is not the only available move fro OppoBot
+        Return: List[Union[MoveSequence, None]]: the MoveSequence with the first move beingt the jump induced by the last MoveSequence done by the SmartBot, or None if such induced jump doesn't exist or is not the only available move fro OppoBot
         """
         # get all the MoveSequences available for the OppoBot
         mseq_list = self._get_mseq_list([])
+        # initialize an output list
+        output_list = []
 
-        if len(mseq_list) == 1:
-            # only one MoveSequence
-            first_move = mseq_list[0].get_mseq_list()[0]
+        for mseq in mseq_list:
+            first_move = mseq.get_move_list()[0]
+            # check out whether the first move is a jump
             if isinstance(first_move, Jump):
-                if first_move.get_captured_piece() == self._last_mseq.get_target_piece():
+                if first_move.get_captured_piece() == self._experimentboard._pieces[self._last_mseq.get_end_position()]:
                     # the first move of the MoveSequence is a Jump through the piece just moved by the SmartBot
-                    return mseq_list[0]
-        return None
+                    output_list.append(mseq)
+
+        return output_list
