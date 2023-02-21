@@ -73,24 +73,18 @@ class Bot:
         complete a list of moves that is decided to be taken by the bot, if
         any of the move is invalid, raise an exception
 
+        for test only, the bot will not be completing the moves
+
         Parameters:
             move_list(List[Move]): the move list that is decided to be taken
 
         Return: None
         """
         # initialize a list of the possible next steps to take
-        valid_nxt_list = self.get_avail_moves()
 
         # take the moves consecutively in the move_list
         for nxt_move in move_list:
-            # verify whether the nxt_move is a valid move to take
-            if nxt_move in valid_nxt_list:
-                # valid, take the move, and update the possible next steps to take
-                valid_nxt_list = self._checkersboard.complete_move(nxt_move)
-
-            else:
-                # invalid, raise error
-                raise Exception("The bot is trying to take an invalid move")
+            self._checkersboard.complete_move(nxt_move)
 
 
 class RandomBot(Bot):
@@ -336,7 +330,7 @@ class SmartBot(Bot):
             # on a cloned board and recursively call helper
             for nxt_move in move_list:
                 # update the path and the board state
-                curr_path.append(nxt_move)
+                curr_path.append(deepcopy(nxt_move))
 
                 # determine whether the piece about to be moved is a king now
                 if not nxt_move.get_piece().is_king():
