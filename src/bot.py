@@ -209,16 +209,16 @@ class MoveSequence:
         """
         return self._priority
 
-    def set_priority(self, new_pri) -> None:
+    def add_priority(self, add_pri) -> None:
         """
         change the priority of a move sequence
 
         Parameters:
-            new_pri(float): the new_priority value
+            add_pri(float): the value that is about to be added to the priority
 
         Return: None
         """
-        self._priority = new_pri
+        self._priority += add_pri
 
     def is_kinged(self) -> bool:
         """
@@ -289,7 +289,7 @@ class SmartBot(Bot):
         ]
 
         # this is just for test
-        self._strategy_list_test = [(self._baseline_priority, 1)]
+        self._strategy_list_test = [(self._lose_priority, None)]
 
     def choose_mseq(self) -> Move:
         """
@@ -396,10 +396,10 @@ class SmartBot(Bot):
                 # no winning or losing MoveSequence detected yet
                 if weight is not None:
                     # has a weight
-                    mseq.set_priority(strat_func(mseq, weight))
+                    mseq.add_priority(strat_func(mseq, weight))
                 else:
                     # doesn't have a weight, namely winning_priority and lose_priority
-                    mseq.set_priority(strat_func(mseq))
+                    mseq.add_priority(strat_func(mseq))
             elif mseq.get_priority() == math.inf:
                 # exists a winning MoveSequence, take that to win the game
                 break
@@ -429,7 +429,7 @@ class SmartBot(Bot):
             mseq(MoveSequence): a MoveSequence whose priority is about to be updated
             weight(float): a float that determine how much of an influence this strategy should be playing among all the strategies
 
-        Return: float: the new priority for mseq according to the corner strategy
+        Return: float: the value to add to prioriryfor mseq according to the corner strategy
         """
         # get the original and the end position of a MoveSequence
         origin_pos = mseq.get_original_position()
@@ -449,8 +449,7 @@ class SmartBot(Bot):
                 # if there exists any opponent piece that is within 2 steps to opponents double corner, more inclined to move towards oppo's double corner
                 attack_score = self._distance(
                     oppo_double_pos, origin_pos) - self._distance(oppo_double_pos, end_pos)
-
-        return mseq.get_priority() + weight * attack_score
+        return weight * attack_score
 
     def _baseline_priority(self, mseq, weight) -> float:
         """
@@ -463,7 +462,7 @@ class SmartBot(Bot):
             mseq(MoveSequence): a MoveSequence whose priority is about to be updated
             weight(float): a float that determine how much of an influence this strategy should be playing among all the strategies
 
-        Return: float: the new priority for mseq according to the hold base line strategy
+        Return: float: the value to add to prioriryfor mseq according to the hold base line strategy
         """
         # set up the original position of the MoveSequence
         origin_pos = mseq.get_original_position()
@@ -488,7 +487,7 @@ class SmartBot(Bot):
             # if the MoveSequence is going to move an anchor checker, decrease the baseline_score
             baseline_score -= 1
 
-        return mseq.get_priority() + weight * baseline_score
+        return weight * baseline_score
 
     def _king_priority(self, mseq, weight) -> float:
         """
@@ -499,16 +498,16 @@ class SmartBot(Bot):
             mseq(MoveSequence): a MoveSequence whose priority is about to be updated
             weight(float): a float that determine how much of an influence this strategy should be playing among all the strategies
 
-        Return: float: the new priority for mseq according to the kinging strategy
+        Return: float: the value to add to prioriryfor mseq according to the kinging strategy
         """
         king_score = 0
         if mseq.is_kinged():
             # the MoveSequence is kinging a piece
             king_score = 1
 
-        return mseq.get_priority() + weight * king_score
+        return weight * king_score
 
-    def _sacrifice_priority(self, mseq, weight) -> List[MoveSequence]:
+    def _sacrifice_priority(self, mseq, weight) -> float:
         """
         update the priority of the available MoveSequence with the consideration
         of sacrifice
@@ -521,7 +520,7 @@ class SmartBot(Bot):
             mseq(MoveSequence): a MoveSequence whose priority is about to be updated
             weight(float): a float that determine how much of an influence this strategy should be playing among all the strategies
 
-        Return: float: the new priority for mseq according to the sacrificing strategy
+        Return: float: the value to add to prioriryfor mseq according to the sacrificing strategy
         """
         # construct an instance of the opponent
         Opponent = OppoBot(self._oppo_color, self._own_color,
@@ -538,13 +537,13 @@ class SmartBot(Bot):
             oppo_pieces = self._experimentboard.get_color_avail_pieces(
                 self._oppo_color)
 
-            # sacrifice core is bigger when (1)more pieces are captured (2)The more the opponent pieces is more than mine
-            sacrifice_score = len(
-                oppo_jump) * (num_piece - (len(my_pieces) - len(oppo_pieces)))
-            return mseq.get_priority() - weight * sacrifice_score
+            # sacrifice core is bigger when (1)more pieces are captured (2)The more the opponent pieces is more than mine (3) a king is captured rather than a normal piece
+            sacrifice_score = OppoBot._captured_priority(
+                oppo_jump, 1) * (num_piece - (len(my_pieces) - len(oppo_pieces)))
+            return - weight * sacrifice_score
 
         # this MoveSequence doesn't lead to a sacrifice
-        return mseq.get_priority()
+        return 0
 
     def _captured_priority(self, mseq, weight) -> float:
         """
@@ -554,7 +553,7 @@ class SmartBot(Bot):
             mseq(MoveSequence): a MoveSequence whose priority is about to be updated
             weight(float): a float that determine how much of an influence this strategy should be playing among all the strategies
 
-        Return: float: the new priority for mseq according to the capture priority
+        Return: float: the value to add to prioriryfor mseq according to the capture priority
         """
         # initialize a score to record the significance of capture of this mseq
         capture_score = 0
@@ -566,7 +565,7 @@ class SmartBot(Bot):
                 else:
                     capture_score += 1
 
-        return mseq.get_priority() + weight * capture_score
+        return weight * capture_score
 
     def _push_priority(self, mseq, weight) -> float:
         """
@@ -579,11 +578,11 @@ class SmartBot(Bot):
             mseq(MoveSequence): a MoveSequence whose priority is about to be updated
             weight(float): a float that determine how much of an influence this strategy should be playing among all the strategies
 
-        Return: float: the new priority for mseq according to the push priority
+        Return: float: the value to add to prioriryfor mseq according to the push priority
         """
         # if the MoveSequence is moving a king, then pass
         if mseq.get_target_piece().is_king():
-            return mseq.get_priority()
+            return 0
 
         # get the original and end position for a MoveSequence
         origin_pos = mseq.get_original_position()
@@ -596,7 +595,7 @@ class SmartBot(Bot):
             # we control the black piece
             push_score = end_pos[1] - origin_pos[1]
 
-        return mseq.get_priority() + weight * push_score
+        return weight * push_score
 
     def _stick_priority(self, mseq, weight) -> float:
         """
@@ -608,7 +607,7 @@ class SmartBot(Bot):
             mseq(MoveSequence): a MoveSequence whose priority is about to be updated
             weight(float): a float that determine how much of an influence this strategy should be playing among all the strategies
 
-        Return: float: the new priority for mseq according to the stick strategy
+        Return: float: the value to add to prioriryfor mseq according to the stick strategy
         """
         # get the piece that is moved in this MoveSequence
         target_piece = mseq.get_target_piece()
@@ -622,10 +621,10 @@ class SmartBot(Bot):
         for piece in self._experimentboard.get_color_avail_pieces(self._own_color):
             if piece.get_position() in near_region:
                 # there exists a piece in the near region
-                return mseq.get_priority()
+                return 0
 
         # there's no piece around the near region
-        return mseq.get_priority() - weight
+        return - weight
 
     def _center_priority(self, mseq, weight) -> float:
         """
@@ -638,7 +637,7 @@ class SmartBot(Bot):
             mseq(MoveSequence): a MoveSequence whose priority is about to be updated
             weight(float): a float that determine how much of an influence this strategy should be playing among all the strategies
 
-        Return: float: the new priority for mseq according to the center strategy
+        Return: float: the value to add to prioriryfor mseq according to the center strategy
         """
         # get the original position and the end position of the MoveSequence
         origin_pos = mseq.get_original_position()
@@ -657,7 +656,7 @@ class SmartBot(Bot):
                 # the end position is in center region
                 centering_score = 1
 
-        return mseq.get_priority() + weight * centering_score
+        return weight * centering_score
 
     def _winning_priority(self, mseq) -> float:
         """
@@ -669,13 +668,13 @@ class SmartBot(Bot):
         Parameters:
             mseq(MoveSequence): a MoveSequence whose priority is about to be updated
 
-        Return: float: the new priority for mseq according to the winning strategy, if the MoveSequence doesn't contain a winning move, we return the original priority, otherwise, we return inf
+        Return: float: the value to add to prioriryfor mseq according to the winning strategy, if the MoveSequence doesn't contain a winning move, we return the original priority, otherwise, we return inf
         """
         # get all the moves that opponents can make if taking this MoveSequence
         oppo_moves = self.get_oppo_avail_moves()
         if oppo_moves:
             # the MoveSequence contains no winning move
-            return mseq.get_priority()
+            return 0
         else:
             # the MoveSequence contains a winning move
             return math.inf
@@ -692,7 +691,7 @@ class SmartBot(Bot):
         Parameters:
             mseq(MoveSequence): a MoveSequence whose priority is about to be updated
 
-        Return: float: the new priority for mseq according to the lose strategy, if the MoveSequence doesn't contain a losing move, we return the original priority, otherwise, we return -math.inf
+        Return: float: the value to add to prioriryfor mseq according to the lose strategy, if the MoveSequence doesn't contain a losing move, we return the original priority, otherwise, we return -math.inf
         """
         # construct an instance of the opponent
         Opponent = OppoBot(self._oppo_color, self._own_color,
@@ -700,9 +699,9 @@ class SmartBot(Bot):
 
         # check whether there is a winning move for the opponent if we take this MoveSequence
         if Opponent.contains_winning_mseq():
-            return -math.inf
+            return - math.inf
         else:
-            return mseq.get_priority()
+            return 0
 
     def _force_priority(self, mseq, weight) -> float:
         """
@@ -716,7 +715,7 @@ class SmartBot(Bot):
             mseq(MoveSequence): a MoveSequence whose priority is about to be updated
             weight(float): a float that determine how much of an influence this strategy should be playing among all the strategies
 
-        Return: float: the new priority for mseq according to the forcing strategy
+        Return: float: the value to add to prioriryfor mseq according to the forcing strategy
         """
         # construct an instance of the opponent
         Opponent = OppoBot(self._oppo_color, self._own_color,
@@ -750,7 +749,7 @@ class SmartBot(Bot):
             return max(response_priority)
 
         # our MoveSequence this round is not leading to an induced jump MoveSequence
-        return mseq.get_priority()
+        return 0
 
 
 class OppoBot(SmartBot):
