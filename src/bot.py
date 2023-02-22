@@ -331,7 +331,7 @@ class SmartBot(Bot):
         ]
 
         # this is just for test
-        self._strategy_list_test = [(self._center_priority, 1)]
+        self._strategy_list_test = [(self._force_priority, 1)]
 
     def choose_mseq(self) -> Move:
         """
@@ -365,10 +365,12 @@ class SmartBot(Bot):
         nxt_move_list = self.get_avail_moves()
         Movesequence_list = []
 
-        def helper(move_list, curr_path, curr_board, kinged) -> None:
+        def helper(move_list, curr_path, kinged) -> None:
             """
             a helper funciton to recursively find out all possible move
             sequences and update the output_list accordingly
+
+            we determine whether a MoveSequence will king the moved piece during the process as well
 
             Parameters:
                 move_list(List[Move]): a list of the next step that can be taken
@@ -384,15 +386,17 @@ class SmartBot(Bot):
                 # of one potential move list, create a corresponding
                 # MoveSequence and add that to the Movesequence_list with its
                 # priority
-                mseq = MoveSequence(curr_path[:], curr_board, kinged)
+                mseq = MoveSequence(
+                    curr_path[:], self._experimentboard, kinged)
                 self._assign_priority(mseq, strategy_list)
                 Movesequence_list.append(mseq)
 
             # traverse through all the possible next moves, take the moves
             # on a cloned board and recursively call helper
-            for nxt_move in move_list:
+            for nxt_move in deepcopy(move_list):
                 # update the path and the board state
-                curr_path.append(deepcopy(nxt_move))
+
+                curr_path.append(nxt_move)
 
                 # determine whether the piece about to be moved is a king now
                 if not nxt_move.get_piece().is_king():
@@ -401,7 +405,8 @@ class SmartBot(Bot):
                     not_king = False
 
                 # complete the next move
-                valid_nxt_list = curr_board.complete_move(nxt_move)
+
+                valid_nxt_list = self._experimentboard.complete_move(nxt_move)
 
                 # determine whether the piece is kinged by this next move
                 if not_king and nxt_move.get_piece().is_king():
@@ -412,13 +417,13 @@ class SmartBot(Bot):
                     kinged_by_move = kinged
 
                 # the recursive step
-                helper(valid_nxt_list, curr_path, curr_board, kinged_by_move)
+                helper(valid_nxt_list, curr_path,  kinged_by_move)
 
-                curr_board.undo_move(nxt_move)
+                self._experimentboard.undo_move(nxt_move)
                 curr_path.pop()
 
         # update the output_list
-        helper(nxt_move_list, [], self._experimentboard, False)
+        helper(nxt_move_list, [],  False)
 
         return Movesequence_list
 
@@ -774,7 +779,9 @@ class SmartBot(Bot):
 
         To be more precise, sometimes a MoveSequence will lead to a sacrifice, but sometimes this sacrifice is a part of the strategy called forcing. Basically, we force the opponent to capture our pieces only to build up a bridge for us to capture their pieces in our next round.
 
-        We call the forced jump and consecutive moves of the Opponent the induced jump MoveSequence, and our MoveSequence that can capture this piece moved by the induced jump MoveSequence in the following round response MoveSequence.
+        We call the forced jump and consecutive moves of the Opponent the induced jump MoveSequence, and call our MoveSequence that can capture this piece moved by the induced jump MoveSequence in the following round response MoveSequence.
+
+        Note that the induced jump MoveSequence should be unique to be considered in forcing strategy, if the jump is induced by the opponent has a choice, forcing tends to get really complicated
 
         Parameters:
             mseq(MoveSequence): a MoveSequence whose priority is about to be updated
@@ -787,13 +794,15 @@ class SmartBot(Bot):
                            self._experimentboard, mseq, self._level)
 
         # get the induced jump MoveSequence of the opponent
-        oppo_mseq = Opponent.get_induced_jump_mseq()
-        if oppo_mseq:
-            # if there is this induced jump MoveSequence, update the board to the state that assumes the opponent has taken this move
-            for move in oppo_mseq:
+        oppo_mseq_list = Opponent.get_induced_jump_mseq()
+        if len(oppo_mseq_list) == 1:
+            # if there is this unique induced jump MoveSequence, update the board to the state that assumes the opponent has taken this move
+            oppo_mseq = oppo_mseq_list[0]
+            for move in oppo_mseq.get_move_list():
                 self._experimentboard.complete_move(move)
 
-            target_piece = oppo_mseq.get_target_piece()
+            induced_piece = self._experimentboard._pieces[
+                oppo_mseq.get_end_position()]
 
             # get what would our available MoveSequence be for the next turn if we forced the Opponent's induced jump MoveSequence
             nxt_turn_mseq = self._get_mseq_list([])
@@ -801,17 +810,21 @@ class SmartBot(Bot):
             # initialize a list to take the updated priority of Movesequences that are respnse MoveSequences
             response_priority = []
             for mseq in nxt_turn_mseq:
-                if mseq.get_target_piece() == target_piece:
-                    # this MoveSequence is a response Movesequence
-                    response_priority.append(
-                        self._captured_priority(mseq, weight))
+                # get the first move in the MoveSequence
+                first_move = mseq.get_move_list()[0]
+                if isinstance(first_move, Jump):
+                    if first_move.get_captured_piece() == induced_piece:
+                        # this MoveSequence is a response Movesequence, i.e. it is a jump and capture the piece moved by the opponent in its last inducde jump MoveSequence
+                        response_priority.append(
+                            self._captured_priority(mseq, weight))
 
             # restore the board to the current round before we anticipate any opponents moves
-            for move in reversed(oppo_mseq):
+            for move in reversed(oppo_mseq.get_move_list()):
                 self._experimentboard.undo_move(move)
 
-            # return the priority that corresponds to the most pieces captured in the response MoveSequence
-            return max(response_priority)
+            # return the priority that corresponds to the most pieces captured if there exists any response MoveSequence
+            if response_priority:
+                return max(response_priority)
 
         # our MoveSequence this round is not leading to an induced jump MoveSequence
         return 0
