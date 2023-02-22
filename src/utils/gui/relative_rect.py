@@ -5,6 +5,7 @@
 from dataclasses import dataclass
 from enum import Enum
 
+
 # ===============
 # ENUMS
 # ===============
@@ -167,3 +168,11 @@ class Fraction:
             raise ValueError("Can only multiply a Fraction by a number.")
 
         return Fraction(self.value * other)
+
+
+class IntrinsicSize:
+    """
+    Empty-constructor class to represent the intrinsic size of a dynamically
+    sized PyGame-GUI element.
+    """
+    pass

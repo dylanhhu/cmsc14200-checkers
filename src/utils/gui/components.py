@@ -19,12 +19,14 @@ from pygame_gui.elements import (UIImage, UIButton, UIHorizontalSlider,
 # TYPE ALIASES
 # ===============
 
-Element = Union[UIImage, UIButton, UIHorizontalSlider, UIVerticalScrollBar,
-                UIHorizontalScrollBar, UILabel, UIPanel, UIProgressBar,
-                UIScreenSpaceHealthBar, UISelectionList, UITextBox,
-                UITextEntryLine, UITooltip, UIDropDownMenu, UIStatusBar,
-                UIWorldSpaceHealthBar, UIWindow, UIScrollingContainer,
-                UITextEntryBox]
+PyGameGUIElement = Union[UIImage, UIButton, UIHorizontalSlider,
+                         UIVerticalScrollBar,
+                         UIHorizontalScrollBar, UILabel, UIPanel, UIProgressBar,
+                         UIScreenSpaceHealthBar, UISelectionList, UITextBox,
+                         UITextEntryLine, UITooltip, UIDropDownMenu,
+                         UIStatusBar, UIWorldSpaceHealthBar, UIWindow,
+                         UIScrollingContainer, UITextEntryBox]
+Element = Union[PyGameGUIElement]  # TODO: add PyGame primitive elems
 ScreenId = str
 ElementId = str
 
@@ -77,6 +79,7 @@ class GuiComponentLib:
     3. Get or modify elements on the currently drafted screen by their unique
         ID.
     """
+
     def __init__(self) -> None:
         """
         Constructor for component library.

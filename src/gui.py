@@ -4,19 +4,20 @@
 #
 from dataclasses import dataclass
 from enum import Enum
-from typing import Union, Callable
+from typing import Union, Callable, List, Set, Tuple
 
 import pygame
 import pygame_gui
 from pygame.event import Event
 from pygame_gui import UIManager, PackageResource
-from pygame_gui.elements import (UIButton, UIDropDownMenu,
-                                 UILabel, UIPanel, UITextEntryLine)
+from pygame_gui.elements import (UIButton, UILabel, UIPanel, UITextEntryLine,
+                                 UIDropDownMenu)
 
 from src.bot import SmartLevel
+from src.checkers import PieceColor, CheckersBoard, Position, Piece, Move
 from src.utils.gui.components import GuiComponentLib, ModifyElemCommand, Element
 from src.utils.gui.relative_rect import (RelPos, ScreenPos, ElemPos, SelfAlign,
-                                         Offset, Fraction)
+                                         Offset, Fraction, IntrinsicSize)
 from src.utils.gui.window import Dimensions, WindowOptions, DimensionsTuple
 
 
@@ -213,17 +214,28 @@ class _GameElems:
 
     TITLE_TEXT = "#title-text"
     MENU_BUTTON = "#menu-button"
+    ACTION_BAR = "#action-bar"
+    CURRENT_PLAYER_LABEL = "#current-player-label"
+    SELECTED_PIECE_DROPDOWN = "#selected-piece-dropdown"
+    PIECE_TO_DESTINATION_LABEL = "#piece-to-destination-label"
+    DESTINATION_DROPDOWN = "#destination-dropdown"
+    SUBMIT_MOVE_BUTTON = "#submit-move-button"
 
     # ===============
     # LIST OF ELEMENT IDS
     # ===============
 
-    elem_ids = [TITLE_TEXT, MENU_BUTTON]
+    elem_ids = [TITLE_TEXT, MENU_BUTTON, ACTION_BAR, CURRENT_PLAYER_LABEL,
+                SELECTED_PIECE_DROPDOWN, PIECE_TO_DESTINATION_LABEL,
+                DESTINATION_DROPDOWN, SUBMIT_MOVE_BUTTON]
 
 
 class _GameConsts:
     # Numbers
-    TITLE_BAR_HEIGHT = 60
+    ACTION_BAR_HEIGHT = 60
+    DROPDOWN_WIDTH = 100
+    ACTION_BAR_X_PADDING = _Sizes.L
+    ACTION_BAR_ARROW_X_MARGIN = _Sizes.S
 
 
 # ===============
@@ -231,10 +243,27 @@ class _GameConsts:
 # ===============
 
 
+def _color_str(color: PieceColor) -> str:
+    """
+    Get a string representation of a piece color.
+
+    Args:
+        color (PieceColor): piece color
+
+    Returns:
+        str: string representation of piece color
+
+    TODO: consider moving this function to `checkers.py`
+    """
+    if color == PieceColor.RED:
+        return "Red"
+    return "Black"
+
+
 @dataclass
 class _AppState:
     """
-    Data class holding stateful values for PyGame app.
+    Data class holding PyGame stateful values and functions that process them.
     """
 
     # Lifecycle
@@ -242,6 +271,10 @@ class _AppState:
 
     # Current screen
     screen: _Screens = _Screens.SETUP
+
+    # ===============
+    # SETUP
+    # ===============
 
     # Red player
     red_type: _PlayerType = _PlayerType.HUMAN
@@ -377,6 +410,315 @@ class _AppState:
             # Inputted number of rows per player is not a valid integer
             self._num_rows_per_player = None
 
+    # ===============
+    # GAME
+    # ===============
+
+    board: CheckersBoard = CheckersBoard(n=1)
+    current_color = PieceColor.RED
+
+    def toggle_color(self) -> None:
+        """
+        Toggle current player color.
+
+        Returns:
+            None
+        """
+        if self.current_color == PieceColor.RED:
+            self.current_color = PieceColor.BLACK
+        else:
+            self.current_color = PieceColor.RED
+
+    _start_pos: Union[Position, None] = None
+    dest_pos: Union[Position, None] = None
+
+    def get_selected_move(self) -> Move:
+        """
+        Getter method for the selected move.
+
+        Returns:
+            Move: selected move
+
+        Raises:
+            RuntimeError if move is not found.
+        """
+        for move in self.board.get_player_moves(self.current_color):
+            if move.get_current_position() == self._start_pos and \
+                    move.get_new_position() == self.dest_pos:
+                return move
+
+        raise RuntimeError("Move not found.")
+
+    @property
+    def start_pos(self) -> Position:
+        """
+        Getter method for the move starting position.
+        """
+        return self._start_pos
+
+    @start_pos.setter
+    def start_pos(self, v: Position) -> None:
+        """
+        Setter method for the move starting position.
+
+        Updates the destination position if it is no longer valid.
+
+        Args:
+            v (Position): new value
+
+        Returns:
+            None
+        """
+        self._start_pos = v
+
+        if self.dest_pos not in self._get_dest_piece_positions():
+            # Destination position is no longer valid.
+            # Update it with the first valid destination position.
+            self.dest_pos = self.grid_position_from_string(
+                self.get_dropdown_dest_positions()[0])
+
+    def update_move_options(self) -> None:
+        """
+        Update the move options for the current player.
+
+        Returns:
+            None
+        """
+
+        # Select first piece position in dropdown options
+        self.start_pos = self.grid_position_from_string(
+            self.get_dropdown_start_positions()[0])
+
+    def _get_start_piece_positions(self) -> Set[Position]:
+        """
+        Generate a set of the positions of all starting piece positions for the
+        current player.
+
+        Returns:
+            Set[Position]: starting piece positions
+        """
+        result = set()
+        for move in self.board.get_player_moves(self.current_color):
+            result.add(move.get_piece().get_position())
+
+        return result
+
+    def _get_dest_piece_positions(self) -> Set[Position]:
+        """
+        Generate a set of the positions of all destination piece positions for
+        the current player.
+
+        Returns:
+            Set[Position]: destination piece positions
+        """
+        result = set()
+        for move in self.board.get_player_moves(self.current_color):
+            if move.get_current_position() == self._start_pos:
+                result.add(move.get_new_position())
+
+        return result
+
+    def get_piece_at_pos(self, pos: Position) -> Piece:
+        """
+        Get checkers piece at a position on the board.
+
+        Args:
+            pos (Position): position on board
+
+        Returns:
+            Piece: checkers piece
+
+        Raises:
+            RuntimeError: If no piece is found at the position on the board.
+        """
+        for piece in self.board.get_board_pieces():
+            if piece.get_position() == pos:
+                return piece
+
+        raise RuntimeError(f"No piece found at the position {pos}")
+
+    @staticmethod
+    def grid_position_to_string(position: Position) -> str:
+        """
+        Convert a tuple representing a position on a grid to a string in the
+        format "B4".
+
+        Args:
+            position (tuple[int, int]): A tuple (x, y) representing the
+                position on the grid, where (0, 0) is the top left square.
+
+        Returns:
+            str: A string in the format "B4", representing the human-readable
+                board position
+
+        Raises:
+            ValueError: If either of the coordinates are negative.
+
+        Examples:
+            >>> _AppState.grid_position_to_string((0, 0))
+            'A1'
+            >>> _AppState.grid_position_to_string((1, 3))
+            'B4'
+            >>> _AppState.grid_position_to_string((26, 0))
+            'AA1'
+            >>> _AppState.grid_position_to_string((27, 0))
+            'AB1'
+        """
+        x, y = position
+
+        # Check that the position is valid
+        if x < 0 or y < 0:
+            raise ValueError("Position coordinates are negative.")
+
+        # Convert the column number to a letter/s
+        col_num = x + 1
+        col_str = ""
+        while col_num > 0:
+            col_num, remainder = divmod(col_num - 1, 26)
+            col_str = chr(65 + remainder) + col_str
+
+        row_num = y + 1
+
+        return f"{col_str}{row_num}"
+
+    @staticmethod
+    def _get_row_col_from_pos_string(s: str) -> Tuple[str, str]:
+        """
+        Get the row and column string parts from a string in the format of a
+        grid position (e.g. "A4", "AB3", "A209", "SNS1", etc.).
+
+        Args:
+            s (str): string representation of grid position
+
+        Returns:
+            Tuple[str, str]: row, column
+
+        Raises:
+            ValueError: If the string does not have the correct format.
+
+        Examples:
+            >>> _AppState._get_row_col_from_pos_string("A1")
+            ("A", "1")
+            >>> _AppState._get_row_col_from_pos_string("B42")
+            ("B", "42")
+            >>> _AppState._get_row_col_from_pos_string("AA1")
+            ("AA", "1")
+            >>> _AppState._get_row_col_from_pos_string("AB394")
+            ("AB", "394")
+        """
+        # Find the index of the first digit in the string
+        for i, c in enumerate(s):
+            if c.isdigit():
+                # Split the string into two parts:
+                # the column string and the row string
+                row_str = s[i:]
+                col_str = s[:i]
+                break
+        else:
+            # No digit is found
+            raise ValueError("Invalid string format")
+
+        return row_str, col_str
+
+    @staticmethod
+    def _pos_string_sort_val(s: str) -> Tuple[int, int]:
+        """
+        Creates a list sort value for a given position string.
+
+        Args:
+            s (str): position string
+
+        Returns:
+            Tuple[int, int]: sort value
+
+        Raises:
+            ValueError: If the string does not have the correct format.
+        """
+        return _AppState.grid_position_from_string(s)
+
+    @staticmethod
+    def grid_position_from_string(s: str) -> Position:
+        """
+        Convert a string format of a grid position (e.g. "A4", "AB3", "A209",
+        "SNS1", etc.) to a Position.
+
+        Args:
+            s (str): string representation of grid position
+
+        Returns:
+            tuple[int, int]: A tuple (x, y) representing the position on the
+                grid, where (0, 0) is the top left square.
+
+        Raises:
+            ValueError: If the string does not have the correct format.
+
+        Examples:
+            >>> _AppState.grid_position_from_string("A1")
+            (0, 0)
+            >>> _AppState.grid_position_from_string("B4")
+            (1, 3)
+            >>> _AppState.grid_position_from_string("AA1")
+            (26, 0)
+            >>> _AppState.grid_position_from_string("AB1")
+            (27, 0)
+        """
+        row_str, col_str = _AppState._get_row_col_from_pos_string(s)
+
+        # Convert the column string to a column number
+        col_num = 0
+        for c in col_str:
+            col_num = col_num * 26 + ord(c) - ord('A') + 1
+
+        # Convert the row string to a row number
+        row_num = int(row_str)
+
+        # Return a tuple representing the position on the grid
+        return col_num - 1, row_num - 1
+
+    def get_dropdown_start_positions(self) -> List[str]:
+        """
+        Generate dropdown options that represent the starting positions of
+        each piece that may be moved in the current player's turn.
+
+        Returns:
+            List[str]: dropdown menu options
+        """
+        result = []
+        for pos in self._get_start_piece_positions():
+            result.append(self.grid_position_to_string(pos))
+
+        # Sort descending
+        return sorted(result, key=_AppState._pos_string_sort_val)
+
+    def get_dropdown_dest_positions(self) -> List[str]:
+        """
+        Generate dropdown options that represent the destinations of the
+        currently selected piece.
+
+        Returns:
+            List[str]: dropdown menu options
+        """
+        result = []
+        for pos in self._get_dest_piece_positions():
+            result.append(self.grid_position_to_string(pos))
+
+        # Sort descending
+        return sorted(result, key=_AppState._pos_string_sort_val)
+
+    def get_dropdown_piece_destinations(self) -> List[str]:
+        """
+        Generate dropdown options that represent the positions of every
+        destination available to the currently selected checkers piece.
+
+        Returns:
+            List[str]: dropdown menu options
+        """
+        result = []
+        for pos in self._get_start_piece_positions():
+            result.append(self.grid_position_to_string(pos))
+
+        # Sort descending
+        return sorted(result, key=_AppState._pos_string_sort_val)
 
 # ===============
 # GUI APP CLASS
@@ -392,17 +734,32 @@ class GuiApp:
     DEFAULT_WINDOW_OPTIONS = WindowOptions()
 
     def __init__(self,
-                 window_options: WindowOptions = WindowOptions()) -> None:
+                 window_options: WindowOptions = WindowOptions(),
+                 debug: bool = False) -> None:
         """
         Constructor for the GUI app.
 
         Args:
             window_options (WindowOptions): options for window presentation
+            debug (bool): enable debug mode
         """
 
         # Initialize PyGame & app state
         pygame.init()
         self._state = _AppState()
+
+        if debug:
+            # Mock game setup
+            self._state.red_type = _PlayerType.HUMAN
+            self._state.red_name = "Kevin"
+            self._state.black_type = _PlayerType.BOT
+            self._state.black_bot_level = SmartLevel.SIMPLE
+            self._state.num_rows_per_player = 90
+            self._state.board = CheckersBoard(
+                n=self._state.num_rows_per_player)
+            # Directly open Game screen
+            self._state.update_move_options()
+            self._state.screen = _Screens.GAME
 
         # Window setup
         self._update_window(window_options)
@@ -494,8 +851,8 @@ class GuiApp:
         return self._get_window_options().get_dimensions_tuple()
 
     def _rel_rect(self,
-                  width: Union[int, Fraction],
-                  height: Union[int, Fraction],
+                  width: Union[int, Fraction, IntrinsicSize],
+                  height: Union[int, Fraction, IntrinsicSize],
                   parent_id: Union[str, None] = None,
                   ref_pos: Union[ScreenPos, ElemPos] = ScreenPos(),
                   self_align: SelfAlign = SelfAlign(),
@@ -504,11 +861,13 @@ class GuiApp:
         Create a responsive pygame Rect based on relative screen positioning,
         relative alignment, and an offset.
 
+        Intrinsic sizing only works for PyGame-GUI elements.
+
         Args:
-            width (Union[int, Fraction]): element width (either in px or
-                fraction of parent width)
-            height (Union[int, Fraction]): element height (either in px or
-                fraction of parent height)
+            width (Union[int, Fraction]): element width (either in px, or
+                fraction of parent width, or intrinsic width)
+            height (Union[int, Fraction]): element height (either in px, or
+                fraction of parent height, or intrinsic height)
             parent_id (Union[str, None]): parent element ID – defaults to screen
             ref_pos (Union[ScreenPos, ElemPos]): relative positioning,
                 according to the screen or another element (make sure the
@@ -527,7 +886,9 @@ class GuiApp:
             parent_elem = self._lib.get_elem(parent_id)
 
         # Calculate pixel-based width, height values
-        if isinstance(width, Fraction):
+        if isinstance(width, IntrinsicSize):
+            w = -1  # PyGame-GUI interprets this as intrinsic width
+        elif isinstance(width, Fraction):
             if parent_elem:
                 # Fractional width based on parent element
                 w = parent_elem.relative_rect.width * width.value
@@ -538,7 +899,9 @@ class GuiApp:
         else:
             w = width
 
-        if isinstance(height, Fraction):
+        if isinstance(height, IntrinsicSize):
+            h = -1  # PyGame-GUI interprets this as intrinsic height
+        elif isinstance(height, Fraction):
             if parent_elem:
                 # Fractional height based on parent element
                 h = parent_elem.relative_rect.height * height.value
@@ -944,7 +1307,7 @@ class GuiApp:
                 _SetupElems.NUM_PLAYER_ROWS_TITLE,
                 UILabel(
                     self._rel_rect(
-                        width=120,
+                        width=IntrinsicSize(),
                         height=_GeneralSizes.LABEL_HEIGHT,
                         ref_pos=ElemPos(
                             _SetupElems.NUM_PLAYER_ROWS_TEXTINPUT,
@@ -968,7 +1331,7 @@ class GuiApp:
                 _GameElems.TITLE_TEXT,
                 UILabel(
                     self._rel_rect(
-                        width=100,
+                        width=IntrinsicSize(),
                         height=_GeneralSizes.BUTTON_HEIGHT,  # same as menu btn
                         ref_pos=ScreenPos(
                             RelPos.START,
@@ -997,10 +1360,137 @@ class GuiApp:
                             RelPos.END
                         ),
                     ),
-                    "Menu"
+                    "Menu",
+                    object_id=_GameElems.MENU_BUTTON,
+                    manager=self._ui_manager
                 )
             )
-
+            # ===============
+            # ACTION BAR
+            # ===============
+            self._lib.draft(
+                _GameElems.ACTION_BAR,
+                UIPanel(
+                    self._rel_rect(
+                        width=Fraction(1),
+                        height=_GameConsts.ACTION_BAR_HEIGHT,
+                        ref_pos=ScreenPos(
+                            RelPos.CENTER,
+                            RelPos.END
+                        ),
+                        self_align=SelfAlign(
+                            RelPos.CENTER,
+                            RelPos.START
+                        )
+                    ),
+                    starting_layer_height=0
+                )
+            )
+            self._lib.draft(
+                _GameElems.CURRENT_PLAYER_LABEL,
+                UILabel(
+                    self._rel_rect(
+                        width=IntrinsicSize(),
+                        height=_GeneralSizes.LABEL_HEIGHT,
+                        ref_pos=ElemPos(
+                            _GameElems.ACTION_BAR,
+                            RelPos.START,
+                            RelPos.CENTER
+                        ),
+                        self_align=SelfAlign(
+                            RelPos.END,
+                            RelPos.CENTER
+                        ),
+                        offset=Offset(_GameConsts.ACTION_BAR_X_PADDING, 0)
+                    ),
+                    f"{_color_str(self._state.current_color)}'s move:",
+                )
+            )
+            self._lib.draft(
+                _GameElems.SELECTED_PIECE_DROPDOWN,
+                UIDropDownMenu(
+                    self._state.get_dropdown_start_positions(),
+                    self._state.grid_position_to_string(self._state.start_pos),
+                    self._rel_rect(
+                        width=_GameConsts.DROPDOWN_WIDTH,
+                        height=_GeneralSizes.DROPDOWN_HEIGHT,
+                        ref_pos=ElemPos(
+                            _GameElems.CURRENT_PLAYER_LABEL,
+                            RelPos.END,
+                            RelPos.CENTER
+                        ),
+                        self_align=SelfAlign(
+                            RelPos.END,
+                            RelPos.CENTER
+                        ),
+                        offset=Offset(_Sizes.M, 0)
+                    ),
+                    object_id=_GameElems.SELECTED_PIECE_DROPDOWN
+                ),
+            )
+            self._lib.draft(
+                _GameElems.PIECE_TO_DESTINATION_LABEL,
+                UILabel(
+                    self._rel_rect(
+                        width=IntrinsicSize(),
+                        height=_GeneralSizes.LABEL_HEIGHT,
+                        ref_pos=ElemPos(
+                            _GameElems.SELECTED_PIECE_DROPDOWN,
+                            RelPos.END,
+                            RelPos.CENTER
+                        ),
+                        self_align=SelfAlign(
+                            RelPos.END,
+                            RelPos.CENTER
+                        ),
+                        offset=Offset(_GameConsts.ACTION_BAR_ARROW_X_MARGIN, 0)
+                    ),
+                    "→"
+                )
+            )
+            self._lib.draft(
+                _GameElems.DESTINATION_DROPDOWN,
+                UIDropDownMenu(
+                    self._state.get_dropdown_dest_positions(),
+                    self._state.grid_position_to_string(self._state.dest_pos),
+                    self._rel_rect(
+                        width=_GameConsts.DROPDOWN_WIDTH,
+                        height=_GeneralSizes.DROPDOWN_HEIGHT,
+                        ref_pos=ElemPos(
+                            _GameElems.PIECE_TO_DESTINATION_LABEL,
+                            RelPos.END,
+                            RelPos.CENTER
+                        ),
+                        self_align=SelfAlign(
+                            RelPos.END,
+                            RelPos.CENTER
+                        ),
+                        offset=Offset(_GameConsts.ACTION_BAR_ARROW_X_MARGIN, 0)
+                    ),
+                    object_id=_GameElems.DESTINATION_DROPDOWN
+                ),
+            )
+            self._lib.draft(
+                _GameElems.SUBMIT_MOVE_BUTTON,
+                UIButton(
+                    self._rel_rect(
+                        width=80,
+                        height=_GeneralSizes.BUTTON_HEIGHT,
+                        ref_pos=ElemPos(
+                            _GameElems.ACTION_BAR,
+                            RelPos.END,
+                            RelPos.CENTER
+                        ),
+                        self_align=SelfAlign(
+                            RelPos.START,
+                            RelPos.CENTER
+                        ),
+                        offset=Offset(-_GameConsts.ACTION_BAR_X_PADDING, 0)
+                    ),
+                    "Move",
+                    object_id=_GameElems.SUBMIT_MOVE_BUTTON
+                ),
+            )
 
     def _check_window_dimensions_changed(self) -> None:
         """
@@ -1094,8 +1584,19 @@ class GuiApp:
                 # ===============
                 # Clicked: START GAME BUTTON
                 # ===============
+
+                # Recreate board in memory
+                self._state.board = CheckersBoard(
+                    n=self._state.num_rows_per_player)
+
+                # Red starts the game
+                self._state.current_color = PieceColor.RED
+                self._state.update_move_options()
+
+                # Open Game screen
                 self._open_screen(_Screens.GAME)
-                return  # stop processing events in Setup screen
+
+                return  # stop processing UI events in Setup screen
 
         elif event.type == pygame_gui.UI_TEXT_ENTRY_CHANGED:
             if event.ui_object_id == _SetupElems.NUM_PLAYER_ROWS_TEXTINPUT:
@@ -1268,6 +1769,49 @@ class GuiApp:
         # is set up correctly.
         self._validate_game_setup()
 
+    def _process_game_events(self, event: "Event") -> None:
+        """
+        Process user interactions events for the Game screen.
+
+        Args:
+            event (Event): PyGame event
+        """
+        if event.type == pygame_gui.UI_BUTTON_PRESSED:
+            if event.ui_object_id == _GameElems.SUBMIT_MOVE_BUTTON:
+                # ===============
+                # Clicked: SUBMIT MOVE BUTTON
+                # ===============
+
+                # Execute the move
+                move_result = self._state.board.complete_move(
+                    self._state.get_selected_move()
+                )
+                if not move_result:
+                    # End of turn for current player.
+                    # Switch to other player.
+                    self._state.toggle_color()
+
+                # Update the move options
+                self._state.update_move_options()
+
+                # Rebuild the game interface
+                self._rebuild_ui()
+        if event.type == pygame_gui.UI_DROP_DOWN_MENU_CHANGED:
+            if event.ui_object_id == _GameElems.SELECTED_PIECE_DROPDOWN:
+                # ===============
+                # Selection: SELECTED PIECE DROPDOWN
+                # ===============
+                selection = self._lib.get_elem_selection(
+                    _GameElems.SELECTED_PIECE_DROPDOWN)
+                selected_pos = _AppState.grid_position_from_string(selection)
+                if selected_pos != \
+                        self._state.start_pos:
+                    # ===============
+                    # Updated selection: MOVE START POSITION
+                    # ===============
+                    self._state.start_pos = selected_pos
+                    self._rebuild_ui()
+
     def _process_events(self) -> None:
         """
         Process user interaction events. This is the planning stage for
@@ -1287,7 +1831,7 @@ class GuiApp:
             if self._get_current_screen() == _Screens.SETUP:
                 self._process_setup_events(event)
             elif self._get_current_screen() == _Screens.GAME:
-                pass
+                self._process_game_events(event)
 
         # In every loop, check whether the window has been resized
         self._check_window_dimensions_changed()
@@ -1316,6 +1860,7 @@ if __name__ == "__main__":
     app = GuiApp(
         window_options=WindowOptions(
             min_dimensions=Dimensions(800, 600)
-        )
+        ),
+        debug=True
     )
     app.run()
