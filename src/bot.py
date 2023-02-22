@@ -2,63 +2,16 @@ import math
 from copy import deepcopy
 from enum import Enum
 from typing import List, Tuple, Union
-from checkers import Piece, Move, CheckersBoard, PieceColor, Jump
+from checkers import Piece, Move, CheckersBoard, PieceColor, Jump, Position
 
 
 class SmartLevel(Enum):
     """
     An enumeration of the smart level for smart bots
     """
-    SIMPLE = "Easy"
-    MEDIUM = "Medium"
-    HARD = "Hard"
-
-    @staticmethod
-    def from_string(string: str) -> "SmartLevel":
-        """
-        Get enum by its string value.
-
-        Args:
-            string (str): enum value
-
-        Returns:
-            SmartLevel: enum
-        """
-        if string == SmartLevel.SIMPLE.value:
-            return SmartLevel.SIMPLE
-        if string == SmartLevel.MEDIUM.value:
-            return SmartLevel.MEDIUM
-        return SmartLevel.HARD
-
-    @staticmethod
-    def get_simple_name() -> str:
-        """
-        Getter method for simple level name.
-
-        Returns:
-            str: simple level name
-        """
-        return str(SmartLevel.SIMPLE.value)
-
-    @staticmethod
-    def get_medium_name() -> str:
-        """
-        Getter method for medium level name.
-
-        Returns:
-            str: medium level name
-        """
-        return str(SmartLevel.MEDIUM.value)
-
-    @staticmethod
-    def get_hard_name() -> str:
-        """
-        Getter method for hard level name.
-
-        Returns:
-            str: medium hard name
-        """
-        return str(SmartLevel.HARD.value)
+    SIMPLE = 0
+    MEDIUM = 1
+    HARD = 2
 
 
 class Bot:
@@ -196,7 +149,7 @@ class MoveSequence:
         # initialize the priority of the move sequence to 0
         self._priority = 0
 
-    def get_original_position(self) -> Tuple[int, int]:
+    def get_original_position(self) -> Position:
         """
         get the original position from which the MoveSequence is going to start 
 
@@ -206,7 +159,7 @@ class MoveSequence:
         """
         return self._move_list[0].get_current_position()
 
-    def get_end_position(self) -> Tuple[int, int]:
+    def get_end_position(self) -> Position:
         """
         get the end position to which the MoveSequence is going to head
 
@@ -336,7 +289,7 @@ class SmartBot(Bot):
         ]
 
         # this is just for test
-        self._strategy_list_test = [(self._sacrifice_priority, 1)]
+        self._strategy_list_test = [(self._stick_priority, 1)]
 
     def choose_mseq(self) -> Move:
         """
@@ -459,8 +412,8 @@ class SmartBot(Bot):
         Calculated the distane between two position on the board
 
         Parameters:
-            pos1(Tuple[int, int]): the (x, y) on the board of the starting point
-            pos2(Tuple[int, int]): the (x, y) on the board of the end point
+            pos1(checkers.Position): the (x, y) on the board of the starting point
+            pos2(checkers.Position): the (x, y) on the board of the end point
 
         Return: float: the calculated the distance from the 
         """
@@ -658,28 +611,42 @@ class SmartBot(Bot):
 
         We want to favor MoveSequences that lead to the moved piece at least having one piece of our side around it.
 
+        Note that this only address the scenario where a MoveSequence has caused the piece to get not sticked with our pieces. If it was originally not sticked to our pieces, this method won't penalize the MoveSequence as it's not what's causing the detachment.
+
         Parameters:
             mseq(MoveSequence): a MoveSequence whose priority is about to be updated
             weight(float): a float that determine how much of an influence this strategy should be playing among all the strategies
 
         Return: float: the value to add to prioriryfor mseq according to the stick strategy
         """
-        # get the piece that is moved in this MoveSequence
-        target_piece = mseq.get_target_piece()
 
-        # get the end position of the target piece and construct the four possible positions that could be having a piece around it
-        piece_pos = target_piece.get_position()
-        near_region = [(piece_pos[0] - 1, piece_pos[0] - 1), (piece_pos[0] - 1, piece_pos[0] + 1),
-                       (piece_pos[0] + 1, piece_pos[0] - 1), (piece_pos[0] + 1, piece_pos[0] + 1)]
+        # get the end position and original position of the target piece and construct the four possible positions that could be having a piece around it for both cases
+        end_pos = mseq.get_end_position()
+        end_near_region = [(end_pos[0] - 1, end_pos[1] - 1), (end_pos[0] - 1, end_pos[1] + 1),
+                           (end_pos[0] + 1, end_pos[1] - 1), (end_pos[0] + 1, end_pos[1] + 1)]
+
+        original_pos = mseq.get_original_position()
+        original_near_region = [(original_pos[0] - 1, original_pos[1] - 1), (original_pos[0] - 1, original_pos[1] + 1),
+                                (original_pos[0] + 1, original_pos[1] - 1), (original_pos[0] + 1, original_pos[1] + 1)]
+
+        # initilize two flags to record whether the target piece was sticked to our pieces and currently sticked to our pieces
+        past_stick, now_stick = False, False
 
         # check whether there exists a piece in the near region of the target piece
         for piece in self._experimentboard.get_color_avail_pieces(self._own_color):
-            if piece.get_position() in near_region:
-                # there exists a piece in the near region
-                return 0
+            if piece.get_position() in original_near_region:
+                # there exists a piece in the original near region
+                past_stick = True
+            if piece.get_position() in end_near_region:
+                # there exists a piece in the end near region
+                now_stick = True
 
-        # there's no piece around the near region
-        return - weight
+        if past_stick and not now_stick:
+            # there's no piece around the near region, but before the MoveSequence there is
+            return - weight
+
+        # either it's still sticked to a piece, or it was originally not sticked to any piece before the MoveSequence
+        return 0
 
     def _center_priority(self, mseq, weight) -> float:
         """
