@@ -289,7 +289,7 @@ class SmartBot(Bot):
         ]
 
         # this is just for test
-        self._strategy_list_test = [(self._stick_priority, 1)]
+        self._strategy_list_test = [(self._center_priority, 1)]
 
     def choose_mseq(self) -> Move:
         """
@@ -671,10 +671,11 @@ class SmartBot(Bot):
         centering_score = 0
         # specify the center region
         center = [range(2, boardwidth - 2),
-                  range(int(boardwidth/2) - 1, boardwidth + 1)]
-        if origin_pos[0] not in center[0] and origin_pos[1] not in center[1]:
+                  range(int(boardwidth/2) - 1, int(boardwidth/2) + 1)]
+
+        if (origin_pos[0] not in center[0]) or (origin_pos[1] not in center[1]):
             # the original position is not in the center region
-            if end_pos[0] in center[0] and end_pos[1] in center[1]:
+            if (end_pos[0] in center[0]) and (end_pos[1] in center[1]):
                 # the end position is in center region
                 centering_score = 1
 
