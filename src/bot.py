@@ -1,4 +1,5 @@
 import math
+import random
 from copy import deepcopy
 from enum import Enum
 from typing import List, Tuple, Union
@@ -128,6 +129,12 @@ class Bot:
         for nxt_move in move_list:
             self._checkersboard.complete_move(nxt_move)
 
+        # for test purposes
+        if not move_list:
+            return False
+
+        return True
+
 
 class RandomBot(Bot):
     """
@@ -149,18 +156,32 @@ class RandomBot(Bot):
         """
         super().__init__(own_color, oppo_color, checkersboard)
 
-    def choose_move(self, avail_moves) -> Move:
+    def choose_move_list(self) -> List[Move]:
         """
-        choose a move from avail_moves randomly
+        choose a list of the move to take randomly
 
-        Parameters:
-            avail_moves(List[Move]): a list of available moves that
-                                     the random bot is going to choose
-                                     from
+        Parameters: None
 
-        Return: Move: the move that is chosen
+        Return: Union[List[Move]]: the list of move that is chosen, or an empty list when there's no move to take, which means the bot has lost
         """
-        raise NotImplementedError
+        # get all the move that can be taken
+        nxt_move_list = self.get_avail_moves()
+        # initialize a list to contain the move that the output MoveSequence is going to take
+        output_move_list = []
+
+        # keep going until reach an place where move is possible
+        while nxt_move_list:
+            # randomly choose a valid move
+            nxt_move = random.choice(nxt_move_list)
+
+            output_move_list.append(deepcopy(nxt_move))
+            nxt_move_list = self._experimentboard.complete_move(nxt_move)
+
+        # restore the experimental board
+        for move in reversed(output_move_list):
+            self._experimentboard.undo_move(move)
+
+        return output_move_list
 
 
 class MoveSequence:
@@ -171,7 +192,7 @@ class MoveSequence:
     completing moves
     """
 
-    def __init__(self, move_list, result_board, kinged) -> None:
+    def __init__(self, move_list, kinged) -> None:
         """
         construct a movesequence
 
@@ -181,11 +202,9 @@ class MoveSequence:
             result_board(CheckersBoard): the result board state if the moves in 
                                          the move list is taken
             kinged(Bool): indicate whether a piece is kinged by this MoveSequence
-
         Return: None
         """
         self._move_list = move_list
-        self._result_board = result_board
         self._kinged = kinged
 
         # initialize the priority of the move sequence to 0
@@ -230,16 +249,6 @@ class MoveSequence:
         Return: List[Move]: the list of moves of the MoveSequence
         """
         return self._move_list
-
-    def get_result_board(self) -> CheckersBoard:
-        """
-        getter function of the move_list of the MoveSequence
-
-        Parameters: None
-
-        Return: List[Move]: the list of moves of the MoveSequence
-        """
-        return self._result_board
 
     def get_priority(self) -> float:
         """
@@ -333,23 +342,24 @@ class SmartBot(Bot):
         # this is just for test
         self._strategy_list_test = [(self._force_priority, 1)]
 
-    def choose_mseq(self) -> Move:
+    def choose_move_list(self) -> List[Move]:
         """
-        choose the MoveSequence to take
+        choose the list of move to take
 
-        The MoveSequence would be chosen according to the smart level of the
+        A MoveSequence would be chosen according to the smart level of the
         bot, the higher the smart level, the more strategies that the
         choosing would take into consideration
 
         Parameters: None
 
-        Return: Move: the move that is chosen
+        Return: List[Move]: the list of moves that is chosen
         """
         # get the MoveSequence list with the priority specified according to the stratgies
         weighted_mseq_list = self._get_mseq_list(self._strategy_list)
 
+        # return the move list of the movesequence with the highest priority
         # https://www.programiz.com/python-programming/methods/built-in/max
-        return max(weighted_mseq_list, key=lambda m: m.get_priority())
+        return max(weighted_mseq_list, key=lambda m: m.get_priority()).get_move_list()
 
     def _get_mseq_list(self, strategy_list) -> List[MoveSequence]:
         """
@@ -387,7 +397,7 @@ class SmartBot(Bot):
                 # MoveSequence and add that to the Movesequence_list with its
                 # priority
                 mseq = MoveSequence(
-                    curr_path[:], self._experimentboard, kinged)
+                    curr_path[:], kinged)
                 self._assign_priority(mseq, strategy_list)
                 Movesequence_list.append(mseq)
 
