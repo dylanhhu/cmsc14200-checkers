@@ -912,6 +912,10 @@ class GuiApp:
             if self._state.black_type == _PlayerType.HUMAN:
                 if self._state.black_name == "":
                     raise ValueError()
+            if self._state.red_type == _PlayerType.HUMAN and \
+                    self._state.black_type == _PlayerType.HUMAN:
+                if self._state.red_name == self._state.black_name:
+                    raise ValueError()
 
             # By this point, the game setup is all valid!
             self._lib.enable_elem(_SetupElems.START_GAME_BUTTON)
