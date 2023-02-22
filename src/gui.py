@@ -203,6 +203,29 @@ class _SetupConsts:
                               SmartLevel.get_hard_name()]
 
 
+class _GameElems:
+    # ID
+    screen_id = _Screens.get_game_name()
+
+    # ===============
+    # ELEMENTS
+    # ===============
+
+    TITLE_TEXT = "#title-text"
+    MENU_BUTTON = "#menu-button"
+
+    # ===============
+    # LIST OF ELEMENT IDS
+    # ===============
+
+    elem_ids = [TITLE_TEXT, MENU_BUTTON]
+
+
+class _GameConsts:
+    # Numbers
+    TITLE_BAR_HEIGHT = 60
+
+
 # ===============
 # APP STATE CLASS
 # ===============
@@ -393,7 +416,7 @@ class GuiApp:
         self._lib.init_screen_elems(_Screens.get_setup_name(),
                                     _SetupElems.elem_ids)
         self._lib.init_screen_elems(_Screens.get_game_name(),
-                                    [])
+                                    _GameElems.elem_ids)
 
         # Build the UI for the first time
         self._rebuild_ui()
@@ -937,6 +960,47 @@ class GuiApp:
                     "Rows per player",
                 )
             )
+        elif self._state.screen == _Screens.GAME:
+            # ===============
+            # TITLE BAR
+            # ===============
+            self._lib.draft(
+                _GameElems.TITLE_TEXT,
+                UILabel(
+                    self._rel_rect(
+                        width=100,
+                        height=_GeneralSizes.BUTTON_HEIGHT,  # same as menu btn
+                        ref_pos=ScreenPos(
+                            RelPos.START,
+                            RelPos.START
+                        ),
+                        self_align=SelfAlign(
+                            RelPos.END,
+                            RelPos.END
+                        ),
+                    ),
+                    "Checkers"
+                )
+            )
+            self._lib.draft(
+                _GameElems.MENU_BUTTON,
+                UIButton(
+                    self._rel_rect(
+                        width=60,
+                        height=_GeneralSizes.BUTTON_HEIGHT,
+                        ref_pos=ScreenPos(
+                            RelPos.END,
+                            RelPos.START
+                        ),
+                        self_align=SelfAlign(
+                            RelPos.START,
+                            RelPos.END
+                        ),
+                    ),
+                    "Menu"
+                )
+            )
+
 
     def _check_window_dimensions_changed(self) -> None:
         """
