@@ -1,4 +1,8 @@
-from typing import Union
+#
+# © Kevin Gugelmann, 20 February 2023.
+# All rights reserved.
+#
+from typing import Union, Tuple
 from dataclasses import dataclass
 
 
@@ -6,23 +10,49 @@ from dataclasses import dataclass
 # TYPE ALIASES
 # ===============
 
-DimensionsTuple = tuple[int, int]
+DimensionsTuple = Tuple[int, int]
 
 
 # ===============
 # DATA CLASSES
 # ===============
 
+
 @dataclass
 class Dimensions:
+    """
+    Data class representing window dimensions (width & height).
+    """
     width: int
     height: int
 
+    @staticmethod
+    def from_tuple(dimensions_tuple: DimensionsTuple) -> "Dimensions":
+        """
+        Creates a Dimensions instance from a tuple of two ints.
+
+        Args:
+            dimensions_tuple (DimensionsTuple): dimensions tuple (width, height)
+
+        Returns:
+            Dimensions: the new Dimensions instance
+        """
+        return Dimensions(dimensions_tuple[0], dimensions_tuple[1])
+
+
+# ===============
+# WINDOW OPTIONS CLASS
+# ===============
+
 
 class WindowOptions:
+    """
+    Class containing options for configuring the PyGame window.
+    """
+
     # Default constants
     DEFAULT_DIMENSIONS = Dimensions(width=800, height=600)
-    DEFAULT_PADDING = 16
+    DEFAULT_PADDING = 32
     DEFAULT_FULLSCREEN = False
     DEFAULT_TITLE = ""
 
