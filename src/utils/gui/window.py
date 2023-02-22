@@ -52,11 +52,14 @@ class WindowOptions:
 
     # Default constants
     DEFAULT_DIMENSIONS = Dimensions(width=800, height=600)
+    DEFAULT_MIN_DIMENSIONS = Dimensions(width=400, height=300)
     DEFAULT_PADDING = 32
     DEFAULT_FULLSCREEN = False
     DEFAULT_TITLE = ""
 
-    def __init__(self, dimensions: Union[Dimensions, None] = None,
+    def __init__(self,
+                 dimensions: Union[Dimensions, None] = None,
+                 min_dimensions: Union[Dimensions, None] = None,
                  padding: Union[int, None] = None,
                  fullscreen: Union[bool, None] = None,
                  title: Union[str, None] = None) -> None:
@@ -65,6 +68,7 @@ class WindowOptions:
 
         Args:
             dimensions (Dimensions): window dimensions
+            min_dimensions (Dimensions): minimum window dimensions
             padding (int): padding between the game content and window edges
             fullscreen (bool): whether to present the window in fullscreen mode
             title (str): window title
@@ -72,6 +76,7 @@ class WindowOptions:
 
         # Default initialization values
         self._dimensions = WindowOptions.DEFAULT_DIMENSIONS
+        self._min_dimensions = WindowOptions.DEFAULT_MIN_DIMENSIONS
         self._padding = self.DEFAULT_PADDING
         self._fullscreen = self.DEFAULT_FULLSCREEN
         self._title = self.DEFAULT_TITLE
@@ -79,6 +84,8 @@ class WindowOptions:
         # Attempt set custom values
         if dimensions is not None:
             self.set_dimensions(dimensions)
+        if min_dimensions is not None:
+            self.set_min_dimensions(min_dimensions)
         if padding is not None:
             self.set_padding(padding)
         if fullscreen is not None:
@@ -90,6 +97,8 @@ class WindowOptions:
         """
         Setter method for updating the window dimensions.
 
+        Limited to minimum window dimensions.
+
         Args:
             new_dimensions (Dimensions): the new window dimensions
 
@@ -97,12 +106,15 @@ class WindowOptions:
             ValueError if invalid dimensions are provided.
         """
 
-        # Make sure screen dimensions are positive and non-zero
+        # Make sure window dimensions are positive and non-zero
         if new_dimensions.width <= 0 or new_dimensions.height <= 0:
             raise ValueError(f"Argument new_dimensions {str(new_dimensions)} "
                              f"is invalid.")
 
-        self._dimensions = new_dimensions
+        self._dimensions = Dimensions(
+            max(self.get_min_dimensions().width, new_dimensions.width),
+            max(self.get_min_dimensions().height, new_dimensions.height),
+        )
 
     def get_dimensions(self) -> Dimensions:
         """
@@ -121,6 +133,50 @@ class WindowOptions:
             DimensionsTuple: window dimensions (width, height)
         """
         return self._dimensions.width, self._dimensions.height
+
+    def set_min_dimensions(self, new_dimensions: Dimensions) -> None:
+        """
+        Setter method for updating the minimum window dimensions.
+
+        Args:
+            new_dimensions (Dimensions): the new minimum window dimensions
+
+        Raises:
+            ValueError if invalid dimensions are provided.
+        """
+
+        # Make sure minimum window dimensions are positive and non-zero
+        if new_dimensions.width <= 0 or new_dimensions.height <= 0:
+            raise ValueError(f"Minimum dimensions {str(new_dimensions)} are "
+                             f"invalid.")
+
+        # Update minimum dimensions
+        self._min_dimensions = new_dimensions
+
+        # Make sure minimum window dimensions are smaller than the current
+        # window dimensions, by recalling `set_dimensions`
+        if new_dimensions.width > self.get_dimensions().width or \
+                new_dimensions.height > self.get_dimensions().height:
+            self.set_dimensions(self.get_dimensions())
+
+    def get_min_dimensions(self) -> Dimensions:
+        """
+        Getter method that returns the minimum window dimensions.
+
+        Returns:
+            Dimensions: minimum window dimensions
+        """
+        return self._min_dimensions
+
+    def get_min_dimensions_tuple(self) -> DimensionsTuple:
+        """
+        Getter method that returns the minimum window dimensions, as a tuple of
+        ints.
+
+        Returns:
+            DimensionsTuple: minimum window dimensions (width, height)
+        """
+        return self._min_dimensions.width, self._min_dimensions.height
 
     def set_padding(self, new_padding: int) -> None:
         """

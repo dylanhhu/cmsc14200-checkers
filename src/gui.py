@@ -222,23 +222,109 @@ class _AppState:
 
     # Red player
     red_type: _PlayerType = _PlayerType.HUMAN
-    red_name: str = ""
     red_bot_level: SmartLevel = SmartLevel.SIMPLE
+    _red_name: str = ""
+    _red_name_raw: str = str(_red_name)
+
+    @property
+    def red_name(self) -> str:
+        """
+        Getter method for the red player's name.
+
+        Returns:
+            str: red player's name
+        """
+        return self._red_name
+
+    @red_name.setter
+    def red_name(self, v: str) -> None:
+        """
+        Setter method for red player's name.
+
+        Removes leading and trailing whitespace.
+
+        Args:
+            v (str): value
+
+        Returns:
+            None
+        """
+        self._red_name_raw = v
+        self._red_name = v.strip()
+
+    @property
+    def red_name_raw(self) -> str:
+        """
+        Getter method for the raw input value of the red player's name.
+
+        Returns:
+            str: raw input for red player's name
+        """
+        return self._red_name_raw
 
     # Black player
     black_type: _PlayerType = _PlayerType.HUMAN
-    black_name: str = ""
     black_bot_level: SmartLevel = SmartLevel.SIMPLE
+    _black_name: str = ""
+    _black_name_raw: str = str(_black_name)
+
+    @property
+    def black_name(self) -> str:
+        """
+        Getter method for the black player's name.
+
+        Returns:
+            str: black player's name
+        """
+        return self._black_name
+
+    @black_name.setter
+    def black_name(self, v: str) -> None:
+        """
+        Setter method for black player's name.
+
+        Removes leading and trailing whitespace.
+
+        Args:
+            v (str): value
+
+        Returns:
+            None
+        """
+        self._black_name_raw = v
+        self._black_name = v.strip()
+
+    @property
+    def black_name_raw(self) -> str:
+        """
+        Getter method for the raw input value of the black player's name.
+
+        Returns:
+            str: raw input for black player's name
+        """
+        return self._black_name_raw
 
     # Board settings
     _num_rows_per_player: Union[int, None] = 3
+    _num_rows_per_player_raw_input: str = str(_num_rows_per_player)
 
     @property
     def num_rows_per_player(self) -> Union[int, None]:
         """
         Getter method for the number of rows per player.
+
+        Returns:
+            Union[int, None]: numerical value for number of rows per player,
+                or None if invalid
         """
         return self._num_rows_per_player
+
+    @property
+    def num_rows_per_player_raw(self) -> str:
+        """
+        Getter method for the raw text input for the number of rows per player.
+        """
+        return self._num_rows_per_player_raw_input
 
     @num_rows_per_player.setter
     def num_rows_per_player(self, v: str) -> None:
@@ -247,7 +333,15 @@ class _AppState:
 
         Args:
             v (str): value
+
+        Returns:
+            None
         """
+
+        # Update raw text input
+        self._num_rows_per_player_raw_input = v
+
+        # Update numerical value
         try:
             num_rows_int = int(v)
             if num_rows_int < 1:
@@ -327,17 +421,18 @@ class GuiApp:
 
         # Window title
         if should_refresh_title:
-            pygame.display.set_caption(new_options.get_title())
+            pygame.display.set_caption(self._window_options.get_title())
 
         # Window dimensions
         if should_refresh_dimensions:
-            if new_options.is_fullscreen():
+            if self._window_options.is_fullscreen():
                 self._window_surface = pygame.display.set_mode(
-                    new_options.get_dimensions_tuple(),
+                    self._window_options.get_dimensions_tuple(),
                     pygame.FULLSCREEN)
             else:
                 self._window_surface = pygame.display.set_mode(
-                    new_options.get_dimensions_tuple())
+                    self._window_options.get_dimensions_tuple(),
+                    pygame.RESIZABLE)
 
     def _get_window_options(self) -> WindowOptions:
         """
@@ -582,7 +677,7 @@ class GuiApp:
                 _SetupElems.RED_TYPE_DROPDOWN,
                 UIDropDownMenu(
                     _SetupConsts.PLAYER_MODE_OPTIONS,
-                    _PlayerType.get_human_name(),
+                    str(self._state.red_type.value),
                     self._rel_rect(
                         width=_SetupConsts.PANEL_CONTENT_WIDTH,
                         height=_GeneralSizes.DROPDOWN_HEIGHT,
@@ -617,12 +712,14 @@ class GuiApp:
                                       _SetupConsts.BELOW_PLAYER_MODE_DROPDOWN)),
                     manager=self._ui_manager,
                     object_id=_SetupElems.RED_NAME_TEXTINPUT,
-                    placeholder_text="Name..."))
+                    placeholder_text="Name...",
+                    initial_text=self._state.red_name_raw,
+                    visible=self._state.red_type == _PlayerType.HUMAN))
             self._lib.draft(
                 _SetupElems.RED_BOT_DIFFICULTY_DROPDOWN,
                 UIDropDownMenu(
                     _SetupConsts.BOT_DIFFICULTY_OPTIONS,
-                    SmartLevel.get_simple_name(),
+                    str(self._state.red_bot_level.value),
                     self._rel_rect(
                         width=_SetupConsts.PANEL_CONTENT_WIDTH,
                         height=_GeneralSizes.DROPDOWN_HEIGHT,
@@ -639,7 +736,7 @@ class GuiApp:
                                       _SetupConsts.BELOW_PLAYER_MODE_DROPDOWN)),
                     manager=self._ui_manager,
                     object_id=_SetupElems.RED_BOT_DIFFICULTY_DROPDOWN,
-                    visible=False))
+                    visible=self._state.red_type == _PlayerType.BOT))
 
             # ===============
             # BLACK PANEL
@@ -688,7 +785,7 @@ class GuiApp:
                 _SetupElems.BLACK_TYPE_DROPDOWN,
                 UIDropDownMenu(
                     _SetupConsts.PLAYER_MODE_OPTIONS,
-                    _PlayerType.get_human_name(),
+                    str(self._state.black_type.value),
                     self._rel_rect(
                         width=_SetupConsts.PANEL_CONTENT_WIDTH,
                         height=_GeneralSizes.DROPDOWN_HEIGHT,
@@ -723,12 +820,14 @@ class GuiApp:
                                       _SetupConsts.BELOW_PLAYER_MODE_DROPDOWN)),
                     manager=self._ui_manager,
                     object_id=_SetupElems.BLACK_NAME_TEXTINPUT,
-                    placeholder_text="Name..."))
+                    placeholder_text="Name...",
+                    initial_text=self._state.black_name_raw,
+                    visible=self._state.black_type == _PlayerType.HUMAN))
             self._lib.draft(
                 _SetupElems.BLACK_BOT_DIFFICULTY_DROPDOWN,
                 UIDropDownMenu(
                     _SetupConsts.BOT_DIFFICULTY_OPTIONS,
-                    SmartLevel.get_simple_name(),
+                    str(self._state.black_bot_level.value),
                     self._rel_rect(
                         width=_SetupConsts.PANEL_CONTENT_WIDTH,
                         height=_GeneralSizes.DROPDOWN_HEIGHT,
@@ -745,7 +844,7 @@ class GuiApp:
                                       _SetupConsts.BELOW_PLAYER_MODE_DROPDOWN)),
                     manager=self._ui_manager,
                     object_id=_SetupElems.BLACK_BOT_DIFFICULTY_DROPDOWN,
-                    visible=False))
+                    visible=self._state.black_type == _PlayerType.BOT))
 
             # ===============
             # WELCOME TEXT
@@ -817,12 +916,12 @@ class GuiApp:
                     manager=self._ui_manager,
                     object_id=_SetupElems.NUM_PLAYER_ROWS_TEXTINPUT,
                     placeholder_text="Number...",
-                    initial_text=str(self._state.num_rows_per_player)))
+                    initial_text=self._state.num_rows_per_player_raw))
             self._lib.draft(
                 _SetupElems.NUM_PLAYER_ROWS_TITLE,
                 UILabel(
                     self._rel_rect(
-                        width=180,
+                        width=120,
                         height=_GeneralSizes.LABEL_HEIGHT,
                         ref_pos=ElemPos(
                             _SetupElems.NUM_PLAYER_ROWS_TEXTINPUT,
@@ -835,7 +934,7 @@ class GuiApp:
                         ),
                         offset=Offset(0, - _SetupConsts.ABOVE_NUM_ROWS)
                     ),
-                    "Rows per player (>= 1)",
+                    "Rows per player",
                 )
             )
 
@@ -888,9 +987,6 @@ class GuiApp:
 
         Args:
             new_screen (_Screens): screen to navigate to
-
-        TODO: this crashes the app since removing screen_id as param across
-            `GuiComponentLib`
         """
         if new_screen != self._get_current_screen():
             # Screen is not already open
@@ -1153,5 +1249,9 @@ class GuiApp:
 
 
 if __name__ == "__main__":
-    app = GuiApp()
+    app = GuiApp(
+        window_options=WindowOptions(
+            min_dimensions=Dimensions(800, 600)
+        )
+    )
     app.run()
