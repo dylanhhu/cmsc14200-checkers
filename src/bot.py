@@ -131,6 +131,7 @@ class Bot:
 
         # for test purposes
         if not move_list:
+            print(f"{self._own_color} loses \n",  self._checkersboard)
             return False
 
         return True
@@ -340,7 +341,8 @@ class SmartBot(Bot):
         ]
 
         # this is just for test
-        self._strategy_list_test = [(self._force_priority, 1)]
+        self._strategy_list_test = [
+            (self._force_priority, 1), (self._sacrifice_priority, 1)]
 
     def choose_move_list(self) -> List[Move]:
         """
@@ -352,14 +354,24 @@ class SmartBot(Bot):
 
         Parameters: None
 
-        Return: List[Move]: the list of moves that is chosen
+        Return: List[Move]: the list of moves that is chosen, or return [] when we don't have any moves
         """
-        # get the MoveSequence list with the priority specified according to the stratgies
-        weighted_mseq_list = self._get_mseq_list(self._strategy_list)
 
-        # return the move list of the movesequence with the highest priority
-        # https://www.programiz.com/python-programming/methods/built-in/max
-        return max(weighted_mseq_list, key=lambda m: m.get_priority()).get_move_list()
+        # get the MoveSequence list with the priority specified according to the stratgies
+        weighted_mseq_list = self._get_mseq_list(self._strategy_list_test)
+
+        # check whether there is any MoveSequence we can take
+        if weighted_mseq_list:
+            # return the move list of the movesequence with the highest priority
+            # https://www.programiz.com/python-programming/methods/built-in/max
+
+            max_priority_mseq = max(
+                weighted_mseq_list, key=lambda m: m.get_priority()).get_move_list()
+
+            return max_priority_mseq
+
+        # we don't have any move to take, i.e. , we've lost
+        return []
 
     def _get_mseq_list(self, strategy_list) -> List[MoveSequence]:
         """
@@ -391,7 +403,7 @@ class SmartBot(Bot):
 
             Return: None
             """
-            if not move_list:
+            if not move_list and curr_path:
                 # if there's no move in the list, reached the end
                 # of one potential move list, create a corresponding
                 # MoveSequence and add that to the Movesequence_list with its
@@ -406,7 +418,7 @@ class SmartBot(Bot):
             for nxt_move in deepcopy(move_list):
                 # update the path and the board state
 
-                curr_path.append(nxt_move)
+                curr_path.append(deepcopy(nxt_move))
 
                 # determine whether the piece about to be moved is a king now
                 if not nxt_move.get_piece().is_king():
@@ -808,7 +820,8 @@ class SmartBot(Bot):
         if len(oppo_mseq_list) == 1:
             # if there is this unique induced jump MoveSequence, update the board to the state that assumes the opponent has taken this move
             oppo_mseq = oppo_mseq_list[0]
-            for move in oppo_mseq.get_move_list():
+            oppo_move_list = oppo_mseq.get_move_list()
+            for move in oppo_move_list:
                 self._experimentboard.complete_move(move)
 
             induced_piece = self._experimentboard._pieces[
@@ -829,7 +842,7 @@ class SmartBot(Bot):
                             self._captured_priority(mseq, weight))
 
             # restore the board to the current round before we anticipate any opponents moves
-            for move in reversed(oppo_mseq.get_move_list()):
+            for move in reversed(oppo_move_list):
                 self._experimentboard.undo_move(move)
 
             # return the priority that corresponds to the most pieces captured if there exists any response MoveSequence
@@ -893,7 +906,6 @@ class OppoBot(SmartBot):
         mseq_list = self._get_mseq_list([])
         # initialize an output list
         output_list = []
-
         for mseq in mseq_list:
             first_move = mseq.get_move_list()[0]
             # check out whether the first move is a jump
