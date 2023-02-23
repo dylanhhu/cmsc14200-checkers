@@ -667,11 +667,12 @@ class DrawOffer(Move):
     When offering a draw, the GUI/TUI must create an instance of this class and
     "play" it along with another "regular" move (move/jump).
 
-    When a draw is offered, the player will recieve it when getting all valid
-    moves for that player.
+    When a draw is offered, the player will receive it when getting all valid
+    moves for that player. The color stored in that DrawOffer will be the
+    recipient player's color, NOT the offering player's color.
 
-    To accept a draw, the GUI/TUI must "play" the draw request. To reject,
-    play any other move.
+    To accept a draw, the GUI/TUI must "play" the draw request provided when
+    getting the player's move. To reject, play any other move.
     """
 
     def __init__(self, offering_color: PieceColor) -> None:
@@ -1139,6 +1140,18 @@ was invalid.")
             # Otherwise, just add the moves to possible_moves
             possible_moves.extend(piece_moves)
 
+        # Check for a draw offer
+        if self._draw_offer[color]:
+            offer = DrawOffer(color)
+
+            # Check if there are any jumps
+            if possible_jumps:
+                possible_jumps.append(offer)
+                return possible_jumps
+
+            # There are no jumps available, we can use the normal return below
+            possible_moves.append(offer)
+
         return possible_jumps if possible_jumps else possible_moves
 
     def validate_move(self, move: Move) -> bool:
@@ -1251,7 +1264,7 @@ was invalid.")
             offer (DrawOffer): the draw offer
 
         Returns:
-            PieceColor: the color of the player offering the draw
+            PieceColor: the color of the player offering/accepting the draw
 
         Raises:
             ValueError: if the offering color is invalid
