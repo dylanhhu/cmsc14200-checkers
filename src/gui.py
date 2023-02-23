@@ -10,15 +10,17 @@ import pygame
 import pygame_gui
 from pygame.event import Event
 from pygame_gui import UIManager, PackageResource
+from pygame_gui.core import ObjectID
 from pygame_gui.elements import (UIButton, UILabel, UIPanel, UITextEntryLine,
                                  UIDropDownMenu)
 
-from src.bot import SmartLevel
-from src.checkers import PieceColor, CheckersBoard, Position, Piece, Move
-from src.utils.gui.components import GuiComponentLib, ModifyElemCommand, Element
-from src.utils.gui.relative_rect import (RelPos, ScreenPos, ElemPos, SelfAlign,
-                                         Offset, Fraction, IntrinsicSize)
-from src.utils.gui.window import Dimensions, WindowOptions, DimensionsTuple
+from bot import SmartLevel
+from checkers import PieceColor, CheckersBoard, Position, Piece, Move
+from utils.gui.components import GuiComponentLib, ModifyElemCommand, Element
+from utils.gui.relative_rect import (RelPos, ScreenPos, ElemPos, SelfAlign,
+                                         Offset, Fraction, IntrinsicSize,
+                                         MatchOtherSide, NegFraction)
+from utils.gui.window import Dimensions, WindowOptions, DimensionsTuple
 
 
 # ===============
@@ -220,6 +222,7 @@ class _GameElems:
     PIECE_TO_DESTINATION_LABEL = "#piece-to-destination-label"
     DESTINATION_DROPDOWN = "#destination-dropdown"
     SUBMIT_MOVE_BUTTON = "#submit-move-button"
+    BOARD = "#game-board"
 
     # ===============
     # LIST OF ELEMENT IDS
@@ -227,7 +230,7 @@ class _GameElems:
 
     elem_ids = [TITLE_TEXT, MENU_BUTTON, ACTION_BAR, CURRENT_PLAYER_LABEL,
                 SELECTED_PIECE_DROPDOWN, PIECE_TO_DESTINATION_LABEL,
-                DESTINATION_DROPDOWN, SUBMIT_MOVE_BUTTON]
+                DESTINATION_DROPDOWN, SUBMIT_MOVE_BUTTON, BOARD]
 
 
 class _GameConsts:
@@ -720,6 +723,7 @@ class _AppState:
         # Sort descending
         return sorted(result, key=_AppState._pos_string_sort_val)
 
+
 # ===============
 # GUI APP CLASS
 # ===============
@@ -754,7 +758,7 @@ class GuiApp:
             self._state.red_name = "Kevin"
             self._state.black_type = _PlayerType.BOT
             self._state.black_bot_level = SmartLevel.SIMPLE
-            self._state.num_rows_per_player = 90
+            self._state.num_rows_per_player = 9
             self._state.board = CheckersBoard(
                 n=self._state.num_rows_per_player)
             # Directly open Game screen
@@ -851,8 +855,10 @@ class GuiApp:
         return self._get_window_options().get_dimensions_tuple()
 
     def _rel_rect(self,
-                  width: Union[int, Fraction, IntrinsicSize],
-                  height: Union[int, Fraction, IntrinsicSize],
+                  width: Union[int, Fraction, IntrinsicSize, MatchOtherSide],
+                  height: Union[int, Fraction, IntrinsicSize, MatchOtherSide],
+                  max_width: Union[int, Fraction, None] = None,
+                  max_height: Union[int, Fraction, None] = None,
                   parent_id: Union[str, None] = None,
                   ref_pos: Union[ScreenPos, ElemPos] = ScreenPos(),
                   self_align: SelfAlign = SelfAlign(),
@@ -864,10 +870,16 @@ class GuiApp:
         Intrinsic sizing only works for PyGame-GUI elements.
 
         Args:
-            width (Union[int, Fraction]): element width (either in px, or
-                fraction of parent width, or intrinsic width)
-            height (Union[int, Fraction]): element height (either in px, or
-                fraction of parent height, or intrinsic height)
+            width (Union[int, Fraction, IntrinsicSize, MatchOtherSide]): element
+                width (either in px, or fraction of parent width, or intrinsic
+                width, or match height)
+            height (Union[int, Fraction, IntrinsicSize, MatchOtherSide]):
+                element height (either in px, or fraction of parent height, or
+                intrinsic height, or match width)
+            max_width (Union[int, Fraction, None]): maximum element width
+                (either in px, or fraction of parent width, or None)
+            max_height (Union[int, Fraction, None]): maximum element height
+                (either in px, or fraction of parent width, or None)
             parent_id (Union[str, None]): parent element ID – defaults to screen
             ref_pos (Union[ScreenPos, ElemPos]): relative positioning,
                 according to the screen or another element (make sure the
@@ -876,41 +888,111 @@ class GuiApp:
             offset (Offset): offset from relative position
 
         Raises:
+            ValueError if both sides are assigned `MatchOtherSide()`.
             RuntimeError if parent element's ID doesn't exist.
             RuntimeError if relative element's ID doesn't exist.
         """
+
+        # Check for valid width & height
+        if isinstance(width, MatchOtherSide) and \
+                isinstance(height, MatchOtherSide):
+            raise ValueError("Both width & height are defined using "
+                             "MatchOtherSide.")
 
         # Parent element, if chosen
         parent_elem: Union[Element, None] = None
         if parent_id:
             parent_elem = self._lib.get_elem(parent_id)
 
+        def frac_width(v: Fraction) -> float:
+            """
+            Compute numerical value for a fractional width.
+
+            Args:
+                v (Fraction): value
+
+            Returns:
+                float: computed width
+            """
+            if parent_elem:
+                # Fractional width based on parent element
+                return parent_elem.relative_rect.width * v.value
+            else:
+                # Fractional width based on screen and its padding
+                return (self._get_window_dimensions().width - 2 *
+                        self._get_window_options().get_padding()) * v.value
+
+        def frac_height(v: Fraction) -> float:
+            """
+            Compute numerical value for a fractional height.
+
+            Args:
+                v (Fraction): value
+
+            Returns:
+                float: computed height
+            """
+            if parent_elem:
+                # Fractional height based on parent element
+                return parent_elem.relative_rect.height * v.value
+            else:
+                # Fractional height based on screen and its padding
+                return (self._get_window_dimensions().height - 2 *
+                        self._get_window_options().get_padding()) * v.value
+
+        # Calculate maximum width & height
+        max_w, max_h = None, None
+        if max_width:
+            if isinstance(max_width, Fraction):
+                max_w = frac_width(max_width)
+            else:
+                # Integer value
+                max_w = max_width
+
+        if max_height:
+            if isinstance(max_height, Fraction):
+                max_h = frac_height(max_height)
+            else:
+                # Integer value
+                max_h = max_height
+
         # Calculate pixel-based width, height values
+        w, h = None, None
         if isinstance(width, IntrinsicSize):
             w = -1  # PyGame-GUI interprets this as intrinsic width
         elif isinstance(width, Fraction):
-            if parent_elem:
-                # Fractional width based on parent element
-                w = parent_elem.relative_rect.width * width.value
-            else:
-                # Fractional width based on screen and its padding
-                w = (self._get_window_dimensions().width - 2 *
-                     self._get_window_options().get_padding()) * width.value
-        else:
+            w = frac_width(width)
+        elif isinstance(width, int):
             w = width
 
         if isinstance(height, IntrinsicSize):
             h = -1  # PyGame-GUI interprets this as intrinsic height
         elif isinstance(height, Fraction):
-            if parent_elem:
-                # Fractional height based on parent element
-                h = parent_elem.relative_rect.height * height.value
-            else:
-                # Fractional height based on screen and its padding
-                h = (self._get_window_dimensions().height - 2 *
-                     self._get_window_options().get_padding()) * height.value
-        else:
+            h = frac_height(height)
+        elif isinstance(height, int):
             h = height
+
+        # Bound width & height to their defined maximums,
+        # if both size and max size are defined.
+        if w and max_w:
+            w = min(w, max_w)
+        if h and max_h:
+            h = min(h, max_h)
+
+        # If one side should match the other
+        common_length = None
+        if isinstance(width, MatchOtherSide):
+            # Set common length to calculated height or max width (if defined),
+            # whichever is smaller.
+            common_length = min(h, max_w) if max_w else h
+        elif isinstance(height, MatchOtherSide):
+            # Set common length to calculated width or max height (if defined),
+            # whichever is smaller.
+            common_length = min(w, max_h) if max_h else w
+
+        if common_length:
+            # Set both sides to same length
+            w, h = common_length, common_length
 
         # Calculate pixel-based reference position
         if isinstance(ref_pos, ScreenPos):
@@ -976,8 +1058,23 @@ class GuiApp:
         else:
             y = y_ref
 
+        # Calculate numerical offset
+        if isinstance(offset.x, Fraction):
+            offset_x = frac_width(offset.x)
+        elif isinstance(offset.x, NegFraction):
+            offset_x = - frac_width(offset.x)
+        else:
+            offset_x = offset.x
+
+        if isinstance(offset.y, Fraction):
+            offset_y = frac_height(offset.y)
+        elif isinstance(offset.y, NegFraction):
+            offset_y = - frac_height(offset.y)
+        else:
+            offset_y = offset.y
+
         # Return pygame Rect, now considering offset
-        return pygame.Rect((int(x + offset.x), int(y + offset.y)), (w, h))
+        return pygame.Rect((int(x + offset_x), int(y + offset_y)), (w, h))
 
     def _get_center_x(self) -> int:
         """
@@ -1491,6 +1588,98 @@ class GuiApp:
                     object_id=_GameElems.SUBMIT_MOVE_BUTTON
                 ),
             )
+            # ===============
+            # CHECKERS BOARD
+            # ===============
+            self._lib.draft(
+                _GameElems.BOARD,
+                UIPanel(
+                    self._rel_rect(
+                        width=MatchOtherSide(),
+                        max_width=Fraction(0.7),
+                        height=Fraction(0.7),
+                        ref_pos=ScreenPos(
+                            RelPos.START,
+                            RelPos.CENTER
+                        ),
+                        self_align=SelfAlign(
+                            RelPos.END,
+                            RelPos.CENTER
+                        )
+                    ),
+                    object_id=_GameElems.BOARD,
+                    starting_layer_height=0
+                )
+            )
+
+            # Side lengths
+            board_side = 2 * self._state.num_rows_per_player + 2
+            square_side = Fraction(1) / board_side
+
+            # Add every square to board
+            for row in range(board_side):
+                for col in range(board_side):
+                    # Draft board square
+                    elem_id = self._board_square_id((row, col))
+                    self._lib.init_elem(elem_id,
+                                        self._get_current_screen_name())
+                    # Color
+                    if (row % 2 == 1 and col % 2 == 0) or \
+                            (row % 2 == 0 and col % 2 == 1):
+                        elem_class = "@board-square-dark"
+                    else:
+                        elem_class = "@board-square-light"
+
+                    # Draft squares
+                    self._lib.draft(
+                        elem_id,
+                        UIPanel(
+                            self._rel_rect(
+                                width=square_side,
+                                height=square_side,
+                                parent_id=_GameElems.BOARD,
+                                ref_pos=ElemPos(
+                                    _GameElems.BOARD,
+                                    RelPos.START,
+                                    RelPos.START
+                                ),
+                                self_align=SelfAlign(
+                                    RelPos.START,
+                                    RelPos.START
+                                ),
+                                offset=Offset(
+                                    square_side * (row + 1),
+                                    square_side * (col + 1)
+                                )
+                            ),
+                            starting_layer_height=0,
+                            object_id=ObjectID(
+                                class_id=elem_class,
+                                object_id=elem_id)
+                        ),
+                    )
+
+    @staticmethod
+    def _board_square_id(position: Position) -> str:
+        """
+        Get the element ID for a board square at a given position.
+
+        Board starts with red in the top left hand corner.
+
+        Args:
+            position (Position): position on board
+
+        Returns:
+            str: element ID
+
+        Raises:
+            ValueError: if position is invalid.
+        """
+        x, y = position
+        if x < 0 or y < 0:
+            raise ValueError(f"Position {position} is invalid.")
+
+        return f"#board-square-({x},{y})"
 
     def _check_window_dimensions_changed(self) -> None:
         """

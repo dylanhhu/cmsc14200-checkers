@@ -26,7 +26,7 @@ PyGameGUIElement = Union[UIImage, UIButton, UIHorizontalSlider,
                          UITextEntryLine, UITooltip, UIDropDownMenu,
                          UIStatusBar, UIWorldSpaceHealthBar, UIWindow,
                          UIScrollingContainer, UITextEntryBox]
-Element = Union[PyGameGUIElement]  # TODO: add PyGame primitive elems
+Element = Union[PyGameGUIElement]
 ScreenId = str
 ElementId = str
 
@@ -92,7 +92,7 @@ class GuiComponentLib:
             None:
         """
         Initialize a new GUI element by its unique ID, and add it to the
-        library.
+        library. If element already in library - ignore.
 
         Required before drafting elements for painting.
 
@@ -108,11 +108,13 @@ class GuiComponentLib:
         # Validate IDs
         if elem_id == "":
             raise ValueError("Argument elem_id should not be an empty string.")
-        if elem_id in self._unique_elem_ids.get(screen_id, []):
-            raise ValueError(f"Argument elem_id '{elem_id}' is not unique.")
         if screen_id == "":
             raise ValueError("Argument screen_id should not be an empty string"
                              ".")
+
+        if elem_id in self._unique_elem_ids.get(screen_id, []):
+            # Element already registered for screen - ignore
+            return
 
         # Make note of unique element ID
         self._unique_elem_ids[screen_id] = \

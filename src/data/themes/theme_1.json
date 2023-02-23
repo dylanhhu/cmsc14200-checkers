@@ -32,5 +32,34 @@
     {
       "border_width": "0"
     }
+  },
+  "#game-board":
+  {
+    "misc":
+    {
+      "border_width": "0"
+    }
+  },
+  "@board-square-light":
+  {
+    "colours":
+     {
+       "dark_bg":"#e5e5e5"
+     },
+    "misc":
+    {
+      "border_width": "0"
+    }
+  },
+  "@board-square-dark":
+  {
+    "colours":
+     {
+       "dark_bg":"#b57017"
+     },
+    "misc":
+    {
+      "border_width": "0"
+    }
   }
 }

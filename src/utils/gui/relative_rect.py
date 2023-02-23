@@ -4,6 +4,7 @@
 #
 from dataclasses import dataclass
 from enum import Enum
+from typing import Union
 
 
 # ===============
@@ -63,16 +64,6 @@ class SelfAlign:
     """
     x_pos: RelPos = RelPos.START
     y_pos: RelPos = RelPos.START
-
-
-@dataclass
-class Offset:
-    """
-    Data class representing an element's offset from its calculated relative
-    position.
-    """
-    x: int = 0
-    y: int = 0
 
 
 @dataclass
@@ -170,9 +161,36 @@ class Fraction:
         return Fraction(self.value * other)
 
 
+@dataclass
+class NegFraction(Fraction):
+    """
+    Data class representing a negative fraction, its value given between [0,1].
+    """
+    def __init__(self):
+        super().__init__()
+
+
+@dataclass
+class Offset:
+    """
+    Data class representing an element's offset from its calculated relative
+    position.
+    """
+    x: Union[int, Fraction, NegFraction] = 0
+    y: Union[int, Fraction, NegFraction] = 0
+
+
 class IntrinsicSize:
     """
     Empty-constructor class to represent the intrinsic size of a dynamically
     sized PyGame-GUI element.
+    """
+    pass
+
+
+class MatchOtherSide:
+    """
+    Empty-constructor class to represent the other side's length, which must not
+    also be defined as `MatchOtherSide()`.
     """
     pass
