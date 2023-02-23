@@ -835,6 +835,9 @@ class CheckersBoard:
 
         self._game_state = GameStatus.IN_PROGRESS  # the game state
 
+        self._moves_since_capture = 0  # number of moves since a capture
+        self._max_moves_since_capture = 40  # maximum moves before stalemate
+
     def get_board_pieces(self) -> List[Piece]:
         """
         Getter method that returns a list of all pieces on the board.
@@ -993,6 +996,7 @@ was invalid.")
         # reference it inside of self._pieces and keeping track of where it is
         piece = self._pieces[curr_pos]
         piece.set_position(new_pos)     # "Move" the piece
+        self._moves_since_capture += 1  # Increment move counter
 
         # Replace with new Position
         self._pieces[new_pos] = self._pieces.pop(curr_pos)
@@ -1021,6 +1025,7 @@ was invalid.")
             self._captured[cap_color].append(self._pieces.pop(cap_pos))
 
             cap_piece.set_captured()
+            self._moves_since_capture = 0  # reset counter
 
             # Return list of following jumps, if any
             return self.get_piece_moves(piece, jumps_only=True)
@@ -1191,8 +1196,9 @@ was invalid.")
             GameStatus: the game state
         """
 
-        # Check if both colors agree to a draw
-        if all(self._draw_offer.values()):
+        # Check if both colors agree to a draw or if there's a stalemate
+        if (all(self._draw_offer.values())
+                or (self._moves_since_capture > self._max_moves_since_capture)):
             return GameStatus.DRAW
 
         raise NotImplementedError
