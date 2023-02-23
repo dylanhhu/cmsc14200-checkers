@@ -51,6 +51,17 @@
       "border_width": "0"
     }
   },
+  "@board-square-light-selected":
+  {
+    "colours":
+     {
+       "dark_bg":"#f4e10c"
+     },
+    "misc":
+    {
+      "border_width": "0"
+    }
+  },
   "@board-square-dark":
   {
     "colours":
@@ -60,6 +71,72 @@
     "misc":
     {
       "border_width": "0"
+    }
+  },
+  "@board-square-dark-selected":
+  {
+    "colours":
+     {
+       "dark_bg":"#f4e10c"
+     },
+    "misc":
+    {
+      "border_width": "0"
+    }
+  },
+  "@board-red-piece":
+  {
+    "colours":
+     {
+       "dark_bg":"#f4420c",
+       "normal_border": "#ffffff"
+     },
+    "misc":
+    {
+      "border_width": "1",
+      "shape": "rounded_rectangle",
+      "shape_corner_radius": "100"
+    }
+  },
+  "@board-red-piece-selected":
+  {
+    "colours":
+     {
+       "dark_bg":"#f4420c",
+       "normal_border": "#f4e10c"
+     },
+    "misc":
+    {
+      "border_width": "2",
+      "shape": "rounded_rectangle",
+      "shape_corner_radius": "100"
+    }
+  },
+  "@board-black-piece":
+  {
+    "colours":
+     {
+       "dark_bg":"#000000"
+     },
+    "misc":
+    {
+      "border_width": "0",
+      "shape": "rounded_rectangle",
+      "shape_corner_radius": "100"
+    }
+  },
+  "@board-black-piece-selected":
+  {
+    "colours":
+     {
+       "dark_bg":"#000000",
+       "normal_border": "#f4e10c"
+     },
+    "misc":
+    {
+      "border_width": "2",
+      "shape": "rounded_rectangle",
+      "shape_corner_radius": "100"
     }
   }
 }

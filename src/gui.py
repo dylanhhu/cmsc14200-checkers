@@ -1619,7 +1619,7 @@ class GuiApp:
             # Add every square to board
             for row in range(board_side):
                 for col in range(board_side):
-                    # Draft board square
+                    # Initialize board square
                     elem_id = self._board_square_id((row, col))
                     self._lib.init_elem(elem_id,
                                         self._get_current_screen_name())
@@ -1630,13 +1630,17 @@ class GuiApp:
                     else:
                         elem_class = "@board-square-light"
 
-                    # Draft squares
+                    # Selected?
+                    if self._state.dest_pos == (row, col):
+                        elem_class += "-selected"
+
+                    # Draft square
                     self._lib.draft(
                         elem_id,
                         UIPanel(
                             self._rel_rect(
                                 width=square_side,
-                                height=square_side,
+                                height=MatchOtherSide(),
                                 parent_id=_GameElems.BOARD,
                                 ref_pos=ElemPos(
                                     _GameElems.BOARD,
@@ -1659,6 +1663,54 @@ class GuiApp:
                         ),
                     )
 
+            # Add pieces
+            for piece in self._state.board.get_board_pieces():
+                # Get position
+                pos = piece.get_position()
+
+                # Initialize checkers piece
+                elem_id = self._checkers_piece_id(pos)
+                self._lib.init_elem(elem_id,
+                                    self._get_current_screen_name())
+
+                # Color
+                if piece.get_color() == PieceColor.RED:
+                    elem_class = "@board-red-piece"
+                else:
+                    elem_class = "@board-black-piece"
+
+                # Selected?
+                if self._state.start_pos == pos:
+                    elem_class += "-selected"
+
+                # Draft checkers piece
+                parent_id = self._board_square_id(pos)
+                self._lib.draft(
+                    elem_id,
+                    UIPanel(
+                        self._rel_rect(
+                            width=Fraction(0.7),
+                            height=MatchOtherSide(),
+                            parent_id=parent_id,
+                            ref_pos=ElemPos(
+                                parent_id,
+                                RelPos.CENTER,
+                                RelPos.CENTER
+                            ),
+                            self_align=SelfAlign(
+                                RelPos.CENTER,
+                                RelPos.CENTER
+                            )
+                        ),
+                        starting_layer_height=0,
+                        object_id=ObjectID(
+                            class_id=elem_class,
+                            object_id=elem_id)
+                    )
+                )
+
+
+
     @staticmethod
     def _board_square_id(position: Position) -> str:
         """
@@ -1680,6 +1732,28 @@ class GuiApp:
             raise ValueError(f"Position {position} is invalid.")
 
         return f"#board-square-({x},{y})"
+
+    @staticmethod
+    def _checkers_piece_id(position: Position) -> str:
+        """
+        Get the element ID for a checkers piece at a given position.
+
+        Board starts with red in the top left hand corner.
+
+        Args:
+            position (Position): position on board
+
+        Returns:
+            str: element ID
+
+        Raises:
+            ValueError: if position is invalid.
+        """
+        x, y = position
+        if x < 0 or y < 0:
+            raise ValueError(f"Position {position} is invalid.")
+
+        return f"#checkers-piece-({x},{y})"
 
     def _check_window_dimensions_changed(self) -> None:
         """
@@ -1999,6 +2073,20 @@ class GuiApp:
                     # Updated selection: MOVE START POSITION
                     # ===============
                     self._state.start_pos = selected_pos
+                    self._rebuild_ui()
+            if event.ui_object_id == _GameElems.DESTINATION_DROPDOWN:
+                # ===============
+                # Selection: DESTINATION DROPDOWN
+                # ===============
+                selection = self._lib.get_elem_selection(
+                    _GameElems.DESTINATION_DROPDOWN)
+                selected_pos = _AppState.grid_position_from_string(selection)
+                if selected_pos != \
+                        self._state.dest_pos:
+                    # ===============
+                    # Updated selection: MOVE DESTINATION POSITION
+                    # ===============
+                    self._state.dest_pos = selected_pos
                     self._rebuild_ui()
 
     def _process_events(self) -> None:
