@@ -1208,13 +1208,27 @@ was invalid.")
         Returns:
             GameStatus: the game state
         """
+        # Check for resignation (set in complete_move())
+        if self._game_state in (GameStatus.BLACK_WINS, GameStatus.RED_WINS):
+            return self._game_state
 
         # Check if both colors agree to a draw or if there's a stalemate
         if (all(self._draw_offer.values())
                 or (self._moves_since_capture > self._max_moves_since_capture)):
             return GameStatus.DRAW
 
-        raise NotImplementedError
+        # Check for winning states (no moves left impl. no pieces left)
+        # Check red's state
+        if not self.get_player_moves(PieceColor.RED):
+            return GameStatus.BLACK_WINS
+
+        # Check black's state
+        if not self.get_player_moves(PieceColor.BLACK):
+            return GameStatus.RED_WINS
+
+        # If a player has no pieces but only a DrawOffer, continue so that they
+        # have to either take the draw or resign.
+        return GameStatus.IN_PROGRESS
 
     def _generate_pieces(self, n: int) -> Dict[Position, Piece]:
         """
