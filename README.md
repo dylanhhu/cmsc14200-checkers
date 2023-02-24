@@ -68,7 +68,14 @@ python3 src/gui.py
 #### Performance optimization:
 > By design, the GUI displays each bot move with a visual delay. This delay occurs on a thread separate from the main thread, so that the window does not become unresponsive while the bot is 'selecting and making' their move.
 
-## Test the Bot individually
+#### Needs implementing:
+- [ ] Game menu window
+- [ ] Click to select piece and destination square
+- [ ] Display king pieces differently from regular pieces
+- [ ] Check game state (win/draw)
+- [ ] Display captured pieces
+
+## Testing the bot
 - To test the Bot without using GUI or TUI, run the following code in Ipython
 ```
 # random vs smart
@@ -128,13 +135,6 @@ SmartLevel.HARD: winning strategy, lose strategy, sacrifice strategy, capture st
                  corner strategy, baseline strategy, push strategy, king strategy,
                  stick strategy, center strategy, force strategy
 ```
-
-#### Needs implementing:
-- [ ] Game menu window
-- [ ] Click to select piece and destination square
-- [ ] Display king pieces differently from regular pieces
-- [ ] Check game state (win/draw)
-- [ ] Display captured pieces
 
 ## Contributing
 
