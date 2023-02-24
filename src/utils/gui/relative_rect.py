@@ -183,7 +183,6 @@ class IntrinsicSize:
     Empty-constructor class to represent the intrinsic size of a dynamically
     sized PyGame-GUI element.
     """
-    pass
 
 
 class MatchOtherSide:
@@ -191,4 +190,3 @@ class MatchOtherSide:
     Empty-constructor class to represent the other side's length, which must not
     also be defined as `MatchOtherSide()`.
     """
-    pass
