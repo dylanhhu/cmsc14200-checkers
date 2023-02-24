@@ -2,6 +2,13 @@
 
 Final project for UChicago class CMSC 14200. Project members: Aidan Parker, Dylan Hu, Kevin Gugelmann, and Junfei Sun.
 
+## Project Responsibilities
+
+* Game logic - Dylan Hu
+* Bot - Junfei Sun
+* GUI - Kevin Gugelmann
+* TUI - Aidan Parker
+
 ## Setting up and requirements
 
 This project targets Python versions 3.8 and above. This project requires a few libraries such as PyGame.
