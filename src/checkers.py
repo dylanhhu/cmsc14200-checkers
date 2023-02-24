@@ -1028,6 +1028,10 @@ was invalid.")
             if draw_offer_changed:
                 self._draw_offer[draw_offer_changed] = False  # undo draw offer
 
+                # If gamestate was changed, reset it to in progress
+                if self._game_state == GameStatus.DRAW:
+                    self._game_state = GameStatus.IN_PROGRESS
+
             raise ValueError(f"Move {repr(move)} is not a valid move.")
 
         # Process Move - "moving" the piece
@@ -1249,14 +1253,15 @@ was invalid.")
         Returns:
             GameStatus: the game state
         """
-        # Check for resignation (set in complete_move())
-        if self._game_state in (GameStatus.BLACK_WINS, GameStatus.RED_WINS):
+        # Check for resignation (set in complete_move()) or draw
+        if self._game_state in (GameStatus.BLACK_WINS, GameStatus.RED_WINS,
+                                GameStatus.DRAW):
             return self._game_state
 
-        # Check if both colors agree to a draw or if there's a stalemate
-        if (all(self._draw_offer.values())
-                or (self._moves_since_capture > self._max_moves_since_capture)):
-            return GameStatus.DRAW
+        if self._moves_since_capture > self._max_moves_since_capture:
+            self._game_state = GameStatus.DRAW  # set anyway, just in case
+
+            return self._game_state
 
         # Check for winning states (no moves left impl. no pieces left)
         # Check red's state
@@ -1344,6 +1349,10 @@ has an outstanding draw offer."
             raise RuntimeError(msg)
 
         self._draw_offer[offering_color] = True
+
+        # Check for draw condition and set it
+        if all(self._draw_offer.values()):
+            self._game_state = GameStatus.DRAW
 
         return offering_color
 
