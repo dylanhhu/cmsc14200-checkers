@@ -2,6 +2,13 @@
 
 Final project for UChicago class CMSC 14200. Project members: Aidan Parker, Dylan Hu, Kevin Gugelmann, and Junfei Sun.
 
+## Project Responsibilities
+
+* Game logic - Dylan Hu
+* Bot - Junfei Sun
+* GUI - Kevin Gugelmann
+* TUI - Aidan Parker
+
 ## Setting up and requirements
 
 This project targets Python versions 3.8 and above. This project requires a few libraries such as PyGame.
@@ -51,14 +58,10 @@ python3 src/gui.py
   > - Natural number for rows per player (>= 1)
 
 ### Game play
-- Black always starts
 - To make a (human) move, use the action bar, located at the bottom of the window
   - Using the left dropdown box, select the position of the checkers piece you wish to move
   - Using the right dropdown box, select the destination position you wish to move the selected piece to
 - While a bot is making their move, the other player must wait
-
-  > Performance optimization:
-  > - By design, the GUI displays bot moves with a visual delay. This delay occurs on a thread separate from the main thread, so that the window does not become unresponsive while the bot is 'selecting and making' their move.
 
 ## Contributing
 
