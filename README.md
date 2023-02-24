@@ -27,6 +27,29 @@ To deactivate the virtual environment, run:
 deactivate
 ```
 
+## Running the GUI
+
+To run the GUI, run the following from the root of the repository:
+```shell
+python3 src/gui.py
+```
+
+This will open the checkers game menu screen:
+- Each player may be either a human (with a name) or a bot (with a difficulty level)
+- Input the number of rows per player
+- When ready, click on "Start game"
+  > Make sure your inputs are valid:
+  > - No duplicate names (if both players are human)
+  > - Natural number for rows per player (>= 1)
+
+Game play:
+- To make a (human) move, use the action bar, located at the bottom of the window
+  - Using the left dropdown box, select the position of the checkers piece you wish to move
+  - Using the right dropdown box, select the destination position you wish to move the selected piece to
+- While a bot is making their move, the other player must wait
+
+> 📐 The GUI is rendered responsively, so feel free to resize the window by dragging its corners!
+
 ## Contributing
 
 Follow our [contribution](CONTRIBUTING.md) guide.
