@@ -322,7 +322,8 @@ class _AppState:
         """
         Setter method for red player's name.
 
-        Removes leading and trailing whitespace.
+        Removes leading and trailing whitespace. Also stores raw text input in
+        memory.
 
         Args:
             v (str): value
@@ -364,7 +365,8 @@ class _AppState:
         """
         Setter method for black player's name.
 
-        Removes leading and trailing whitespace.
+        Removes leading and trailing whitespace. Also stores raw text input in
+        memory.
 
         Args:
             v (str): value
@@ -441,6 +443,26 @@ class _AppState:
 
     board: CheckersBoard = CheckersBoard(n=1)
     current_color = PieceColor.BLACK
+
+    def current_player_name(self) -> str:
+        """
+        Get the current player's name. If human, this is their inputted name. If
+        a bot, this is the bot's color followed by "bot".
+
+        Returns:
+            str: player name
+        """
+        if self.current_color == PieceColor.RED:
+            if self.red_type == _PlayerType.HUMAN:
+                return self.red_name
+            else:
+                return "Red bot"
+        else:
+            # Black player
+            if self.black_type == _PlayerType.HUMAN:
+                return self.black_name
+            else:
+                return "Black bot"
 
     def toggle_color(self) -> None:
         """
@@ -806,7 +828,7 @@ class GuiApp:
 
         if debug:
             # Mock game setup
-            self._state.red_type = _PlayerType.BOT
+            self._state.red_type = _PlayerType.HUMAN
             self._state.red_name = "Kevin"
             self._state.black_type = _PlayerType.BOT
             self._state.black_bot_level = SmartLevel.SIMPLE
@@ -1553,7 +1575,7 @@ class GuiApp:
                         ),
                         offset=Offset(_GameConsts.ACTION_BAR_X_PADDING, 0)
                     ),
-                    f"{_color_str(self._state.current_color)}'s move:",
+                    f"{self._state.current_player_name()}'s move:",
                 )
             )
             self._lib.draft(
