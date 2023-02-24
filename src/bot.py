@@ -341,7 +341,7 @@ class SmartBot(Bot):
 
         # this is just for test
         self._strategy_list_test = [
-            (self._force_priority, 1), (self._sacrifice_priority, 1)]
+            (self._king_priority, 1)]
 
     def choose_move_list(self) -> List[Move]:
         """
@@ -587,13 +587,13 @@ class SmartBot(Bot):
 
         prev_king = mseq.get_target_piece().is_king()
 
-        # find the row that our side aim at to king
-        if self._own_color == PieceColor.RED:
-            target_row = 0
-        else:
-            target_row = self._experimentboard.get_board_width() - 1
+        # find the baseline row that our side aim at to king
+        baseline = {PieceColor.RED: 0,
+                    PieceColor.BLACK:
+                    self._experimentboard.get_board_width() - 1}
 
-        if (not prev_king) and mseq.get_end_position()[1] == target_row:
+        if (not prev_king) and \
+                mseq.get_end_position()[1] == baseline[self._own_color]:
             # the MoveSequence is a moving previously non-kinged piece to the kinging row, thus kinging the piece
             king_score = 1
         else:
@@ -623,7 +623,7 @@ class SmartBot(Bot):
         sacrificing strategy
         """
         # construct an instance of the opponent
-        Opponent = OppoBot(self._oppo_color, self._own_color,
+        Opponent = OppoBot(self._oppo_color,
                            self._experimentboard, mseq, self._level)
 
         oppo_jump_list = Opponent.get_induced_jump_mseq()
