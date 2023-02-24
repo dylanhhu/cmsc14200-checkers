@@ -160,7 +160,7 @@ class RandomBot(Bot):
 
         Parameters: None
 
-        Return: Union[List[Move]]: the list of move that is chosen, or an empty
+        Return: Union[List[Move]]: the list of move that is chosen, or an empty 
         list when there's no move to take, which means the bot has lost
         """
         # get all the move that can be taken
@@ -191,7 +191,7 @@ class MoveSequence:
     completing moves
     """
 
-    def __init__(self, move_list, kinged) -> None:
+    def __init__(self, move_list) -> None:
         """
         construct a movesequence
 
@@ -200,12 +200,10 @@ class MoveSequence:
                                    consecutively
             result_board(CheckersBoard): the result board state if the moves in 
                                          the move list is taken
-            kinged(Bool): indicate whether a piece is kinged by this
-            MoveSequence
+
         Return: None
         """
         self._move_list = move_list
-        self._kinged = kinged
 
         # initialize the priority of the move sequence to 0
         self._priority = 0
@@ -270,16 +268,6 @@ class MoveSequence:
         Return: None
         """
         self._priority += add_pri
-
-    def is_kinged(self) -> bool:
-        """
-        determine whether the target piece will be kinged by this sequence of move
-
-        Parameters: None
-
-        Return: bool: True if it is kinged, False otherwise
-        """
-        return self._kinged
 
 
 class SmartBot(Bot):
@@ -404,21 +392,16 @@ class SmartBot(Bot):
         nxt_move_list = self._get_avail_moves()
         Movesequence_list = []
 
-        def helper(move_list, curr_path, kinged) -> None:
+        def helper(move_list, curr_path) -> None:
             """
-            a helper funciton to recursively find out all possible move
+            a helper funciton to recursively find out all possible move 
             sequences and update the output_list accordingly
-
-            we determine whether a MoveSequence will king the moved piece
-            during the process as well
 
             Parameters:
                 move_list(List[Move]): a list of the next step that can be taken
                 curr_path(List[Move]): a list of that keeps track of the current
                                        path of moves taken
                 curr_board(CheckersBoard): represent the current board state
-                kinged(Bool): to record whether a piece is kinged during a
-                MoveSequence
 
             Return: None
             """
@@ -428,7 +411,7 @@ class SmartBot(Bot):
                 # MoveSequence and add that to the Movesequence_list with its
                 # priority
                 mseq = MoveSequence(
-                    curr_path[:], kinged)
+                    curr_path[:])
                 self._assign_priority(mseq, strategy_list)
                 Movesequence_list.append(mseq)
 
@@ -439,32 +422,18 @@ class SmartBot(Bot):
 
                 curr_path.append(deepcopy(nxt_move))
 
-                # determine whether the piece about to be moved is a king now
-                if not nxt_move.get_piece().is_king():
-                    not_king = True
-                else:
-                    not_king = False
-
                 # complete the next move
 
                 valid_nxt_list = self._experimentboard.complete_move(nxt_move)
 
-                # determine whether the piece is kinged by this next move
-                if not_king and nxt_move.get_piece().is_king():
-                    # kinged by next move
-                    kinged_by_move = True
-                else:
-                    # not kinged by this move, inherit the kinged from previous moves
-                    kinged_by_move = kinged
-
                 # the recursive step
-                helper(valid_nxt_list, curr_path, kinged_by_move)
+                helper(valid_nxt_list, curr_path)
 
                 self._experimentboard.undo_move(nxt_move)
                 curr_path.pop()
 
         # update the output_list
-        helper(nxt_move_list, [], False)
+        helper(nxt_move_list, [])
 
         return Movesequence_list
 
@@ -532,7 +501,8 @@ class SmartBot(Bot):
         origin_pos = mseq.get_original_position()
         end_pos = mseq.get_end_position()
 
-        # get the position of our double corner and the opponent's double corner according to bot's own piece color
+        # get the position of our double corner and the opponent's double
+        # corner according to bot's own piece color
         if self._own_color == PieceColor.RED:
             oppo_double_pos = (0, 0)
 
@@ -541,14 +511,16 @@ class SmartBot(Bot):
                                self._experimentboard.get_board_width())
 
         attack_score = 0
-        for oppo_piece in self._experimentboard.get_color_avail_pieces(
-                self._oppo_color):
-            if self._distance(oppo_piece.get_position(),
-                              oppo_double_pos) <= math.sqrt(5):
-                # if there exists any opponent piece that is within 2 steps to opponents double corner, more inclined to move towards oppo's double corner
+        for oppo_piece in \
+                self._experimentboard.get_color_avail_pieces(self._oppo_color):
+            if self._distance(oppo_piece.get_position(), oppo_double_pos)\
+                    <= math.sqrt(5):
+                # if there exists any opponent piece that is within 2 steps to
+                # opponents double corner, more inclined to move towards oppo's
+                # double corner
                 attack_score = self._distance(
-                    oppo_double_pos, origin_pos) - self._distance(
-                    oppo_double_pos, end_pos)
+                    oppo_double_pos, origin_pos) - \
+                    self._distance(oppo_double_pos, end_pos)
         return weight * attack_score
 
     def _baseline_priority(self, mseq, weight) -> float:
@@ -604,18 +576,29 @@ class SmartBot(Bot):
         of getting a king
 
         Parameters:
-            mseq(MoveSequence): a MoveSequence whose priority is about to be
+            mseq(MoveSequence): a MoveSequence whose priority is about to be 
             updated
-            weight(float): a float that determine how much of an influence this
+            weight(float): a float that determine how much of an influence this 
             strategy should be playing among all the strategies
 
-        Return: float: the value to add to prioriryfor mseq according to the
+        Return: float: the value to add to prioriryfor mseq according to the 
         kinging strategy
         """
-        king_score = 0
-        if mseq.is_kinged():
-            # the MoveSequence is kinging a piece
+
+        prev_king = mseq.get_target_piece().is_king()
+
+        # find the row that our side aim at to king
+        if self._own_color == PieceColor.RED:
+            target_row = 0
+        else:
+            target_row = self._experimentboard.get_board_width() - 1
+
+        if (not prev_king) and mseq.get_end_position()[1] == target_row:
+            # the MoveSequence is a moving previously non-kinged piece to the kinging row, thus kinging the piece
             king_score = 1
+        else:
+            # the piece was previously a king or isn't moved to the kinging row
+            king_score = 0
 
         return weight * king_score
 
@@ -624,24 +607,24 @@ class SmartBot(Bot):
         update the priority of the available MoveSequence with the consideration
         of sacrifice
 
-        Sometimes making a move means sacrificing the piece we are moving, we
-        don't want to do this blindly so this function serves as a restricting
+        Sometimes making a move means sacrificing the piece we are moving, we 
+        don't want to do this blindly so this function serves as a restricting 
         method so that we don't blindly sacrifice our pieces for no reason.
 
         However, we are more willing to sacrifice pieces when we are leading
 
         Parameters:
-            mseq(MoveSequence): a MoveSequence whose priority is about to be
+            mseq(MoveSequence): a MoveSequence whose priority is about to be 
             updated
-            weight(float): a float that determine how much of an influence this
+            weight(float): a float that determine how much of an influence this 
             strategy should be playing among all the strategies
 
-        Return: float: the value to add to prioriryfor mseq according to the
+        Return: float: the value to add to prioriryfor mseq according to the 
         sacrificing strategy
         """
         # construct an instance of the opponent
-        Opponent = OppoBot(self._oppo_color, self._experimentboard, mseq,
-                           self._level)
+        Opponent = OppoBot(self._oppo_color, self._own_color,
+                           self._experimentboard, mseq, self._level)
 
         oppo_jump_list = Opponent.get_induced_jump_mseq()
         if oppo_jump_list:
@@ -677,17 +660,17 @@ class SmartBot(Bot):
 
     def _captured_priority(self, mseq, weight) -> float:
         """
-        update the priority of the available MoveSequence with the
-        consideration of capturing as many opponent pieces as possible.
+        update the priority of the available MoveSequence with the 
+        consideration of capturing as many opponent pieces as possible. 
         Capturing a king weighs more than capturing a normal piece
 
         Parameters:
-            mseq(MoveSequence): a MoveSequence whose priority is about to be
+            mseq(MoveSequence): a MoveSequence whose priority is about to be 
             updated
-            weight(float): a float that determine how much of an influence this
+            weight(float): a float that determine how much of an influence this 
             strategy should be playing among all the strategies
 
-        Return: float: the value to add to prioriryfor mseq according to the
+        Return: float: the value to add to prioriryfor mseq according to the 
         capture priority
         """
         # initialize a score to record the significance of capture of this mseq
@@ -708,16 +691,16 @@ class SmartBot(Bot):
         update the priority of the available MoveSequence with the consideration
         of pushing forward
 
-        Note that this strategy doesn't apply to kings as the major benefit of
-        pushing forward is to get kings.
+        Note that this strategy doesn't apply to kings as the major benefit of 
+        pushing forward is to get kings. 
 
          Parameters:
-            mseq(MoveSequence): a MoveSequence whose priority is about to be
+            mseq(MoveSequence): a MoveSequence whose priority is about to be 
             updated
-            weight(float): a float that determine how much of an influence this
+            weight(float): a float that determine how much of an influence this 
             strategy should be playing among all the strategies
 
-        Return: float: the value to add to prioriryfor mseq according to the
+        Return: float: the value to add to prioriryfor mseq according to the 
         push priority
         """
         # if the MoveSequence is moving a king, then pass
@@ -739,24 +722,24 @@ class SmartBot(Bot):
 
     def _stick_priority(self, mseq, weight) -> float:
         """
-        update the priority of the available MoveSequence with the
+        update the priority of the available MoveSequence with the 
         consideration of not leaving a single piece out
 
-        We want to favor MoveSequences that lead to the moved piece at least
+        We want to favor MoveSequences that lead to the moved piece at least 
         having one piece of our side around it.
 
-        Note that this only address the scenario where a MoveSequence has
-        caused the piece to get not sticked with our pieces. If it was
-        originally not sticked to our pieces, this method won't penalize the
+        Note that this only address the scenario where a MoveSequence has 
+        caused the piece to get not sticked with our pieces. If it was 
+        originally not sticked to our pieces, this method won't penalize the 
         MoveSequence as it's not what's causing the detachment.
 
         Parameters:
-            mseq(MoveSequence): a MoveSequence whose priority is about to be
+            mseq(MoveSequence): a MoveSequence whose priority is about to be 
             updated
-            weight(float): a float that determine how much of an influence this
+            weight(float): a float that determine how much of an influence this 
             strategy should be playing among all the strategies
 
-        Return: float: the value to add to prioriryfor mseq according to the
+        Return: float: the value to add to prioriryfor mseq according to the 
         stick strategy
         """
 
@@ -765,7 +748,7 @@ class SmartBot(Bot):
         # around it for both cases
         end_pos = mseq.get_end_position()
         end_near_region = [(end_pos[0] - 1, end_pos[1] - 1),
-                           (end_pos[0] - 1, end_pos[1] + 1),
+                           (end_pos[0] - 1,  end_pos[1] + 1),
                            (end_pos[0] + 1, end_pos[1] - 1),
                            (end_pos[0] + 1, end_pos[1] + 1)]
 
@@ -803,20 +786,20 @@ class SmartBot(Bot):
         update the priority of the available MoveSeuqnce with the consideration
         of occupying the center
 
-        For typical 8 * 8 checkerboards, the center refers to the 8 positions
-        in the center 4 columns and the center 2 columns. We want to push into
-        the center regions because we want to avoid staying on the side of the
-        board Therefore, to generalize this to a w * w checkerboards, the
-        center region shall be column 3 to column w -2 and the center rows that
+        For typical 8 * 8 checkerboards, the center refers to the 8 positions 
+        in the center 4 columns and the center 2 columns. We want to push into 
+        the center regions because we want to avoid staying on the side of the 
+        board Therefore, to generalize this to a w * w checkerboards, the 
+        center region shall be column 3 to column w -2 and the center rows that 
         are without any pieces at the beginning of the round
 
         Parameters:
-            mseq(MoveSequence): a MoveSequence whose priority is about to be
+            mseq(MoveSequence): a MoveSequence whose priority is about to be 
             updated
-            weight(float): a float that determine how much of an influence this
+            weight(float): a float that determine how much of an influence this 
             strategy should be playing among all the strategies
 
-        Return: float: the value to add to prioriryfor mseq according to the
+        Return: float: the value to add to prioriryfor mseq according to the 
         center strategy
         """
         # get the original position and the end position of the MoveSequence
@@ -844,15 +827,15 @@ class SmartBot(Bot):
         update the priority of the available MoveSequence with the consideration
         of the existence of a winning move. 
 
-        If there exists a winning move in the given move sequence, this
+        If there exists a winning move in the given move sequence, this 
         MoveSequence is automatically taken
 
         Parameters:
-            mseq(MoveSequence): a MoveSequence whose priority is about to be
+            mseq(MoveSequence): a MoveSequence whose priority is about to be 
             updated
 
-        Return: float: the value to add to prioriryfor mseq according to the
-        winning strategy, if the MoveSequence doesn't contain a winning move,
+        Return: float: the value to add to prioriryfor mseq according to the 
+        winning strategy, if the MoveSequence doesn't contain a winning move, 
         we return the original priority, otherwise, we return inf
         """
         # get all the moves that opponents can make if taking this MoveSequence
@@ -869,19 +852,19 @@ class SmartBot(Bot):
         update the priority of the available MoveSequence with the consideration
         of the existence of a losing move.
 
-        A losing move is defined as an move that will lead to the existence of
-        a winning move for the opponent, i.e., the opponent can win next round.
+        A losing move is defined as an move that will lead to the existence of 
+        a winning move for the opponent, i.e., the opponent can win next round. 
 
-        If there exists a losing move in a MoveSequence, we avoid taking that
-        MoveSequence. However, if all the MoveSequences contains a losing move,
+        If there exists a losing move in a MoveSequence, we avoid taking that 
+        MoveSequence. However, if all the MoveSequences contains a losing move, 
         we randomly select a move(at that point the game would already be over)
 
         Parameters:
-            mseq(MoveSequence): a MoveSequence whose priority is about to be
+            mseq(MoveSequence): a MoveSequence whose priority is about to be 
             updated
 
-        Return: float: the value to add to prioriryfor mseq according to the
-        lose strategy, if the MoveSequence doesn't contain a losing move, we
+        Return: float: the value to add to prioriryfor mseq according to the 
+        lose strategy, if the MoveSequence doesn't contain a losing move, we 
         return the original priority, otherwise, we return -math.inf
         """
         # construct an instance of the opponent
@@ -897,30 +880,30 @@ class SmartBot(Bot):
 
     def _force_priority(self, mseq, weight) -> float:
         """
-        update the priority of an avialable MoveSequence when that MoveSequence
-        leads to forcing
+        update the priority of an avialable MoveSequence when that MoveSequence 
+        leads to forcing 
 
-        To be more precise, sometimes a MoveSequence will lead to a sacrifice,
-        but sometimes this sacrifice is a part of the strategy called forcing.
-        Basically, we force the opponent to capture our pieces only to build up
+        To be more precise, sometimes a MoveSequence will lead to a sacrifice, 
+        but sometimes this sacrifice is a part of the strategy called forcing. 
+        Basically, we force the opponent to capture our pieces only to build up 
         a bridge for us to capture their pieces in our next round.
 
-        We call the forced jump and consecutive moves of the Opponent the
-        induced jump MoveSequence, and call our MoveSequence that can capture
-        this piece moved by the induced jump MoveSequence in the following
+        We call the forced jump and consecutive moves of the Opponent the 
+        induced jump MoveSequence, and call our MoveSequence that can capture 
+        this piece moved by the induced jump MoveSequence in the following 
         round response MoveSequence.
 
-        Note that the induced jump MoveSequence should be unique to be
-        considered in forcing strategy, if the jump is induced by the opponent
+        Note that the induced jump MoveSequence should be unique to be 
+        considered in forcing strategy, if the jump is induced by the opponent 
         has a choice, forcing tends to get really complicated
 
         Parameters:
-            mseq(MoveSequence): a MoveSequence whose priority is about to be
+            mseq(MoveSequence): a MoveSequence whose priority is about to be 
             updated
-            weight(float): a float that determine how much of an influence this
+            weight(float): a float that determine how much of an influence this 
             strategy should be playing among all the strategies
 
-        Return: float: the value to add to prioriryfor mseq according to the
+        Return: float: the value to add to prioriryfor mseq according to the 
         forcing strategy
         """
         # construct an instance of the opponent
@@ -975,12 +958,12 @@ class SmartBot(Bot):
 
 class OppoBot(SmartBot):
     """
-    Represent a bot used to try what will the opponent do if the SmartBot has
+    Represent a bot used to try what will the opponent do if the SmartBot has 
     taken a MoveSequence.
 
-    Note that this bot is strictly for anticipation purposes of the SmartBot
-    when making decisions. It works under the premise that the SmartBot has
-    taken a specific MoveSequence and is used to show the corresponding
+    Note that this bot is strictly for anticipation purposes of the SmartBot 
+    when making decisions. It works under the premise that the SmartBot has 
+    taken a specific MoveSequence and is used to show the corresponding 
     reaction to this MoveSequence that the opponent would have
     """
 
@@ -990,12 +973,12 @@ class OppoBot(SmartBot):
         Construct a bot that represents the opponent
 
         Parameters:
-            own_color(PieceColor): the color of the piece that the bot is in
+            own_color(PieceColor): the color of the piece that the bot is in 
             control of
             checkerboard(CheckersBoard): the checkerboard
-            last_mseq(MoveSequence): represents the move sequence that we
+            last_mseq(MoveSequence): represents the move sequence that we 
             asssumed to be taken by the SmartBot
-            level(SmartLevel) : the SmartLevel that we are giving the Oppobot,
+            level(SmartLevel) : the SmartLevel that we are giving the Oppobot, 
             should be the same as the SmartBot
 
         Return: None
@@ -1011,7 +994,7 @@ class OppoBot(SmartBot):
 
         Parameters: None
 
-        Return: bool: True if there exists a winning MoveSequence, False
+        Return: bool: True if there exists a winning MoveSequence, False 
         Otherwise
         """
         # get all the possible move sequences and examine whether they contain
@@ -1026,18 +1009,18 @@ class OppoBot(SmartBot):
 
     def get_induced_jump_mseq(self) -> List[Union[MoveSequence, None]]:
         """
-        If the MoveSequence assumed to be taken by the SmartBot, which led to
-        the OppoBot to be having a or more MoveSequence with the first move
-        being a Jump over the piece that was moved in the MoveSequence by the
-        SmartBot, and those jumps are the only available moves of the Opponent,
-        then return a list of those MoveSequences that contains those jumps,
+        If the MoveSequence assumed to be taken by the SmartBot, which led to 
+        the OppoBot to be having a or more MoveSequence with the first move 
+        being a Jump over the piece that was moved in the MoveSequence by the 
+        SmartBot, and those jumps are the only available moves of the Opponent, 
+        then return a list of those MoveSequences that contains those jumps, 
         otherwise, return None
 
         Parameters: None
 
-        Return: List[Union[MoveSequence, None]]: the MoveSequence with the
-        first move beingt the jump induced by the last MoveSequence done by the
-        SmartBot, or None if such induced jump doesn't exist or is not the only
+        Return: List[Union[MoveSequence, None]]: the MoveSequence with the 
+        first move beingt the jump induced by the last MoveSequence done by the 
+        SmartBot, or None if such induced jump doesn't exist or is not the only 
         available move fro OppoBot
         """
         # get all the MoveSequences available for the OppoBot
@@ -1048,9 +1031,8 @@ class OppoBot(SmartBot):
             first_move = mseq.get_move_list()[0]
             # check out whether the first move is a jump
             if isinstance(first_move, Jump):
-                if first_move.get_captured_piece() == \
-                        self._experimentboard._pieces[
-                            self._last_mseq.get_end_position()]:
+                if first_move.get_captured_piece() ==\
+                        self._experimentboard._pieces[self._last_mseq.get_end_position()]:
                     # the first move of the MoveSequence is a Jump through the piece just moved by the SmartBot
                     output_list.append(mseq)
 
