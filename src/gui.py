@@ -16,7 +16,7 @@ from pygame_gui.core import ObjectID
 from pygame_gui.elements import (UIButton, UILabel, UIPanel, UITextEntryLine,
                                  UIDropDownMenu)
 
-from bot import SmartLevel, SmartBot
+from bot import SmartLevel, SmartBot, RandomBot
 from checkers import PieceColor, CheckersBoard, Position, Piece, Move
 from utils.gui.components import GuiComponentLib, ModifyElemCommand, Element
 from utils.gui.relative_rect import (RelPos, ScreenPos, ElemPos, SelfAlign,
@@ -117,6 +117,68 @@ class _PlayerType(Enum):
         """
         return str(_PlayerType.BOT.value)
 
+
+class _BotLevel(Enum):
+    """
+    An enumeration of the smart level for smart bots
+    """
+    RANDOM = "Random"
+    SIMPLE = "Easy"
+    MEDIUM = "Medium"
+    HARD = "Hard"
+
+    @staticmethod
+    def from_string(string: str) -> "_BotLevel":
+        """
+        Get enum by its string value.
+        Args:
+            string (str): enum value
+        Returns:
+            _BotLevel: enum
+        """
+        if string == _BotLevel.RANDOM.value:
+            return _BotLevel.RANDOM
+        if string == _BotLevel.SIMPLE.value:
+            return _BotLevel.SIMPLE
+        if string == _BotLevel.MEDIUM.value:
+            return _BotLevel.MEDIUM
+        return _BotLevel.HARD
+
+    @staticmethod
+    def get_random_name() -> str:
+        """
+        Getter method for simple level name.
+        Returns:
+            str: simple level name
+        """
+        return str(_BotLevel.RANDOM.value)
+
+    @staticmethod
+    def get_simple_name() -> str:
+        """
+        Getter method for simple level name.
+        Returns:
+            str: simple level name
+        """
+        return str(_BotLevel.SIMPLE.value)
+
+    @staticmethod
+    def get_medium_name() -> str:
+        """
+        Getter method for medium level name.
+        Returns:
+            str: medium level name
+        """
+        return str(_BotLevel.MEDIUM.value)
+
+    @staticmethod
+    def get_hard_name() -> str:
+        """
+        Getter method for hard level name.
+        Returns:
+            str: medium hard name
+        """
+        return str(_BotLevel.HARD.value)
 
 # ===============
 # STATIC CONSTANT 'ENUMS'
@@ -223,9 +285,10 @@ class _SetupConsts:
     # Dropdown options
     PLAYER_MODE_OPTIONS = [_PlayerType.get_human_name(),
                            _PlayerType.get_bot_name()]
-    BOT_DIFFICULTY_OPTIONS = [SmartLevel.get_simple_name(),
-                              SmartLevel.get_medium_name(),
-                              SmartLevel.get_hard_name()]
+    BOT_DIFFICULTY_OPTIONS = [_BotLevel.get_random_name(),
+                              _BotLevel.get_simple_name(),
+                              _BotLevel.get_medium_name(),
+                              _BotLevel.get_hard_name()]
 
 
 class _GameElems:
@@ -303,7 +366,7 @@ class _AppState:
 
     # Red player
     red_type: _PlayerType = _PlayerType.HUMAN
-    red_bot_level: SmartLevel = SmartLevel.SIMPLE
+    red_bot_level: _BotLevel = _BotLevel.SIMPLE
     _red_name: str = ""
     _red_name_raw: str = str(_red_name)
 
@@ -346,7 +409,7 @@ class _AppState:
 
     # Black player
     black_type: _PlayerType = _PlayerType.HUMAN
-    black_bot_level: SmartLevel = SmartLevel.SIMPLE
+    black_bot_level: _BotLevel = _BotLevel.SIMPLE
     _black_name: str = ""
     _black_name_raw: str = str(_black_name)
 
@@ -452,17 +515,26 @@ class _AppState:
         Returns:
             str: player name
         """
+        def current_bot_name() -> str:
+            """
+            Produce a string representing the current bot's name.
+
+            Returns:
+                str: name
+            """
+            return f"{self.current_bot_level().value} bot"
+
         if self.current_color == PieceColor.RED:
             if self.red_type == _PlayerType.HUMAN:
                 return self.red_name
             else:
-                return "Red bot"
+                return current_bot_name()
         else:
             # Black player
             if self.black_type == _PlayerType.HUMAN:
                 return self.black_name
             else:
-                return "Black bot"
+                return current_bot_name()
 
     def toggle_color(self) -> None:
         """
@@ -505,15 +577,14 @@ class _AppState:
         """
         if self.current_color == PieceColor.RED:
             return self.red_type == _PlayerType.BOT
-        else:
-            return self.black_type == _PlayerType.BOT
+        return self.black_type == _PlayerType.BOT
 
-    def current_bot_level(self) -> SmartLevel:
+    def current_bot_level(self) -> _BotLevel:
         """
-        Determines the smart level of the currently playing bot.
+        Determines the level of the currently playing bot.
 
         Returns:
-            SmartLevel: smart level
+            _BotLevel: bot level
 
         Raises:
             RuntimeError: if current player is not a bot.
@@ -523,8 +594,34 @@ class _AppState:
 
         if self.current_color == PieceColor.RED:
             return self.red_bot_level
-        else:
-            return self.black_bot_level
+        return self.black_bot_level
+
+    def current_bot_smart_level(self) -> SmartLevel:
+        """
+        Determines the relevant `SmartLevel` of the currently playing bot.
+
+        This can then be passed into `SmartBot` to compute the moves a smart bot
+        would make, given the current board state.
+
+        Returns:
+            SmartLevel: bot smart level
+
+        Raises:
+            RuntimeError: if current player is not a bot.
+            RuntimeError: if the bot is not smart (i.e. random).
+        """
+        bot_level = self.current_bot_level()
+
+        # Ensure bot is smart
+        if bot_level == _BotLevel.RANDOM:
+            raise RuntimeError("Bot is not smart - it's random.")
+
+        # Find matching SmartLevel enum for the given _BotLevel
+        if bot_level == _BotLevel.SIMPLE:
+            return SmartLevel.SIMPLE
+        if bot_level == _BotLevel.MEDIUM:
+            return SmartLevel.MEDIUM
+        return SmartLevel.HARD
 
     @property
     def start_pos(self) -> Position:
@@ -863,7 +960,7 @@ class GuiApp:
             self._state.red_type = _PlayerType.HUMAN
             self._state.red_name = "Kevin"
             self._state.black_type = _PlayerType.BOT
-            self._state.black_bot_level = SmartLevel.SIMPLE
+            self._state.black_bot_level = _BotLevel.RANDOM
             self._state.num_rows_per_player = 5
             self._state.board = CheckersBoard(
                 n=self._state.num_rows_per_player)
@@ -2051,9 +2148,9 @@ class GuiApp:
                 on_update_player_type: Callable[[_PlayerType], None],
                 name_input_id: str,
                 on_update_name: Callable[[str], None],
-                initial_bot_difficulty: SmartLevel,
+                initial_bot_difficulty: _BotLevel,
                 bot_difficulty_dropdown_id: str,
-                on_update_bot_difficulty: Callable[[SmartLevel], None]) -> None:
+                on_update_bot_difficulty: Callable[[_BotLevel], None]) -> None:
             """
             Process user interaction events for a given panel.
 
@@ -2065,11 +2162,11 @@ class GuiApp:
                 name_input_id (str): name text input ID
                 on_update_name (Callable[[str], None]): update player name
                     callback
-                initial_bot_difficulty (SmartLevel): initial bot difficulty
+                initial_bot_difficulty (_BotLevel): initial bot difficulty
                     level
                 bot_difficulty_dropdown_id (str): bot difficulty level
                     dropdown ID
-                on_update_bot_difficulty (Callable[[SmartLevel], None]): update
+                on_update_bot_difficulty (Callable[[_BotLevel], None]): update
                     bot difficulty level callback
 
             """
@@ -2104,7 +2201,7 @@ class GuiApp:
                     # ===============
                     selection = self._lib.get_elem_selection(
                         bot_difficulty_dropdown_id)
-                    selected_difficulty = SmartLevel.from_string(selection)
+                    selected_difficulty = _BotLevel.from_string(selection)
                     if selected_difficulty != initial_bot_difficulty:
                         # ===============
                         # Updated selection: PLAYER BOT DIFFICULTY
@@ -2141,12 +2238,12 @@ class GuiApp:
             """
             self._state.red_name = new_name
 
-        def on_update_red_bot_difficulty(new_difficulty: SmartLevel) -> None:
+        def on_update_red_bot_difficulty(new_difficulty: _BotLevel) -> None:
             """
             Callback for when red bot difficulty level is updated.
 
             Args:
-                new_difficulty (SmartLevel): new difficulty level
+                new_difficulty (_BotLevel): new difficulty level
             """
             self._state.red_bot_level = new_difficulty
 
@@ -2183,13 +2280,14 @@ class GuiApp:
             """
             self._state.black_name = new_name
 
-        def on_update_black_bot_difficulty(new_difficulty: SmartLevel) -> None:
+        def on_update_black_bot_difficulty(new_difficulty: _BotLevel) -> None:
             """
             Callback for when black bot difficulty level is updated.
 
             Args:
-                new_difficulty (SmartLevel): new difficulty level
+                new_difficulty (_BotLevel): new difficulty level
             """
+            print('black', new_difficulty)
             self._state.black_bot_level = new_difficulty
 
         process_panel_events(
@@ -2354,13 +2452,24 @@ class GuiApp:
             bool: whether started bot turn
         """
         if self._state.is_currently_bot():
-            # Complete every move
-            self._complete_bot_moves(
-                SmartBot(
+            # Get random or smart bot moves,
+            # according to player bot level
+            if self._state.current_bot_level() == _BotLevel.RANDOM:
+                bot_moves = RandomBot(
+                    own_color=self._state.current_color,
+                    checkersboard=self._state.board
+                ).choose_move_list()
+            else:
+                bot_moves = SmartBot(
                     own_color=self._state.current_color,
                     checkersboard=self._state.board,
-                    level=self._state.current_bot_level())
-                .choose_move_list())
+                    level=self._state.current_bot_smart_level()
+                ).choose_move_list()
+
+            # Complete all the bot's moves
+            self._complete_bot_moves(bot_moves)
+
+            # Did start bot turn
             return True
 
         # Did not start bot turn

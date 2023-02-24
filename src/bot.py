@@ -10,51 +10,9 @@ class SmartLevel(Enum):
     """
     An enumeration of the smart level for smart bots
     """
-    SIMPLE = "Easy"
-    MEDIUM = "Medium"
-    HARD = "Hard"
-
-    @staticmethod
-    def from_string(string: str) -> "SmartLevel":
-        """
-        Get enum by its string value.
-        Args:
-            string (str): enum value
-        Returns:
-            SmartLevel: enum
-        """
-        if string == SmartLevel.SIMPLE.value:
-            return SmartLevel.SIMPLE
-        if string == SmartLevel.MEDIUM.value:
-            return SmartLevel.MEDIUM
-        return SmartLevel.HARD
-
-    @staticmethod
-    def get_simple_name() -> str:
-        """
-        Getter method for simple level name.
-        Returns:
-            str: simple level name
-        """
-        return str(SmartLevel.SIMPLE.value)
-
-    @staticmethod
-    def get_medium_name() -> str:
-        """
-        Getter method for medium level name.
-        Returns:
-            str: medium level name
-        """
-        return str(SmartLevel.MEDIUM.value)
-
-    @staticmethod
-    def get_hard_name() -> str:
-        """
-        Getter method for hard level name.
-        Returns:
-            str: medium hard name
-        """
-        return str(SmartLevel.HARD.value)
+    SIMPLE = 0
+    MEDIUM = 1
+    HARD = 2
 
 
 class Bot:
