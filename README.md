@@ -136,6 +136,12 @@ SmartLevel.HARD: winning strategy, lose strategy, sacrifice strategy, capture st
                  stick strategy, center strategy, force strategy
 ```
 
+## TUI
+To run the Tui, run the following from the root of the repository:
+```
+python3 src/tui.py
+```
+
 ## Contributing
 
 Follow our [contribution](CONTRIBUTING.md) guide.
