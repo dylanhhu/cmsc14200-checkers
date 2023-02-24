@@ -363,6 +363,19 @@ class Move:
 
         return self._piece
 
+    def is_kinging(self, borderwidth) -> bool:
+        """
+        return whether this Move will be kinging a piece
+        """
+        if self.get_piece().is_king():
+            return False
+
+        baseline = {PieceColor.RED: 0, PieceColor.BLACK: borderwidth - 1}
+        if baseline[self.get_piece().get_color()] == self.get_new_position()[1]:
+            return True
+
+        return False
+
     def get_current_position(self, _strict: bool = True) -> Position:
         """
         Getter for the current position of the piece that will be moved. If
@@ -838,6 +851,34 @@ class CheckersBoard:
 
         self._moves_since_capture = 0  # number of moves since a capture
         self._max_moves_since_capture = 40  # maximum moves before stalemate
+
+    def undo_move(self, move: Move) -> None:
+        """
+        Undo a move with a piece that has just been completed
+
+        Parameters:
+            move(Move): the move that is about to be undone
+
+        Return: None
+        """
+        old_pos = move.get_current_position()
+        new_pos = move.get_new_position()
+
+        target_piece = self._pieces[new_pos]
+
+        target_piece.set_position(old_pos)
+        self._pieces[old_pos] = target_piece
+        del self._pieces[new_pos]
+
+        if move.is_kinging(self.get_board_width()):
+            target_piece._king = False
+
+        if isinstance(move, Jump):
+            caught_piece = move.get_captured_piece()
+            caught_pos = (int((new_pos[0] + old_pos[0]) / 2),
+                          int((new_pos[1] + old_pos[1]) / 2))
+            self._pieces[caught_pos] = caught_piece
+            caught_piece.set_position(caught_pos)
 
     def get_board_pieces(self) -> List[Piece]:
         """

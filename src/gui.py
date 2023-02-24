@@ -2,6 +2,8 @@
 # © Kevin Gugelmann, 20 February 2023.
 # All rights reserved.
 #
+import random
+import threading
 from dataclasses import dataclass
 from enum import Enum
 from typing import Union, Callable, List, Set, Tuple
@@ -14,12 +16,12 @@ from pygame_gui.core import ObjectID
 from pygame_gui.elements import (UIButton, UILabel, UIPanel, UITextEntryLine,
                                  UIDropDownMenu)
 
-from bot import SmartLevel
+from bot import SmartLevel, SmartBot
 from checkers import PieceColor, CheckersBoard, Position, Piece, Move
 from utils.gui.components import GuiComponentLib, ModifyElemCommand, Element
 from utils.gui.relative_rect import (RelPos, ScreenPos, ElemPos, SelfAlign,
-                                         Offset, Fraction, IntrinsicSize,
-                                         MatchOtherSide, NegFraction)
+                                     Offset, Fraction, IntrinsicSize,
+                                     MatchOtherSide, NegFraction)
 from utils.gui.window import Dimensions, WindowOptions, DimensionsTuple
 
 
@@ -133,11 +135,31 @@ class _Sizes:
     MEGA = 42
 
 
-class _GeneralSizes:
+class _GeneralConsts:
+    # Sizes
     LABEL_HEIGHT = 20
     TEXTINPUT_HEIGHT = 40
     DROPDOWN_HEIGHT = 40
     BUTTON_HEIGHT = 40
+
+
+class _GeneralEvents:
+    # Event names
+    NAME_REBUILD = "rebuild"
+    # Parameters
+    PARAM_NAME = "name"
+    PARAM_DISABLE_MOVE = "disable-move"
+    PARAM_ENABLE_MOVE = "enable-move"
+
+    # PyGame event instances
+    REBUILD = pygame.event.Event(pygame.USEREVENT,
+                                 {PARAM_NAME: NAME_REBUILD})
+    REBUILD_DISABLE_MOVE = pygame.event.Event(pygame.USEREVENT,
+                                              {PARAM_NAME: NAME_REBUILD,
+                                               PARAM_DISABLE_MOVE: True})
+    REBUILD_ENABLE_MOVE = pygame.event.Event(pygame.USEREVENT,
+                                              {PARAM_NAME: NAME_REBUILD,
+                                               PARAM_ENABLE_MOVE: True})
 
 
 class _SetupElems:
@@ -182,7 +204,7 @@ class _SetupElems:
 
 
 class _SetupConsts:
-    # Numbers
+    # Sizes
     BETWEEN_PANELS = _Sizes.XL
     PANEL_WIDTH = Fraction(0.35)
     PANEL_HEIGHT = 220
@@ -234,7 +256,7 @@ class _GameElems:
 
 
 class _GameConsts:
-    # Numbers
+    # Sizes
     ACTION_BAR_HEIGHT = 60
     DROPDOWN_WIDTH = 100
     ACTION_BAR_X_PADDING = _Sizes.L
@@ -418,7 +440,7 @@ class _AppState:
     # ===============
 
     board: CheckersBoard = CheckersBoard(n=1)
-    current_color = PieceColor.RED
+    current_color = PieceColor.BLACK
 
     def toggle_color(self) -> None:
         """
@@ -451,6 +473,36 @@ class _AppState:
                 return move
 
         raise RuntimeError("Move not found.")
+
+    def is_currently_bot(self) -> bool:
+        """
+        Determines whether the current player is a bot.
+
+        Returns:
+            bool: is bot
+        """
+        if self.current_color == PieceColor.RED:
+            return self.red_type == _PlayerType.BOT
+        else:
+            return self.black_type == _PlayerType.BOT
+
+    def current_bot_level(self) -> SmartLevel:
+        """
+        Determines the smart level of the currently playing bot.
+
+        Returns:
+            SmartLevel: smart level
+
+        Raises:
+            RuntimeError: if current player is not a bot.
+        """
+        if not self.is_currently_bot():
+            raise RuntimeError("Current player is not a bot.")
+
+        if self.current_color == PieceColor.RED:
+            return self.red_bot_level
+        else:
+            return self.black_bot_level
 
     @property
     def start_pos(self) -> Position:
@@ -754,16 +806,17 @@ class GuiApp:
 
         if debug:
             # Mock game setup
-            self._state.red_type = _PlayerType.HUMAN
+            self._state.red_type = _PlayerType.BOT
             self._state.red_name = "Kevin"
             self._state.black_type = _PlayerType.BOT
             self._state.black_bot_level = SmartLevel.SIMPLE
-            self._state.num_rows_per_player = 9
+            self._state.num_rows_per_player = 5
             self._state.board = CheckersBoard(
                 n=self._state.num_rows_per_player)
             # Directly open Game screen
             self._state.update_move_options()
             self._state.screen = _Screens.GAME
+            self._attempt_start_bot_turn()
 
         # Window setup
         self._update_window(window_options)
@@ -1142,7 +1195,7 @@ class GuiApp:
                 UILabel(
                     self._rel_rect(
                         width=_SetupConsts.PANEL_TITLE_WIDTH,
-                        height=_GeneralSizes.LABEL_HEIGHT,
+                        height=_GeneralConsts.LABEL_HEIGHT,
                         parent_id=_SetupElems.RED_PANEL,
                         ref_pos=ElemPos(
                             _SetupElems.RED_PANEL,
@@ -1163,7 +1216,7 @@ class GuiApp:
                     str(self._state.red_type.value),
                     self._rel_rect(
                         width=_SetupConsts.PANEL_CONTENT_WIDTH,
-                        height=_GeneralSizes.DROPDOWN_HEIGHT,
+                        height=_GeneralConsts.DROPDOWN_HEIGHT,
                         parent_id=_SetupElems.RED_PANEL,
                         ref_pos=ElemPos(
                             _SetupElems.RED_PANEL_TITLE,
@@ -1181,7 +1234,7 @@ class GuiApp:
                 UITextEntryLine(
                     self._rel_rect(
                         width=_SetupConsts.PANEL_CONTENT_WIDTH,
-                        height=_GeneralSizes.TEXTINPUT_HEIGHT,
+                        height=_GeneralConsts.TEXTINPUT_HEIGHT,
                         parent_id=_SetupElems.RED_PANEL,
                         ref_pos=ElemPos(
                             _SetupElems.RED_TYPE_DROPDOWN,
@@ -1205,7 +1258,7 @@ class GuiApp:
                     str(self._state.red_bot_level.value),
                     self._rel_rect(
                         width=_SetupConsts.PANEL_CONTENT_WIDTH,
-                        height=_GeneralSizes.DROPDOWN_HEIGHT,
+                        height=_GeneralConsts.DROPDOWN_HEIGHT,
                         parent_id=_SetupElems.RED_PANEL,
                         ref_pos=ElemPos(
                             _SetupElems.RED_TYPE_DROPDOWN,
@@ -1250,7 +1303,7 @@ class GuiApp:
                 UILabel(
                     self._rel_rect(
                         width=_SetupConsts.PANEL_TITLE_WIDTH,
-                        height=_GeneralSizes.LABEL_HEIGHT,
+                        height=_GeneralConsts.LABEL_HEIGHT,
                         parent_id=_SetupElems.BLACK_PANEL,
                         ref_pos=ElemPos(
                             _SetupElems.BLACK_PANEL,
@@ -1271,7 +1324,7 @@ class GuiApp:
                     str(self._state.black_type.value),
                     self._rel_rect(
                         width=_SetupConsts.PANEL_CONTENT_WIDTH,
-                        height=_GeneralSizes.DROPDOWN_HEIGHT,
+                        height=_GeneralConsts.DROPDOWN_HEIGHT,
                         parent_id=_SetupElems.BLACK_PANEL,
                         ref_pos=ElemPos(
                             _SetupElems.BLACK_PANEL_TITLE,
@@ -1289,7 +1342,7 @@ class GuiApp:
                 UITextEntryLine(
                     self._rel_rect(
                         width=_SetupConsts.PANEL_CONTENT_WIDTH,
-                        height=_GeneralSizes.TEXTINPUT_HEIGHT,
+                        height=_GeneralConsts.TEXTINPUT_HEIGHT,
                         parent_id=_SetupElems.BLACK_PANEL,
                         ref_pos=ElemPos(
                             _SetupElems.BLACK_TYPE_DROPDOWN,
@@ -1313,7 +1366,7 @@ class GuiApp:
                     str(self._state.black_bot_level.value),
                     self._rel_rect(
                         width=_SetupConsts.PANEL_CONTENT_WIDTH,
-                        height=_GeneralSizes.DROPDOWN_HEIGHT,
+                        height=_GeneralConsts.DROPDOWN_HEIGHT,
                         parent_id=_SetupElems.BLACK_PANEL,
                         ref_pos=ElemPos(
                             _SetupElems.BLACK_TYPE_DROPDOWN,
@@ -1337,7 +1390,7 @@ class GuiApp:
                 UILabel(
                     self._rel_rect(
                         width=Fraction(1),
-                        height=_GeneralSizes.LABEL_HEIGHT,
+                        height=_GeneralConsts.LABEL_HEIGHT,
                         ref_pos=ElemPos(
                             _SetupElems.RED_PANEL,
                             RelPos.END,
@@ -1362,7 +1415,7 @@ class GuiApp:
                 UIButton(
                     self._rel_rect(
                         width=_SetupConsts.START_GAME_BUTTON_WIDTH,
-                        height=_GeneralSizes.BUTTON_HEIGHT,
+                        height=_GeneralConsts.BUTTON_HEIGHT,
                         ref_pos=ScreenPos(
                             RelPos.END,
                             RelPos.END
@@ -1384,7 +1437,7 @@ class GuiApp:
                 UITextEntryLine(
                     self._rel_rect(
                         width=_SetupConsts.NUM_PLAYER_ROWS_WIDTH,
-                        height=_GeneralSizes.BUTTON_HEIGHT,  # match button
+                        height=_GeneralConsts.BUTTON_HEIGHT,  # match button
                         ref_pos=ElemPos(
                             _SetupElems.START_GAME_BUTTON,
                             RelPos.START,
@@ -1405,7 +1458,7 @@ class GuiApp:
                 UILabel(
                     self._rel_rect(
                         width=IntrinsicSize(),
-                        height=_GeneralSizes.LABEL_HEIGHT,
+                        height=_GeneralConsts.LABEL_HEIGHT,
                         ref_pos=ElemPos(
                             _SetupElems.NUM_PLAYER_ROWS_TEXTINPUT,
                             RelPos.START,
@@ -1429,7 +1482,7 @@ class GuiApp:
                 UILabel(
                     self._rel_rect(
                         width=IntrinsicSize(),
-                        height=_GeneralSizes.BUTTON_HEIGHT,  # same as menu btn
+                        height=_GeneralConsts.BUTTON_HEIGHT,  # same as menu btn
                         ref_pos=ScreenPos(
                             RelPos.START,
                             RelPos.START
@@ -1447,7 +1500,7 @@ class GuiApp:
                 UIButton(
                     self._rel_rect(
                         width=60,
-                        height=_GeneralSizes.BUTTON_HEIGHT,
+                        height=_GeneralConsts.BUTTON_HEIGHT,
                         ref_pos=ScreenPos(
                             RelPos.END,
                             RelPos.START
@@ -1488,7 +1541,7 @@ class GuiApp:
                 UILabel(
                     self._rel_rect(
                         width=IntrinsicSize(),
-                        height=_GeneralSizes.LABEL_HEIGHT,
+                        height=_GeneralConsts.LABEL_HEIGHT,
                         ref_pos=ElemPos(
                             _GameElems.ACTION_BAR,
                             RelPos.START,
@@ -1510,7 +1563,7 @@ class GuiApp:
                     self._state.grid_position_to_string(self._state.start_pos),
                     self._rel_rect(
                         width=_GameConsts.DROPDOWN_WIDTH,
-                        height=_GeneralSizes.DROPDOWN_HEIGHT,
+                        height=_GeneralConsts.DROPDOWN_HEIGHT,
                         ref_pos=ElemPos(
                             _GameElems.CURRENT_PLAYER_LABEL,
                             RelPos.END,
@@ -1530,7 +1583,7 @@ class GuiApp:
                 UILabel(
                     self._rel_rect(
                         width=IntrinsicSize(),
-                        height=_GeneralSizes.LABEL_HEIGHT,
+                        height=_GeneralConsts.LABEL_HEIGHT,
                         ref_pos=ElemPos(
                             _GameElems.SELECTED_PIECE_DROPDOWN,
                             RelPos.END,
@@ -1552,7 +1605,7 @@ class GuiApp:
                     self._state.grid_position_to_string(self._state.dest_pos),
                     self._rel_rect(
                         width=_GameConsts.DROPDOWN_WIDTH,
-                        height=_GeneralSizes.DROPDOWN_HEIGHT,
+                        height=_GeneralConsts.DROPDOWN_HEIGHT,
                         ref_pos=ElemPos(
                             _GameElems.PIECE_TO_DESTINATION_LABEL,
                             RelPos.END,
@@ -1572,7 +1625,7 @@ class GuiApp:
                 UIButton(
                     self._rel_rect(
                         width=80,
-                        height=_GeneralSizes.BUTTON_HEIGHT,
+                        height=_GeneralConsts.BUTTON_HEIGHT,
                         ref_pos=ElemPos(
                             _GameElems.ACTION_BAR,
                             RelPos.END,
@@ -1619,8 +1672,10 @@ class GuiApp:
             # Add every square to board
             for row in range(board_side):
                 for col in range(board_side):
+                    pos = (row, col)  # square position on game board
+
                     # Initialize board square
-                    elem_id = self._board_square_id((row, col))
+                    elem_id = self._board_square_id(pos)
                     self._lib.init_elem(elem_id,
                                         self._get_current_screen_name())
                     # Color
@@ -1631,8 +1686,14 @@ class GuiApp:
                         elem_class = "@board-square-light"
 
                     # Selected?
-                    if self._state.dest_pos == (row, col):
+                    if self._state.dest_pos == pos:
                         elem_class += "-selected"
+                        if self._state.get_piece_at_pos(
+                            self._state.start_pos).get_color() == \
+                                PieceColor.RED:
+                            elem_class += "-red"
+                        else:
+                            elem_class += "-black"
 
                     # Draft square
                     self._lib.draft(
@@ -1709,14 +1770,12 @@ class GuiApp:
                     )
                 )
 
-
-
     @staticmethod
     def _board_square_id(position: Position) -> str:
         """
         Get the element ID for a board square at a given position.
 
-        Board starts with red in the top left hand corner.
+        Board starts with light square in the top left hand corner.
 
         Args:
             position (Position): position on board
@@ -1738,7 +1797,7 @@ class GuiApp:
         """
         Get the element ID for a checkers piece at a given position.
 
-        Board starts with red in the top left hand corner.
+        Board starts with light square in the top left hand corner.
 
         Args:
             position (Position): position on board
@@ -1852,12 +1911,15 @@ class GuiApp:
                 self._state.board = CheckersBoard(
                     n=self._state.num_rows_per_player)
 
-                # Red starts the game
-                self._state.current_color = PieceColor.RED
+                # Black starts the game
+                self._state.current_color = PieceColor.BLACK
                 self._state.update_move_options()
 
                 # Open Game screen
                 self._open_screen(_Screens.GAME)
+
+                # If starting player is bot, autoplay their turn
+                self._attempt_start_bot_turn()
 
                 return  # stop processing UI events in Setup screen
 
@@ -2032,6 +2094,181 @@ class GuiApp:
         # is set up correctly.
         self._validate_game_setup()
 
+    @staticmethod
+    def _rebuild_when_ready(can_user_move: Union[bool, None] = None) -> None:
+        """
+        Rebuild the PyGame UI at the next drawing opportunity.
+
+        Args:
+            can_user_move (Union[bool, None]): whether the user is allowed to
+                interact with move UI after rebuild
+
+        Returns:
+            None
+        """
+        if can_user_move is None:
+            pygame.event.post(_GeneralEvents.REBUILD)
+        elif can_user_move:
+            pygame.event.post(_GeneralEvents.REBUILD_ENABLE_MOVE)
+        else:
+            pygame.event.post(_GeneralEvents.REBUILD_DISABLE_MOVE)
+
+    def _disable_move_elems(self) -> None:
+        """
+        Disable all elements that the user interacts with to move pieces.
+
+        Returns:
+            None
+        """
+        self._lib.disable_elem(
+            _GameElems.SELECTED_PIECE_DROPDOWN)
+        self._lib.disable_elem(
+            _GameElems.DESTINATION_DROPDOWN)
+        self._lib.disable_elem(
+            _GameElems.SUBMIT_MOVE_BUTTON)
+
+    def _enable_move_elems(self) -> None:
+        """
+        Enable all elements that the user interacts with to move pieces.
+
+        Returns:
+            None
+        """
+        self._lib.enable_elem(
+            _GameElems.SELECTED_PIECE_DROPDOWN)
+        self._lib.enable_elem(
+            _GameElems.DESTINATION_DROPDOWN)
+        self._lib.enable_elem(
+            _GameElems.SUBMIT_MOVE_BUTTON)
+
+    def _complete_bot_moves(self, moves: List[Move]) -> None:
+        """
+        Complete a series of moves for the currently playing bot.
+
+        While the bot's moves are ongoing, the user-facing move elements are
+        disabled.
+
+        Returns:
+            None
+        """
+        move, *remaining_moves = moves
+
+        def visual_delay() -> float:
+            """
+            Generates a random number of seconds for a visual delay,
+            between 0.5 and 0.8 (inclusive).
+
+            Returns:
+                float: delay in seconds
+            """
+            return max(random.random() * 0.8, 0.5)
+
+        def bot_execute_move() -> None:
+            """
+            Bot executes their move.
+
+            Returns:
+                None
+            """
+            self._execute_move()  # toggles player color if end of turn
+
+            if remaining_moves:
+                # Rebuild UI
+                self._rebuild_when_ready(can_user_move=False)
+
+                # Complete remaining moves for currently playing bot
+                self._complete_bot_moves(remaining_moves)
+            else:
+                # If next player is also a bot, auto-complete their moves, too
+                if not self._attempt_start_bot_turn():
+                    self._rebuild_when_ready(can_user_move=True)
+
+        def bot_choose_dest() -> None:
+            """
+            Bot selects their move destination.
+
+            Returns:
+                None
+            """
+            self._state.dest_pos = move.get_new_position()
+            self._rebuild_when_ready(can_user_move=False)
+
+            threading.Timer(visual_delay(), bot_execute_move).start()
+
+        def bot_choose_start_pos() -> None:
+            """
+            Bot selects their move start position.
+
+            Returns:
+                None
+            """
+            self._state.start_pos = move.get_current_position()
+            self._rebuild_when_ready(can_user_move=False)
+
+            threading.Timer(visual_delay(), bot_choose_dest).start()
+
+        # Set up bot's turn by disabling move elements for the user.
+        self._rebuild_when_ready(can_user_move=False)
+
+        threading.Timer(visual_delay(), bot_choose_start_pos).start()
+
+    def _execute_move(self) -> None:
+        """
+        Execute the currently selected move.
+
+        Returns:
+            None
+        """
+        move_result = self._state.board.complete_move(
+            self._state.get_selected_move()
+        )
+        if not move_result:
+            # End of turn for current player.
+            # Switch to other player.
+            self._state.toggle_color()
+
+        # Update the move options
+        self._state.update_move_options()
+
+    def _attempt_start_bot_turn(self) -> bool:
+        """
+        If the current player is a bot, autoplay their sequence of moves.
+
+        Only call at the start of the player's turn.
+
+        Returns:
+            bool: whether started bot turn
+        """
+        if self._state.is_currently_bot():
+            # Complete every move
+            self._complete_bot_moves(
+                SmartBot(
+                    own_color=self._state.current_color,
+                    checkersboard=self._state.board,
+                    level=self._state.current_bot_level())
+                .choose_move_list())
+            return True
+
+        # Did not start bot turn
+        return False
+
+    def _submit_move_button(self) -> None:
+        """
+        User submits the currently selected move.
+
+        Returns:
+            None
+        """
+        # Button pressed means HUMAN just played.
+        # Execute the move.
+        self._execute_move()
+
+        # Rebuild the game interface
+        self._rebuild_ui()
+
+        # Current player is bot? -> compute and make moves automatically
+        self._attempt_start_bot_turn()
+
     def _process_game_events(self, event: "Event") -> None:
         """
         Process user interactions events for the Game screen.
@@ -2044,21 +2281,14 @@ class GuiApp:
                 # ===============
                 # Clicked: SUBMIT MOVE BUTTON
                 # ===============
+                self._submit_move_button()
+            elif event.ui_object_id == _GameElems.MENU_BUTTON:
+                # ===============
+                # Clicked: MENU BUTTON
+                # ===============
+                print("clicked: menu button")
+                # TODO: implement menu window
 
-                # Execute the move
-                move_result = self._state.board.complete_move(
-                    self._state.get_selected_move()
-                )
-                if not move_result:
-                    # End of turn for current player.
-                    # Switch to other player.
-                    self._state.toggle_color()
-
-                # Update the move options
-                self._state.update_move_options()
-
-                # Rebuild the game interface
-                self._rebuild_ui()
         if event.type == pygame_gui.UI_DROP_DOWN_MENU_CHANGED:
             if event.ui_object_id == _GameElems.SELECTED_PIECE_DROPDOWN:
                 # ===============
@@ -2109,6 +2339,26 @@ class GuiApp:
                 self._process_setup_events(event)
             elif self._get_current_screen() == _Screens.GAME:
                 self._process_game_events(event)
+
+            # Custom events
+            if event.type == pygame.USEREVENT:
+                if event.dict.get(_GeneralEvents.PARAM_NAME, None) == \
+                        _GeneralEvents.NAME_REBUILD:
+                    # ===============
+                    # REBUILD USER INTERFACE
+                    # ===============
+                    self._rebuild_ui()
+                    if event.dict.get(_GeneralEvents.PARAM_DISABLE_MOVE, False):
+                        # ===============
+                        # Rebuild option: DISABLE MOVE ELEMENTS
+                        # ===============
+                        self._disable_move_elems()
+                    elif event.dict.get(
+                            _GeneralEvents.PARAM_ENABLE_MOVE, False):
+                        # ===============
+                        # Rebuild option: ENABLE MOVE ELEMENTS
+                        # ===============
+                        self._enable_move_elems()
 
         # In every loop, check whether the window has been resized
         self._check_window_dimensions_changed()

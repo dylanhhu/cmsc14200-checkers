@@ -51,17 +51,6 @@
       "border_width": "0"
     }
   },
-  "@board-square-light-selected":
-  {
-    "colours":
-     {
-       "dark_bg":"#f4e10c"
-     },
-    "misc":
-    {
-      "border_width": "0"
-    }
-  },
   "@board-square-dark":
   {
     "colours":
@@ -73,15 +62,30 @@
       "border_width": "0"
     }
   },
-  "@board-square-dark-selected":
+  "@board-square-dark-selected-red":
   {
     "colours":
      {
-       "dark_bg":"#f4e10c"
+       "dark_bg":"#f4e10c",
+       "normal_border": "#f4420c"
      },
     "misc":
     {
-      "border_width": "0"
+      "border_width": "4",
+      "shape": "rounded_rectangle"
+    }
+  },
+  "@board-square-dark-selected-black":
+  {
+    "colours":
+     {
+       "dark_bg":"#f4e10c",
+       "normal_border": "#000000"
+     },
+    "misc":
+    {
+      "border_width": "4",
+      "shape": "rounded_rectangle"
     }
   },
   "@board-red-piece":
@@ -107,7 +111,7 @@
      },
     "misc":
     {
-      "border_width": "2",
+      "border_width": "3",
       "shape": "rounded_rectangle",
       "shape_corner_radius": "100"
     }
@@ -134,7 +138,7 @@
      },
     "misc":
     {
-      "border_width": "2",
+      "border_width": "3",
       "shape": "rounded_rectangle",
       "shape_corner_radius": "100"
     }
