@@ -129,6 +129,13 @@ SmartLevel.HARD: winning strategy, lose strategy, sacrifice strategy, capture st
                  stick strategy, center strategy, force strategy
 ```
 
+#### Needs implementing:
+- [ ] Game menu window
+- [ ] Click to select piece and destination square
+- [ ] Display king pieces differently from regular pieces
+- [ ] Check game state (win/draw)
+- [ ] Display captured pieces
+
 ## Contributing
 
 Follow our [contribution](CONTRIBUTING.md) guide.
