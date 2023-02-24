@@ -166,8 +166,6 @@ class NegFraction(Fraction):
     """
     Data class representing a negative fraction, its value given between [0,1].
     """
-    def __init__(self):
-        super().__init__()
 
 
 @dataclass

@@ -615,6 +615,50 @@ class _AppState:
         raise RuntimeError(f"No piece found at the position {pos}")
 
     @staticmethod
+    def row_position_to_string(row: int) -> str:
+        """
+        Convert a row position to a number-based representation.
+
+        Args:
+            row (int): row position
+
+        Returns:
+            str: number-based string representation
+
+        Raises:
+            ValueError: If the row is negative.
+        """
+        if row < 0:
+            raise ValueError("Row position is negative.")
+
+        return str(row + 1)
+
+    @staticmethod
+    def col_position_to_string(col: int) -> str:
+        """
+        Convert a column position to a letter-based representation.
+
+        Args:
+            col (int): column position
+
+        Returns:
+            str: number-based string representation
+
+        Raises:
+            ValueError: If the column is negative.
+        """
+        if col < 0:
+            raise ValueError("Column position is negative.")
+
+        col_num = col + 1
+        col_str = ""
+        while col_num > 0:
+            col_num, remainder = divmod(col_num - 1, 26)
+            col_str = chr(65 + remainder) + col_str
+
+        return col_str
+
+    @staticmethod
     def grid_position_to_string(position: Position) -> str:
         """
         Convert a tuple representing a position on a grid to a string in the
@@ -643,20 +687,8 @@ class _AppState:
         """
         x, y = position
 
-        # Check that the position is valid
-        if x < 0 or y < 0:
-            raise ValueError("Position coordinates are negative.")
-
-        # Convert the column number to a letter/s
-        col_num = x + 1
-        col_str = ""
-        while col_num > 0:
-            col_num, remainder = divmod(col_num - 1, 26)
-            col_str = chr(65 + remainder) + col_str
-
-        row_num = y + 1
-
-        return f"{col_str}{row_num}"
+        return f"{_AppState.col_position_to_string(x)}" \
+               f"{_AppState.row_position_to_string(y)}"
 
     @staticmethod
     def _get_row_col_from_pos_string(s: str) -> Tuple[str, str]:
@@ -1134,17 +1166,17 @@ class GuiApp:
             y = y_ref
 
         # Calculate numerical offset
-        if isinstance(offset.x, Fraction):
-            offset_x = frac_width(offset.x)
-        elif isinstance(offset.x, NegFraction):
+        if isinstance(offset.x, NegFraction):
             offset_x = - frac_width(offset.x)
+        elif isinstance(offset.x, Fraction):
+            offset_x = frac_width(offset.x)
         else:
             offset_x = offset.x
 
-        if isinstance(offset.y, Fraction):
-            offset_y = frac_height(offset.y)
-        elif isinstance(offset.y, NegFraction):
+        if isinstance(offset.y, NegFraction):
             offset_y = - frac_height(offset.y)
+        elif isinstance(offset.y, Fraction):
+            offset_y = frac_height(offset.y)
         else:
             offset_y = offset.y
 
@@ -1688,12 +1720,13 @@ class GuiApp:
             )
 
             # Side lengths
-            board_side = 2 * self._state.num_rows_per_player + 2
-            square_side = Fraction(1) / board_side
+            board_side_num = 2 * self._state.num_rows_per_player + 2
+            coordinate_square_num = 1
+            square_side = Fraction(1) / (board_side_num + coordinate_square_num)
 
             # Add every square to board
-            for row in range(board_side):
-                for col in range(board_side):
+            for row in range(board_side_num):
+                for col in range(board_side_num):
                     pos = (row, col)  # square position on game board
 
                     # Initialize board square
@@ -1735,8 +1768,10 @@ class GuiApp:
                                     RelPos.START
                                 ),
                                 offset=Offset(
-                                    square_side * (row + 1),
-                                    square_side * (col + 1)
+                                    square_side * (row + 1 +
+                                                   coordinate_square_num),
+                                    square_side * (col + 1 +
+                                                   coordinate_square_num)
                                 )
                             ),
                             starting_layer_height=0,
@@ -1745,6 +1780,63 @@ class GuiApp:
                                 object_id=elem_id)
                         ),
                     )
+
+            # Add coordinates (do both horizontally and vertically at once)
+            for side_n in range(board_side_num):
+                # Initialize letter and number
+                letter_elem_id = f"coord-letter-{side_n + 1}"
+                self._lib.init_elem(letter_elem_id,
+                                    self._get_current_screen_name())
+
+                num_elem_id = f"coord-num-{side_n + 1}"
+                self._lib.init_elem(num_elem_id,
+                                    self._get_current_screen_name())
+
+                # Add coordinate letter
+                self._lib.draft(
+                    letter_elem_id,
+                    UILabel(
+                        self._rel_rect(
+                            width=square_side,
+                            height=square_side,
+                            parent_id=_GameElems.BOARD,
+                            ref_pos=ElemPos(
+                                self._board_square_id((side_n, 0)),
+                                RelPos.CENTER,
+                                RelPos.CENTER
+                            ),
+                            self_align=SelfAlign(
+                                RelPos.CENTER,
+                                RelPos.START
+                            ),
+                            offset=Offset(0, NegFraction(square_side.value / 2))
+                        ),
+                        _AppState.col_position_to_string(side_n)
+                    )
+                )
+
+                # Add coordinate number
+                self._lib.draft(
+                    num_elem_id,
+                    UILabel(
+                        self._rel_rect(
+                            width=square_side,
+                            height=square_side,
+                            parent_id=_GameElems.BOARD,
+                            ref_pos=ElemPos(
+                                self._board_square_id((0, side_n)),
+                                RelPos.CENTER,
+                                RelPos.CENTER
+                            ),
+                            self_align=SelfAlign(
+                                RelPos.START,
+                                RelPos.CENTER
+                            ),
+                            offset=Offset(NegFraction(square_side.value / 2), 0)
+                        ),
+                        _AppState.row_position_to_string(side_n)
+                    )
+                )
 
             # Add pieces
             for piece in self._state.board.get_board_pieces():
@@ -2409,7 +2501,6 @@ if __name__ == "__main__":
     app = GuiApp(
         window_options=WindowOptions(
             min_dimensions=Dimensions(800, 600)
-        ),
-        debug=True
+        )
     )
     app.run()
