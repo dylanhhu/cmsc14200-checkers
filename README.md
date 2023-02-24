@@ -58,10 +58,14 @@ python3 src/gui.py
   > - Natural number for rows per player (>= 1)
 
 ### Game play
+- Black always starts
 - To make a (human) move, use the action bar, located at the bottom of the window
   - Using the left dropdown box, select the position of the checkers piece you wish to move
   - Using the right dropdown box, select the destination position you wish to move the selected piece to
 - While a bot is making their move, the other player must wait
+
+  > Performance optimization:
+  > - By design, the GUI displays bot moves with a visual delay. This delay occurs on a thread separate from the main thread, so that the window does not become unresponsive while the bot is 'selecting and making' their move.
 
 ## Contributing
 
