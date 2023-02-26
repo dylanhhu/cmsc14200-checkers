@@ -9,7 +9,7 @@ import shutil
 import threading
 from dataclasses import dataclass
 from enum import Enum, IntEnum
-from functools import lru_cache
+from functools import lru_cache, reduce
 from typing import Union, Callable, List, Set, Tuple
 
 import pygame
@@ -18,7 +18,7 @@ from pygame.event import Event
 from pygame_gui import UIManager, PackageResource
 from pygame_gui.core import ObjectID
 from pygame_gui.elements import (UIButton, UILabel, UIPanel, UITextEntryLine,
-                                 UIDropDownMenu)
+                                 UIDropDownMenu, UIStatusBar)
 
 from bot import SmartLevel, SmartBot, RandomBot
 from checkers import PieceColor, CheckersBoard, Position, Piece, Move, \
@@ -207,6 +207,16 @@ class _KingPiecePngSize(IntEnum):
     S_96px = 96
 
 
+class _PlayerLeadStatus(Enum):
+    """
+    An enumeration to represent the different possible statuses of the current
+    player in terms of their game progress.
+    """
+    LEADING = "Leading"
+    BEHIND = "Behind"
+    DRAWING = "Drawing"
+
+
 # ===============
 # STATIC CONSTANT 'ENUMS'
 # ===============
@@ -224,7 +234,7 @@ class _Sizes:
     MEGA = 42
 
 
-class _GeneralConsts:
+class _GeneralSizes:
     # Sizes
     LABEL_HEIGHT = 20
     TEXTINPUT_HEIGHT = 40
@@ -283,7 +293,7 @@ class _SetupElems:
     # LIST OF ELEMENT IDS
     # ===============
 
-    elem_ids = [WELCOME_TEXT, RED_PANEL, BLACK_PANEL,
+    init_ids = [WELCOME_TEXT, RED_PANEL, BLACK_PANEL,
                 RED_PANEL_TITLE, BLACK_PANEL_TITLE,
                 RED_TYPE_DROPDOWN, BLACK_TYPE_DROPDOWN,
                 RED_NAME_TEXTINPUT, BLACK_NAME_TEXTINPUT,
@@ -336,14 +346,25 @@ class _GameElems:
     DESTINATION_DROPDOWN = "#destination-dropdown"
     SUBMIT_MOVE_BUTTON = "#submit-move-button"
     BOARD = "#game-board"
+    CAPTURED_PANEL = "#captured-panel"
+    CAPTURED_PANEL_TITLE = "#captured-panel-title"
+    CAPTURED_BLACK_TITLE = "#captured-black-title"
+    CAPTURED_RED_TITLE = "#captured-red-title"
+    CAPTURED_BLACK_COUNT = "#captured-black-count"
+    CAPTURED_RED_COUNT = "#captured-red-count"
+    PIECES_LEFT_TITLE = "#pieces-left-title"
+    PIECES_LEFT_BAR = "#pieces-left-bar"
 
     # ===============
     # LIST OF ELEMENT IDS
     # ===============
 
-    elem_ids = [TITLE_TEXT, MENU_BUTTON, ACTION_BAR, CURRENT_PLAYER_LABEL,
+    init_ids = [TITLE_TEXT, MENU_BUTTON, ACTION_BAR, CURRENT_PLAYER_LABEL,
                 SELECTED_PIECE_DROPDOWN, PIECE_TO_DESTINATION_LABEL,
-                DESTINATION_DROPDOWN, SUBMIT_MOVE_BUTTON, BOARD]
+                DESTINATION_DROPDOWN, SUBMIT_MOVE_BUTTON, BOARD, CAPTURED_PANEL,
+                CAPTURED_PANEL_TITLE, CAPTURED_BLACK_TITLE, CAPTURED_RED_TITLE,
+                CAPTURED_BLACK_COUNT, CAPTURED_RED_COUNT, PIECES_LEFT_TITLE,
+                PIECES_LEFT_BAR]
 
     # ===============
     # No need to init these
@@ -359,6 +380,7 @@ class _GameConsts:
     DROPDOWN_WIDTH = 100
     ACTION_BAR_X_PADDING = _Sizes.L
     ACTION_BAR_ARROW_X_MARGIN = _Sizes.S
+    BOARD_RIGHT_MARGIN = _Sizes.L
 
 
 # ===============
@@ -396,6 +418,19 @@ def _color_str(color: PieceColor) -> str:
     if color == PieceColor.RED:
         return "Red"
     return "Black"
+
+
+def _other_color(color: PieceColor) -> PieceColor:
+    """
+    Get the other player's color.
+
+    Args:
+        color: this player's color
+
+    Returns:
+        PieceColor: other player's color
+    """
+    return PieceColor.RED if color == PieceColor.BLACK else PieceColor.BLACK
 
 
 @dataclass
@@ -554,16 +589,36 @@ class _AppState:
     # GAME
     # ===============
 
-    board: CheckersBoard = CheckersBoard(1)
-    current_color = PieceColor.BLACK
-    winner: Union[PieceColor, None] = None
-    is_game_over_dialog_open: bool = False
+    _board: CheckersBoard = CheckersBoard(1)
+
+    @property
+    def board(self) -> CheckersBoard:
+        """
+        Getter method for the checkers game board.
+
+        Returns:
+            CheckersBoard: game board
+        """
+        return self._board
+
+    def create_board(self) -> None:
+        """
+        Create a game board, given the setup parameters.
+
+        Returns:
+            None
+        """
+        self._board = CheckersBoard(self.num_rows_per_player)
+
+        # Store the number of starting pieces per player
+        self._num_starting_pieces_per_player = \
+            self._board.get_board_width() * self.num_rows_per_player // 2
 
     @property
     def board_side_num(self) -> int:
         """
         Getter method for the number of board squares per side.
-        
+
         Returns:
             int: number of squares
         """
@@ -579,6 +634,22 @@ class _AppState:
             Fraction: fraction of board width/height occupied
         """
         return Fraction(1) / (self.board_side_num + _COORD_SQUARES)
+
+    _num_starting_pieces_per_player: int = 3
+
+    @property
+    def num_starting_pieces_per_player(self) -> int:
+        """
+        Getter method for the number of pieces each player starts with.
+
+        Returns:
+            int: number of pieces
+        """
+        return self._num_starting_pieces_per_player
+
+    current_color = PieceColor.BLACK
+    winner: Union[PieceColor, None] = None
+    is_game_over_dialog_open: bool = False
 
     def current_player_name(self) -> str:
         """
@@ -1000,6 +1071,80 @@ class _AppState:
         # Sort descending
         return sorted(result, key=_AppState._pos_string_sort_val)
 
+    def pieces_avail_count(self, player: PieceColor) -> int:
+        """
+        Counts the number of pieces still on the board for the given player.
+
+        Args:
+            player (PieceColor): the player
+
+        Returns:
+            int: number of pieces available
+        """
+        return len(self.board.get_color_avail_pieces(player))
+
+    def _pieces_lost_count(self, player: PieceColor) -> int:
+        """
+        Counts the number of pieces lost by the player to the opposition.
+
+        Args:
+            player (PieceColor): the player
+
+        Returns:
+            int: number of pieces lost to opposition
+        """
+        return reduce(lambda acc,
+                             piece: acc + int(piece.get_color() == player),
+                      self.board.get_captured_pieces(), 0)
+
+    def pieces_captured_count(self, capturer: PieceColor) -> int:
+        """
+        Counts the number of opposition pieces captured by the capturer in the
+        current game.
+
+        Args:
+            capturer (PieceColor): capturer's color
+
+        Returns:
+            int: number of pieces captured
+        """
+        oppo_color = _other_color(capturer)
+        return self._pieces_lost_count(oppo_color)
+
+    def player_lead_status(self, player: PieceColor) -> _PlayerLeadStatus:
+        """
+        Get the lead status of the given player:
+
+        - `LEADING` if player captured more pieces than opposition
+        - `DRAWING` if player captured same number of pieces as opposition
+        - `BEHIND` if player captured fewer pieces than opposition
+
+        Args:
+            player (PieceColor): the player
+
+        Returns:
+            _PlayerLeadStatus: player lead status
+        """
+        player_capture_score = self._pieces_lost_count(_other_color(player))
+        oppo_capture_score = self._pieces_lost_count(player)
+
+        if player_capture_score > oppo_capture_score:
+            return _PlayerLeadStatus.LEADING
+        if player_capture_score == oppo_capture_score:
+            return _PlayerLeadStatus.DRAWING
+        return _PlayerLeadStatus.BEHIND
+
+    def current_player_avail_fraction(self) -> float:
+        """
+        Calculates the number of pieces still available on the board for the
+        current player as a fraction of the number of starting pieces.
+
+        Returns:
+            float: fraction of pieces still available
+        """
+        return self.pieces_avail_count(self.current_color) / self.\
+            _num_starting_pieces_per_player
+
 
 # ===============
 # WINDOW DIALOGS
@@ -1067,8 +1212,8 @@ class GuiApp:
             self._state.red_name = "Kevin"
             self._state.black_type = _PlayerType.BOT
             self._state.black_bot_level = _BotLevel.RANDOM
-            self._state.num_rows_per_player = 1
-            self._state.board = CheckersBoard(self._state.num_rows_per_player)
+            self._state.num_rows_per_player = 5
+            self._state.create_board()
 
             # Directly open Game screen
             self._state.update_move_options()
@@ -1087,13 +1232,16 @@ class GuiApp:
                                      PackageResource(package="data.themes",
                                                      resource=
                                                      _DYNAMIC_THEME_FILE_NAME))
+        # Set up the default font
+        self._ui_manager.preload_fonts(
+            [{'name': 'fira_code', 'point_size': 14, 'style': 'regular'}])
 
         # Initialize the element library
         self._lib = GuiComponentLib()
         self._lib.init_screen_elems(_Screens.get_setup_name(),
-                                    _SetupElems.elem_ids)
+                                    _SetupElems.init_ids)
         self._lib.init_screen_elems(_Screens.get_game_name(),
-                                    _GameElems.elem_ids)
+                                    _GameElems.init_ids)
 
         # Build the UI for the first time
         self._rebuild_ui()
@@ -1453,7 +1601,8 @@ class GuiApp:
                     _KingPiecePngSize: PNG size
                 """
 
-                # Create list of all available king piece PNG sizes (from the enum)
+                # Create list of all available king piece PNG sizes (from the
+                # enum)
                 king_piece_sizes = [e for e in _KingPiecePngSize]
 
                 for king_size_i in range(1, len(king_piece_sizes)):
@@ -1480,8 +1629,10 @@ class GuiApp:
 
     def _rebuild_ui(self) -> None:
         """
-        Rebuilds all UI elements. Only run this if absolutely necessary,
-        since compute is expensive.
+        Rebuilds all UI elements. This is where all elements are drafted for
+        later painting.
+
+        Only run this if absolutely necessary, since compute is expensive.
         """
 
         # Clean slate window
@@ -1526,7 +1677,7 @@ class GuiApp:
                 UILabel(
                     self._rel_rect(
                         width=_SetupConsts.PANEL_TITLE_WIDTH,
-                        height=_GeneralConsts.LABEL_HEIGHT,
+                        height=_GeneralSizes.LABEL_HEIGHT,
                         parent_id=_SetupElems.RED_PANEL,
                         ref_pos=ElemPos(
                             _SetupElems.RED_PANEL,
@@ -1547,7 +1698,7 @@ class GuiApp:
                     str(self._state.red_type.value),
                     self._rel_rect(
                         width=_SetupConsts.PANEL_CONTENT_WIDTH,
-                        height=_GeneralConsts.DROPDOWN_HEIGHT,
+                        height=_GeneralSizes.DROPDOWN_HEIGHT,
                         parent_id=_SetupElems.RED_PANEL,
                         ref_pos=ElemPos(
                             _SetupElems.RED_PANEL_TITLE,
@@ -1565,7 +1716,7 @@ class GuiApp:
                 UITextEntryLine(
                     self._rel_rect(
                         width=_SetupConsts.PANEL_CONTENT_WIDTH,
-                        height=_GeneralConsts.TEXTINPUT_HEIGHT,
+                        height=_GeneralSizes.TEXTINPUT_HEIGHT,
                         parent_id=_SetupElems.RED_PANEL,
                         ref_pos=ElemPos(
                             _SetupElems.RED_TYPE_DROPDOWN,
@@ -1589,7 +1740,7 @@ class GuiApp:
                     str(self._state.red_bot_level.value),
                     self._rel_rect(
                         width=_SetupConsts.PANEL_CONTENT_WIDTH,
-                        height=_GeneralConsts.DROPDOWN_HEIGHT,
+                        height=_GeneralSizes.DROPDOWN_HEIGHT,
                         parent_id=_SetupElems.RED_PANEL,
                         ref_pos=ElemPos(
                             _SetupElems.RED_TYPE_DROPDOWN,
@@ -1634,7 +1785,7 @@ class GuiApp:
                 UILabel(
                     self._rel_rect(
                         width=_SetupConsts.PANEL_TITLE_WIDTH,
-                        height=_GeneralConsts.LABEL_HEIGHT,
+                        height=_GeneralSizes.LABEL_HEIGHT,
                         parent_id=_SetupElems.BLACK_PANEL,
                         ref_pos=ElemPos(
                             _SetupElems.BLACK_PANEL,
@@ -1655,7 +1806,7 @@ class GuiApp:
                     str(self._state.black_type.value),
                     self._rel_rect(
                         width=_SetupConsts.PANEL_CONTENT_WIDTH,
-                        height=_GeneralConsts.DROPDOWN_HEIGHT,
+                        height=_GeneralSizes.DROPDOWN_HEIGHT,
                         parent_id=_SetupElems.BLACK_PANEL,
                         ref_pos=ElemPos(
                             _SetupElems.BLACK_PANEL_TITLE,
@@ -1673,7 +1824,7 @@ class GuiApp:
                 UITextEntryLine(
                     self._rel_rect(
                         width=_SetupConsts.PANEL_CONTENT_WIDTH,
-                        height=_GeneralConsts.TEXTINPUT_HEIGHT,
+                        height=_GeneralSizes.TEXTINPUT_HEIGHT,
                         parent_id=_SetupElems.BLACK_PANEL,
                         ref_pos=ElemPos(
                             _SetupElems.BLACK_TYPE_DROPDOWN,
@@ -1697,7 +1848,7 @@ class GuiApp:
                     str(self._state.black_bot_level.value),
                     self._rel_rect(
                         width=_SetupConsts.PANEL_CONTENT_WIDTH,
-                        height=_GeneralConsts.DROPDOWN_HEIGHT,
+                        height=_GeneralSizes.DROPDOWN_HEIGHT,
                         parent_id=_SetupElems.BLACK_PANEL,
                         ref_pos=ElemPos(
                             _SetupElems.BLACK_TYPE_DROPDOWN,
@@ -1721,7 +1872,7 @@ class GuiApp:
                 UILabel(
                     self._rel_rect(
                         width=Fraction(1),
-                        height=_GeneralConsts.LABEL_HEIGHT,
+                        height=_GeneralSizes.LABEL_HEIGHT,
                         ref_pos=ElemPos(
                             _SetupElems.RED_PANEL,
                             RelPos.END,
@@ -1746,7 +1897,7 @@ class GuiApp:
                 UIButton(
                     self._rel_rect(
                         width=_SetupConsts.START_GAME_BUTTON_WIDTH,
-                        height=_GeneralConsts.BUTTON_HEIGHT,
+                        height=_GeneralSizes.BUTTON_HEIGHT,
                         ref_pos=ScreenPos(
                             RelPos.END,
                             RelPos.END
@@ -1768,7 +1919,7 @@ class GuiApp:
                 UITextEntryLine(
                     self._rel_rect(
                         width=_SetupConsts.NUM_PLAYER_ROWS_WIDTH,
-                        height=_GeneralConsts.BUTTON_HEIGHT,  # match button
+                        height=_GeneralSizes.BUTTON_HEIGHT,  # match button
                         ref_pos=ElemPos(
                             _SetupElems.START_GAME_BUTTON,
                             RelPos.START,
@@ -1789,7 +1940,7 @@ class GuiApp:
                 UILabel(
                     self._rel_rect(
                         width=IntrinsicSize(),
-                        height=_GeneralConsts.LABEL_HEIGHT,
+                        height=_GeneralSizes.LABEL_HEIGHT,
                         ref_pos=ElemPos(
                             _SetupElems.NUM_PLAYER_ROWS_TEXTINPUT,
                             RelPos.START,
@@ -1813,7 +1964,7 @@ class GuiApp:
                 UILabel(
                     self._rel_rect(
                         width=IntrinsicSize(),
-                        height=_GeneralConsts.BUTTON_HEIGHT,  # same as menu btn
+                        height=_GeneralSizes.BUTTON_HEIGHT,  # same as menu btn
                         ref_pos=ScreenPos(
                             RelPos.START,
                             RelPos.START
@@ -1831,7 +1982,7 @@ class GuiApp:
                 UIButton(
                     self._rel_rect(
                         width=60,
-                        height=_GeneralConsts.BUTTON_HEIGHT,
+                        height=_GeneralSizes.BUTTON_HEIGHT,
                         ref_pos=ScreenPos(
                             RelPos.END,
                             RelPos.START
@@ -1872,7 +2023,7 @@ class GuiApp:
                 UILabel(
                     self._rel_rect(
                         width=IntrinsicSize(),
-                        height=_GeneralConsts.LABEL_HEIGHT,
+                        height=_GeneralSizes.LABEL_HEIGHT,
                         ref_pos=ElemPos(
                             _GameElems.ACTION_BAR,
                             RelPos.START,
@@ -1894,7 +2045,7 @@ class GuiApp:
                     self._state.grid_position_to_string(self._state.start_pos),
                     self._rel_rect(
                         width=_GameConsts.DROPDOWN_WIDTH,
-                        height=_GeneralConsts.DROPDOWN_HEIGHT,
+                        height=_GeneralSizes.DROPDOWN_HEIGHT,
                         ref_pos=ElemPos(
                             _GameElems.CURRENT_PLAYER_LABEL,
                             RelPos.END,
@@ -1914,7 +2065,7 @@ class GuiApp:
                 UILabel(
                     self._rel_rect(
                         width=IntrinsicSize(),
-                        height=_GeneralConsts.LABEL_HEIGHT,
+                        height=_GeneralSizes.LABEL_HEIGHT,
                         ref_pos=ElemPos(
                             _GameElems.SELECTED_PIECE_DROPDOWN,
                             RelPos.END,
@@ -1936,7 +2087,7 @@ class GuiApp:
                     self._state.grid_position_to_string(self._state.dest_pos),
                     self._rel_rect(
                         width=_GameConsts.DROPDOWN_WIDTH,
-                        height=_GeneralConsts.DROPDOWN_HEIGHT,
+                        height=_GeneralSizes.DROPDOWN_HEIGHT,
                         ref_pos=ElemPos(
                             _GameElems.PIECE_TO_DESTINATION_LABEL,
                             RelPos.END,
@@ -1956,7 +2107,7 @@ class GuiApp:
                 UIButton(
                     self._rel_rect(
                         width=80,
-                        height=_GeneralConsts.BUTTON_HEIGHT,
+                        height=_GeneralSizes.BUTTON_HEIGHT,
                         ref_pos=ElemPos(
                             _GameElems.ACTION_BAR,
                             RelPos.END,
@@ -1983,7 +2134,7 @@ class GuiApp:
                 UIPanel(
                     self._rel_rect(
                         width=MatchOtherSide(),
-                        max_width=Fraction(0.7),
+                        max_width=Fraction(0.65),
                         height=Fraction(0.7),
                         ref_pos=ScreenPos(
                             RelPos.START,
@@ -2167,6 +2318,241 @@ class GuiApp:
                     )
                 )
 
+            # ===============
+            # CAPTURED PANEL
+            # ===============
+
+            # Calculate the panel dimensions, based on board dimensions
+            captured_panel_width = self._get_window_dimensions().width - \
+                                   self._get_window_options().get_padding() \
+                                   * 2 - \
+                                   _GameConsts.BOARD_RIGHT_MARGIN - \
+                                   self._lib.get_elem(
+                                       _GameElems.BOARD).relative_rect.width
+            captured_panel_height = self._lib.get_elem(_GameElems.BOARD) \
+                .relative_rect.height
+            self._lib.draft(
+                _GameElems.CAPTURED_PANEL,
+                UIPanel(
+                    self._rel_rect(
+                        width=captured_panel_width,
+                        max_width=400,
+                        height=captured_panel_height,
+                        ref_pos=ScreenPos(
+                            RelPos.END,
+                            RelPos.CENTER
+                        ),
+                        self_align=SelfAlign(
+                            RelPos.START,
+                            RelPos.CENTER
+                        ),
+                    ),
+                    object_id=_GameElems.CAPTURED_PANEL,
+                    starting_layer_height=0
+                )
+            )
+            self._lib.draft(
+                _GameElems.CAPTURED_PANEL_TITLE,
+                UILabel(
+                    self._rel_rect(
+                        width=IntrinsicSize(),
+                        height=_GeneralSizes.LABEL_HEIGHT,
+                        ref_pos=ElemPos(
+                            _GameElems.CAPTURED_PANEL,
+                            RelPos.START,
+                            RelPos.START
+                        ),
+                        self_align=SelfAlign(
+                            RelPos.END,
+                            RelPos.END
+                        ),
+                        offset=Offset(_Sizes.L, _Sizes.XL)
+                    ),
+                    "Captured pieces:"
+                )
+            )
+
+            # ===============
+            # CAPTURED PANEL DATA
+            # ===============
+
+            # Text to display which player is leading (or if both are drawing).
+            # Can infer status of both players from just one player.
+            red_lead_status = self._state.player_lead_status(PieceColor.RED)
+
+            if red_lead_status == _PlayerLeadStatus.DRAWING:
+                # Players are drawing
+                drawing_str = " (drawing)"
+                red_status = drawing_str
+                black_status = drawing_str
+            else:
+                # One player is leading
+                leading_str = " (leading)"
+                if red_lead_status == _PlayerLeadStatus.LEADING:
+                    # Red player is leading
+                    red_status = leading_str
+                    black_status = ""
+                else:
+                    # Black player is leading
+                    red_status = ""
+                    black_status = leading_str
+
+            # Black player stats
+            self._lib.draft(
+                _GameElems.CAPTURED_BLACK_TITLE,
+                UILabel(
+                    self._rel_rect(
+                        width=IntrinsicSize(),
+                        height=_GeneralSizes.LABEL_HEIGHT,
+                        ref_pos=ElemPos(
+                            _GameElems.CAPTURED_PANEL_TITLE,
+                            RelPos.START,
+                            RelPos.END
+                        ),
+                        self_align=SelfAlign(
+                            RelPos.START,
+                            RelPos.END
+                        ),
+                        offset=Offset(_Sizes.M, _Sizes.XXL)
+                    ),
+                    f"Black{black_status} = "
+                )
+            )
+            self._lib.draft(
+                _GameElems.CAPTURED_BLACK_COUNT,
+                UILabel(
+                    self._rel_rect(
+                        width=IntrinsicSize(),
+                        height=80,
+                        ref_pos=ElemPos(
+                            _GameElems.CAPTURED_BLACK_TITLE,
+                            RelPos.END,
+                            RelPos.CENTER
+                        ),
+                        self_align=SelfAlign(
+                            RelPos.START,
+                            RelPos.CENTER
+                        ),
+                        offset=Offset(_Sizes.MICRO, 0)
+                    ),
+                    str(self._state.pieces_captured_count(PieceColor.BLACK)),
+                    object_id=ObjectID(
+                        _GameElems.CAPTURED_BLACK_COUNT,
+                        "@captured-count"
+                    )
+                )
+            )
+
+            # Red player stats
+            self._lib.draft(
+                _GameElems.CAPTURED_RED_TITLE,
+                UILabel(
+                    self._rel_rect(
+                        width=IntrinsicSize(),
+                        height=_GeneralSizes.LABEL_HEIGHT,
+                        ref_pos=ElemPos(
+                            _GameElems.CAPTURED_BLACK_TITLE,
+                            RelPos.START,
+                            RelPos.END
+                        ),
+                        self_align=SelfAlign(
+                            RelPos.START,
+                            RelPos.END
+                        ),
+                        offset=Offset(0, _Sizes.M)
+                    ),
+                    f"Red{red_status} = "
+                )
+            )
+            self._lib.draft(
+                _GameElems.CAPTURED_RED_COUNT,
+                UILabel(
+                    self._rel_rect(
+                        width=IntrinsicSize(),
+                        height=80,
+                        ref_pos=ElemPos(
+                            _GameElems.CAPTURED_RED_TITLE,
+                            RelPos.END,
+                            RelPos.CENTER
+                        ),
+                        self_align=SelfAlign(
+                            RelPos.START,
+                            RelPos.CENTER
+                        ),
+                        offset=Offset(_Sizes.MICRO, 0)
+                    ),
+                    str(self._state.pieces_captured_count(PieceColor.RED)),
+                    object_id=ObjectID(
+                        _GameElems.CAPTURED_RED_COUNT,
+                        "@captured-count"
+                    )
+                )
+            )
+
+            # ===============
+            # PIECES LEFT STATUS BAR
+            # (for current player)
+            # ===============
+
+            # Get current color as string
+            current_color_str = 'Red' if \
+                self._state.current_color == PieceColor.RED else 'Black'
+
+            # The status bar
+            self._lib.draft(
+                _GameElems.PIECES_LEFT_BAR,
+                UIStatusBar(
+                    self._rel_rect(
+                        parent_id=_GameElems.CAPTURED_PANEL,
+                        width=Fraction(0.9),
+                        height=_Sizes.L,
+                        ref_pos=ElemPos(
+                            _GameElems.CAPTURED_PANEL,
+                            RelPos.CENTER,
+                            RelPos.END
+                        ),
+                        self_align=SelfAlign(
+                            RelPos.CENTER,
+                            RelPos.START
+                        ),
+                        offset=Offset(0, - _Sizes.L)
+                    ),
+                    percent_method=self._state.current_player_avail_fraction,
+                    object_id=ObjectID(
+                        _GameElems.PIECES_LEFT_BAR,
+                        f"@status-bar-{current_color_str.lower()}"
+                    )
+                )
+            )
+
+            # Calculate available & original number of pieces
+            num_pieces_avail = self._state.pieces_avail_count(
+                self._state.current_color)
+            starting_num_avail = self._state.num_starting_pieces_per_player
+
+            # Title for the status bar
+            self._lib.draft(
+                _GameElems.PIECES_LEFT_TITLE,
+                UILabel(
+                    self._rel_rect(
+                        width=IntrinsicSize(),
+                        height=_GeneralSizes.LABEL_HEIGHT,
+                        ref_pos=ElemPos(
+                            _GameElems.PIECES_LEFT_BAR,
+                            RelPos.START,
+                            RelPos.START
+                        ),
+                        self_align=SelfAlign(
+                            RelPos.START,
+                            RelPos.START
+                        ),
+                        offset=Offset(0, - _Sizes.S)
+                    ),
+                    f"{current_color_str} "
+                    f"({num_pieces_avail}/{starting_num_avail}):"
+                )
+            )
+
     @staticmethod
     def _board_square_id(position: Position) -> str:
         """
@@ -2308,8 +2694,7 @@ class GuiApp:
                 # ===============
 
                 # Recreate board in memory
-                self._state.board = CheckersBoard(
-                    self._state.num_rows_per_player)
+                self._state.create_board()
 
                 # Black starts the game
                 self._state.current_color = PieceColor.BLACK
@@ -2774,7 +3159,7 @@ class GuiApp:
         elif event.type == pygame.MOUSEBUTTONUP:
             if not self._state.is_currently_bot() and \
                     self._lib.get_elem(_GameElems.BOARD).relative_rect \
-                        .collidepoint(event.pos):
+                            .collidepoint(event.pos):
                 # ===============
                 # Clicked: CHECKERS BOARD
                 # Conditions: [is not bot]

@@ -171,6 +171,43 @@
       "shape_corner_radius": "100"
     }
   },
+  "#captured-panel":
+  {
+    "colours": {
+      "dark_bg": "#1e2428"
+    },
+    "misc": {
+      "border_width": "0"
+    }
+  },
+  "@captured-count":
+  {
+    "font":
+    {
+      "name": "fira_code",
+      "size": "20",
+      "bold": "1"
+    }
+  },
+  "#pieces-left-bar":
+  {
+    "colours":
+    {
+      "unfilled_bar": "#383838"
+    }
+  },
+  "@status-bar-red":
+  {
+    "colours":
+    {
+      "filled_bar": "#D53C0E"
+    }
+  },
+  "@status-bar-black": {
+    "colours": {
+      "filled_bar": "#000000"
+    }
+  },
   "#game-over-dialog": {
     "misc":
     {
