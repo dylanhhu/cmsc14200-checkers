@@ -247,6 +247,7 @@ class SmartBot(Bot):
     8) able to conduct the wining move if possible
     9) able to avoid a lossing move if possible
     10) more inclined to conduct forcing
+    11) more inclined to chase down opponent pieces when leading in the endgame
 
     citations for the strategies:
     https://www.ultraboardgames.com/checkers/tips.php
@@ -285,6 +286,7 @@ class SmartBot(Bot):
             (self._baseline_priority, 1),
             (self._king_priority, 1),
             (self._push_priority, 1),
+            (self._chase_priotiy, 1),
             (self._stick_priority, 1),
             (self._center_priority, 1),
             (self._force_priority, 1)
@@ -305,7 +307,7 @@ class SmartBot(Bot):
         # this is just for test, include specific strategies functionsthat we
         # want to test
         self._strategy_list_test = [
-            (self._king_priority, 1)]
+            (self._chase_priotiy, 0.1)]
 
     def choose_move_list(self) -> List[Move]:
         """
@@ -626,6 +628,81 @@ class SmartBot(Bot):
 
         # this MoveSequence doesn't lead to a sacrifice
         return 0
+
+    def _chase_priotiy(self, mseq, weight) -> float:
+        """
+        update the priority of the available MoveSequence with the 
+        consideration of chasing after opponents pieces when we're in the 
+        endgame
+
+        We only consider this strategy when the opponent has relatively small 
+        number of pieces remain and we are leading! Chasing after oppponent 
+        when we are not leading is dangerous. Additionally, this will only be 
+        implmented when the boardwidth is >= 8, or chasing would be pointless 
+        and dangerous
+
+        Note that we chase after the piece that is closest to our piece about 
+        to be moved by the MoveSequence
+
+        Parameters:
+            mseq(MoveSequence): a MoveSequence whose priority is about to be 
+                updated
+            weight(float): a float that determine how much of an influence this 
+                strategy should be playing among all the strategies
+
+        Return: float: the value to add to priority to mseq according to the 
+            capture priority
+        """
+        # check whether the board has a width longer than 8
+        if self._experimentboard.get_board_width() < 8:
+            # small board, don't implement this strategy
+            return 0
+
+        # get the number of the available pieces on both side
+        oppo_avail_pieces = \
+            self._experimentboard.get_color_avail_pieces(self._oppo_color)
+        our_avail_pieces = \
+            self._experimentboard.get_color_avail_pieces(self._own_color)
+        oppo_avail_num = len(oppo_avail_pieces)
+        our_avail_num = len(our_avail_pieces)
+
+        # get the original number of pieces for the opponent
+        oppo_total_num = self._experimentboard.get_board_width() / 2\
+            * (self._experimentboard.get_board_width() / 2 - 1)
+
+        # check the following two requirements:
+        # 1) whether the available opponent pieces is less than 1/4 than the
+        # original number of pieces, which means we've entered the endgame
+        # 2) whether we have more than 1.5 times of pieces than the opponent,
+        # which means we are still leading considerably
+        if oppo_avail_num > oppo_total_num / 4 or\
+                our_avail_num <= 1.5 * oppo_avail_num:
+            # at least one of the requirement is not satisfied
+            return 0
+        else:
+            # initialize a tuple used to record information about the target
+            # piece we are chasing after
+            # The first element is to store the distance from our piece and the
+            # target piece, the second element stores the position of the
+            # target piece
+            target_tuple = (math.inf, 0)
+
+            # traverse through all opponent's pieces and find the closest piece
+            # to the target piece of our MoveSequence
+            for oppo_piece in oppo_avail_pieces:
+                dist = self._distance(oppo_piece.get_position(),
+                                      mseq.get_original_position())
+                if dist < target_tuple[0]:
+                    # if the distance is smaller than the previously least
+                    # ditance, update the target_tuple with this new target
+                    # piece
+                    target_tuple = (dist, oppo_piece.get_position())
+
+            # chase_score would be higher the more the MoveSequence is moving
+            # to the target piece
+            chase_score = target_tuple[0] - \
+                self._distance(target_tuple[1], mseq.get_end_position())
+            return chase_score * weight
 
     def _captured_priority(self, mseq, weight) -> float:
         """
