@@ -21,7 +21,9 @@ from pygame_gui.elements import (UIButton, UILabel, UIPanel, UITextEntryLine,
                                  UIDropDownMenu)
 
 from bot import SmartLevel, SmartBot, RandomBot
-from checkers import PieceColor, CheckersBoard, Position, Piece, Move
+from checkers import PieceColor, CheckersBoard, Position, Piece, Move, \
+    GameStatus
+from utils.gui.ui_confirmation_dialog import UIConfirmationDialog
 from utils.gui.components import GuiComponentLib, ModifyElemCommand, Element
 from utils.gui.relative_rect import (RelPos, ScreenPos, ElemPos, SelfAlign,
                                      Offset, Fraction, IntrinsicSize,
@@ -239,14 +241,15 @@ class _GeneralEvents:
     PARAM_ENABLE_MOVE = "enable-move"
 
     # PyGame event instances
-    REBUILD = pygame.event.Event(pygame.USEREVENT,
+    REBUILD = Event(pygame.USEREVENT,
                                  {PARAM_NAME: NAME_REBUILD})
-    REBUILD_DISABLE_MOVE = pygame.event.Event(pygame.USEREVENT,
+    REBUILD_DISABLE_MOVE = Event(pygame.USEREVENT,
                                               {PARAM_NAME: NAME_REBUILD,
                                                PARAM_DISABLE_MOVE: True})
-    REBUILD_ENABLE_MOVE = pygame.event.Event(pygame.USEREVENT,
+    REBUILD_ENABLE_MOVE = Event(pygame.USEREVENT,
                                              {PARAM_NAME: NAME_REBUILD,
                                               PARAM_ENABLE_MOVE: True})
+    QUIT = Event(pygame.QUIT)
 
 
 class _SetupElems:
@@ -341,6 +344,13 @@ class _GameElems:
     elem_ids = [TITLE_TEXT, MENU_BUTTON, ACTION_BAR, CURRENT_PLAYER_LABEL,
                 SELECTED_PIECE_DROPDOWN, PIECE_TO_DESTINATION_LABEL,
                 DESTINATION_DROPDOWN, SUBMIT_MOVE_BUTTON, BOARD]
+
+    # ===============
+    # No need to init these
+    # ===============
+
+    GAME_OVER_DIALOG = "#game-over-dialog"
+    GAME_OVER_DIALOG_CANCEL = "#game-over-dialog.#cancel_button"
 
 
 class _GameConsts:
@@ -546,6 +556,8 @@ class _AppState:
 
     board: CheckersBoard = CheckersBoard(1)
     current_color = PieceColor.BLACK
+    winner: Union[PieceColor, None] = None
+    is_game_over_dialog_open: bool = False
 
     @property
     def board_side_num(self) -> int:
@@ -990,9 +1002,40 @@ class _AppState:
 
 
 # ===============
-# GUI APP CLASS
+# WINDOW DIALOGS
 # ===============
 
+class GameOverDialog(UIConfirmationDialog):
+    """
+    Creating an instance of this class creates a 'game over' dialog for
+    declaring a winner.
+    """
+    def __init__(self, rel_rect: pygame.Rect,
+                 winner_color: str,
+                 winner_name: str) -> None:
+        """
+        Initialize the dialog by overriding parameters of
+        `UIConfirmationDialog`.
+
+        Args:
+            rel_rect (pygame.Rect): relative rectangle for dialog dimensions
+            winner_color (str) color of winning player
+            winner_name (str): display name of winning player
+
+        Returns:
+            None
+        """
+        super().__init__(rel_rect,
+                         f"{winner_name} ({winner_color}) won the game!",
+                         window_title="Game over",
+                         action_short_name="New game",
+                         cancel_short_name="Quit",
+                         object_id=_GameElems.GAME_OVER_DIALOG)
+
+
+# ===============
+# GUI APP CLASS
+# ===============
 
 class GuiApp:
     """
@@ -1024,7 +1067,7 @@ class GuiApp:
             self._state.red_name = "Kevin"
             self._state.black_type = _PlayerType.BOT
             self._state.black_bot_level = _BotLevel.RANDOM
-            self._state.num_rows_per_player = 5
+            self._state.num_rows_per_player = 1
             self._state.board = CheckersBoard(self._state.num_rows_per_player)
 
             # Directly open Game screen
@@ -1929,6 +1972,9 @@ class GuiApp:
                     object_id=_GameElems.SUBMIT_MOVE_BUTTON
                 ),
             )
+            if self._state.winner:
+                # Someone has won the game: disable the action bar
+                self._disable_move_elems()
             # ===============
             # CHECKERS BOARD
             # ===============
@@ -1970,8 +2016,8 @@ class GuiApp:
                 else:
                     elem_class = "@board-square-light"
 
-                # Selected?
-                if self._state.dest_pos == pos:
+                # Selected? (only check if no-one has won)
+                if not self._state.winner and self._state.dest_pos == pos:
                     elem_class += "-selected"
                     if self._state.get_piece_at_pos(
                             self._state.start_pos).get_color() == \
@@ -2495,7 +2541,7 @@ class GuiApp:
         self._lib.enable_elem(
             _GameElems.SUBMIT_MOVE_BUTTON)
 
-    def _complete_bot_moves(self, moves: List[Move]) -> None:
+    def _execute_bot_moves(self, moves: List[Move]) -> None:
         """
         Complete a series of moves for the currently playing bot.
 
@@ -2505,6 +2551,11 @@ class GuiApp:
         Returns:
             None
         """
+        # Check if a winner exists
+        if self._state.winner:
+            # Means this bot has made a winning move: stop move sequence
+            return
+
         move, *remaining_moves = moves
 
         def visual_delay() -> float:
@@ -2531,7 +2582,7 @@ class GuiApp:
                 self._rebuild_when_ready(can_user_move=False)
 
                 # Complete remaining moves for currently playing bot
-                self._complete_bot_moves(remaining_moves)
+                self._execute_bot_moves(remaining_moves)
             else:
                 # If next player is also a bot, auto-complete their moves, too
                 if not self._attempt_start_bot_turn():
@@ -2570,19 +2621,33 @@ class GuiApp:
         """
         Execute the currently selected move.
 
+        Then checks whether game has ended at the end of the move, and takes
+        action accordingly.
+
         Returns:
             None
         """
         move_result = self._state.board.complete_move(
             self._state.get_selected_move()
         )
-        if not move_result:
-            # End of turn for current player.
-            # Switch to other player.
-            self._state.toggle_color()
 
-        # Update the move options
-        self._state.update_move_options()
+        # Check for end of game
+        game_state = self._state.board.get_game_state()
+        if game_state in (GameStatus.RED_WINS, GameStatus.BLACK_WINS):
+            # Someone has won the game
+            if game_state == GameStatus.RED_WINS:
+                self._state.winner = PieceColor.RED
+            else:
+                self._state.winner = PieceColor.BLACK
+            self._rebuild_ui()
+        else:
+            # Check if current player has remaining moves
+            if not move_result:
+                # End of turn for current player: switch to other player.
+                self._state.toggle_color()
+
+            # Update the options for the next move
+            self._state.update_move_options()
 
     def _attempt_start_bot_turn(self) -> bool:
         """
@@ -2609,7 +2674,7 @@ class GuiApp:
                 ).choose_move_list()
 
             # Complete all the bot's moves
-            self._complete_bot_moves(bot_moves)
+            self._execute_bot_moves(bot_moves)
 
             # Did start bot turn
             return True
@@ -2653,6 +2718,28 @@ class GuiApp:
                 # ===============
                 print("clicked: menu button")
                 # TODO: implement menu window
+            elif event.ui_object_id == _GameElems.GAME_OVER_DIALOG_CANCEL:
+                # ===============
+                # Clicked: QUIT GAME
+                # ===============
+                pygame.event.post(_GeneralEvents.QUIT)
+        elif event.type == pygame_gui.UI_CONFIRMATION_DIALOG_CONFIRMED:
+            if event.ui_object_id == _GameElems.GAME_OVER_DIALOG:
+                # ===============
+                # Confirmed: START NEW GAME
+                # ===============
+                self._state = _AppState()
+                self._rebuild_ui()
+        elif event.type == pygame_gui.UI_WINDOW_CLOSE:
+            if event.ui_object_id == _GameElems.GAME_OVER_DIALOG:
+                # The only reason for the Game Over dialog closing is if the
+                # app window resizes. Therefore, re-open the Game Over dialog to
+                # maintain the illusion that the dialog has never closed.
+
+                # Mark the Game Over dialog as closed, so that it will be
+                # re-opened during the GuiApp's run() method
+                self._state.is_game_over_dialog_open = False
+                self._rebuild_ui()
 
         elif event.type == pygame_gui.UI_DROP_DOWN_MENU_CHANGED:
             if event.ui_object_id == _GameElems.SELECTED_PIECE_DROPDOWN:
@@ -2743,7 +2830,7 @@ class GuiApp:
             if event.type == pygame.QUIT:
                 # Quit the app
                 self._state.is_alive = False
-                return
+                return  # no need to check other events
 
             # Inform the PyGame-GUI UIManager of events
             # (e.g. updating button hover state)
@@ -2781,6 +2868,38 @@ class GuiApp:
         # In every loop, check whether the window has been resized
         self._check_window_dimensions_changed()
 
+    def _check_winner_dialog(self) -> None:
+        """
+        Check if a winner has been declared.
+
+        If yes, display a dialog with this game outcome, and offer to either
+        start a new game or quit.
+
+        Must be run after UIManager has drawn the interface.
+
+        Returns:
+            None
+        """
+        if self._state.winner and not self._state.is_game_over_dialog_open:
+            self._state.is_game_over_dialog_open = True
+            GameOverDialog(
+                self._rel_rect(
+                    width=Fraction(0.5),
+                    max_width=800,
+                    height=Fraction(0.5),
+                    max_height=500,
+                    ref_pos=ScreenPos(
+                        RelPos.CENTER,
+                        RelPos.CENTER
+                    ),
+                    self_align=SelfAlign(
+                        RelPos.CENTER,
+                        RelPos.CENTER
+                    )
+                ),
+                "red" if self._state.winner == PieceColor.RED else "black",
+                self._state.current_player_name())
+
     def run(self) -> None:
         """
         Start the app in a GUI window.
@@ -2799,6 +2918,9 @@ class GuiApp:
 
             # Update PyGame display
             pygame.display.update()
+
+            # Check if there's a winner - if yes: display a 'game over' dialog
+            self._check_winner_dialog()
 
 
 if __name__ == "__main__":

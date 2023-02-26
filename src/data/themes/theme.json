@@ -170,5 +170,11 @@
       "shape": "rounded_rectangle",
       "shape_corner_radius": "100"
     }
+  },
+  "#game-over-dialog": {
+    "misc":
+    {
+      "enable_close_button": "0"
+    }
   }
 }
