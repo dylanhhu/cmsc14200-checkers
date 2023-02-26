@@ -79,7 +79,7 @@
   "@board-red-piece-king": {
     "images": {
       "background_image": {
-        "path": "data/images/24px/red-king.png"
+        "path": "src/data/images/24px/red-king.png"
       }
     },
     "colours": {
@@ -106,7 +106,7 @@
   "@board-red-piece-king-selected": {
     "images": {
       "background_image": {
-        "path": "data/images/24px/red-king.png"
+        "path": "src/data/images/24px/red-king.png"
       }
     },
     "colours": {
@@ -132,7 +132,7 @@
   "@board-black-piece-king": {
     "images": {
       "background_image": {
-        "path": "data/images/24px/black-king.png"
+        "path": "src/data/images/24px/black-king.png"
       }
     },
     "colours": {
@@ -158,7 +158,7 @@
   "@board-black-piece-king-selected": {
     "images": {
       "background_image": {
-        "path": "data/images/24px/black-king.png"
+        "path": "src/data/images/24px/black-king.png"
       }
     },
     "colours": {

@@ -356,9 +356,9 @@ class _GameConsts:
 
 _COORD_SQUARES = 1  # Number of square-sized spaces for coordinates
 
-_THEME_FILE = "data/themes/theme.json"  # PyGame-GUI theme JSON file
+_THEME_FILE = "src/data/themes/theme.json"  # PyGame-GUI theme JSON file
 _DYNAMIC_THEME_FILE_NAME = "dynamic_theme.json"
-_DYNAMIC_THEME_FILE = f"data/themes/{_DYNAMIC_THEME_FILE_NAME}"
+_DYNAMIC_THEME_FILE = f"src/data/themes/{_DYNAMIC_THEME_FILE_NAME}"
 _THEME_BOARD_KING_PIECES = ["@board-red-piece-king",
                             "@board-red-piece-king-selected",
                             "@board-black-piece-king",
@@ -1424,7 +1424,7 @@ class GuiApp:
             for king_piece_name in _THEME_BOARD_KING_PIECES:
                 color = "red" if "red" in king_piece_name else "black"
                 theme_json[king_piece_name]["images"]["background_image"]["path"] =\
-                    f"data/images/{get_king_png_size()}px/{color}-king.png"
+                    f"src/data/images/{get_king_png_size()}px/{color}-king.png"
 
         # ===============
         # UPDATE DYNAMIC JSON FILE
