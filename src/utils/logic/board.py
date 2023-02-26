@@ -5,7 +5,7 @@ Checkers specific subclass.
 
 from typing import Dict, List, Tuple, Union
 
-from utils.logic.aux_utils import Move, Piece, PieceColor, Position
+from src.utils.logic.aux_utils import Move, Piece, PieceColor, Position
 
 
 # ===============
