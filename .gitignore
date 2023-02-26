@@ -1,6 +1,9 @@
 # VSCode
 .vscode/
 
+# Pylintrc
+.pylintrc
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

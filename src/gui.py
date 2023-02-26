@@ -504,7 +504,7 @@ class _AppState:
     # GAME
     # ===============
 
-    board: CheckersBoard = CheckersBoard(n=1)
+    board: CheckersBoard = CheckersBoard(1)
     current_color = PieceColor.BLACK
 
     def current_player_name(self) -> str:
@@ -962,8 +962,7 @@ class GuiApp:
             self._state.black_type = _PlayerType.BOT
             self._state.black_bot_level = _BotLevel.RANDOM
             self._state.num_rows_per_player = 5
-            self._state.board = CheckersBoard(
-                n=self._state.num_rows_per_player)
+            self._state.board = CheckersBoard(self._state.num_rows_per_player)
             # Directly open Game screen
             self._state.update_move_options()
             self._state.screen = _Screens.GAME
@@ -2120,7 +2119,7 @@ class GuiApp:
 
                 # Recreate board in memory
                 self._state.board = CheckersBoard(
-                    n=self._state.num_rows_per_player)
+                    self._state.num_rows_per_player)
 
                 # Black starts the game
                 self._state.current_color = PieceColor.BLACK

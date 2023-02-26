@@ -52,28 +52,15 @@ Examples:
 """
 
 from enum import Enum
-from typing import Tuple, List, Dict, Union
+from typing import Dict, List, Union
 
-
-# ===============
-# Type Aliases
-# ===============
-
-Position = Tuple[int, int]
+from utils.logic.board import Board, PieceColor, Position
+from utils.logic.aux_utils import Jump, Move, Piece, DrawOffer, Resignation
 
 
 # ===============
 # ENUMS
 # ===============
-
-
-class PieceColor(Enum):
-    """
-    An enumeration for the internal representation of a piece's color.
-    """
-
-    RED = 0
-    BLACK = 1
 
 
 class GameStatus(Enum):
@@ -89,729 +76,12 @@ class GameStatus(Enum):
     DRAW = 101
 
 
-# ===============
-# DATA CLASSES
-# ===============
+# ====================
+# Checkers Game Class
+# ====================
 
 
-class Piece:
-    """
-    Represents a piece on the board.
-    """
-
-    def __init__(self, pos: Position, color: PieceColor,
-                 king: bool = False) -> None:
-        """
-        Constructor for a piece.
-
-        Args:
-            pos (Tuple[int, int]): the position of the piece on the board
-            color (PieceColor): The color of the piece
-            king (bool): Is this a king? (Intended for debug scenarios)
-        """
-
-        self.set_position(pos)  # initialize piece position
-        self._color = color  # the piece's color
-        self._king = king  # is this piece a king?
-
-    def get_position(self) -> Position:
-        """
-        Getter function that returns the piece's position.
-
-        Args:
-            None
-
-        Returns:
-            Position of the piece
-        """
-        return (self._x, self._y)
-
-    def set_position(self, new_pos: Position) -> None:
-        """
-        Setter for the piece's position. If an invalid position is provided,
-        ValueError will be raised.
-
-        Args:
-            new_pos (Position): the new position of the piece
-
-        Returns:
-            None
-
-        Raises:
-            ValueError if invalid position is provided.
-        """
-        # Check for invalid position
-        if new_pos[0] < 0 or new_pos[1] < 0:
-            raise ValueError(f"Argument new_pos {str(new_pos)} is invalid.")
-
-        self._x, self._y = new_pos
-
-    def set_captured(self) -> None:
-        """
-        Sets the piece's to captured. This cannot be undone, please make sure
-        you know what you're doing.
-
-        Args:
-            None
-
-        Returns:
-            None
-        """
-        self._x = -1
-        self._y = -1
-
-    def is_captured(self) -> bool:
-        """
-        Returns whether the piece is captured.
-
-        Args:
-            None
-
-        Returns:
-            True if captured otherwise False
-        """
-        return (self._x == -1) and (self._y == -1)
-
-    def get_color(self) -> PieceColor:
-        """
-        Getter function that returns the piece's color.
-
-        Args:
-            None
-
-        Returns:
-            The color of the piece
-        """
-        return self._color
-
-    def is_king(self) -> bool:
-        """
-        Getter function that returns whether this piece is a king.
-
-        Args:
-            None
-
-        Returns:
-            True if this is a king otherwise False
-        """
-        return self._king
-
-    def to_king(self) -> None:
-        """
-        Update the piece to a king (aka 'kinging'). This can't be undone,
-        please make sure you know what you're doing.
-
-        Args:
-            None
-
-        Returns:
-            None
-        """
-        self._king = True
-
-    def __str__(self) -> str:
-        """
-        Returns a string representation of the piece. Returns one character
-        which is uppercase if king otherwise lowercase. Raises RuntimeError if
-        the Piece's color is invalid.
-
-        Red: 'r' or 'R'
-        Black: 'b' or 'B'
-
-        Args:
-            None
-
-        Returns:
-            str: String representation of the piece
-
-        Raises:
-            RuntimeError: if piece's color is invalid (not in PieceColor)
-        """
-        if self._king:
-            if self._color == PieceColor.BLACK:
-                return "B"
-            elif self._color == PieceColor.RED:
-                return "R"
-
-            raise RuntimeError(f"Piece's color ({repr(self._color)}) was \
-invalid")
-
-        if self._color == PieceColor.BLACK:
-            return "b"
-        elif self._color == PieceColor.RED:
-            return "r"
-
-        raise RuntimeError(f"Piece's color ({repr(self._color)}) was invalid")
-
-    def __repr__(self) -> str:
-        """
-        Returns the representation of this piece. Meant for debugging.
-
-        Args:
-            None
-
-        Returns:
-            str: Debug representation of the piece
-        """
-        args = [
-            f'({self._x}, {self._y})'
-        ]
-
-        if self._color in PieceColor:
-            args.append(f'checkers.{self._color}')
-        else:
-            args.append(repr(self._color))
-
-        if self._king:
-            args.append(repr(self._king))
-
-        return f"{__name__}.Piece({', '.join(args)})"
-
-    def __eq__(self, other: object) -> bool:
-        """
-        Implements the equality operator for type Piece
-
-        Args:
-           other (object): the object to be compared to
-
-        Returns:
-            bool: True if equal, False if not
-        """
-        if not isinstance(other, Piece):
-            return False
-
-        return (self._color == other._color
-                and self._king == other._king
-                and self._x == other._x
-                and self._y == other._y)
-
-
-class Move:
-    """
-    Represents a move that can be done by a piece or a resignation/draw offer.
-    """
-
-    def __init__(self, piece: Union[Piece, None], new_pos: Position,
-                 curr_pos: Union[Position, None] = None) -> None:
-        """
-        Creates a new move object.
-
-        Stores the piece to be moved, the new position after the move, and the
-        current position of the piece.
-
-        The current position will be either from:
-         1) curr_pos (if provided)
-         2) The piece itself (if provided)
-         3) (-1, -1), but will raise an error when getting (see method below)
-
-        Args:
-            piece (Piece or None): the piece this move belongs to
-            new_pos (Position): the new position after the move
-            curr_pos (Position or None): optional parameter for the current
-                                         position of the piece
-        """
-        self._piece = piece  # the piece to be moved
-
-        # The new position. If it is (-1, -1) then it is not a "move" per se
-        self._new_x, self._new_y = new_pos
-
-        # Handle current piece location as specified in docstring
-        if curr_pos:
-            self._curr_x, self._curr_y = curr_pos
-        elif piece:
-            self._curr_x, self._curr_y = piece.get_position()
-        else:
-            self._curr_x, self._curr_y = (-1, -1)
-
-    def get_new_position(self, _strict: bool = True) -> Position:
-        """
-        Getter for the new position of the piece after the move. Raises
-        RuntimeError if the new position stored is not valid (greater than
-        (0, 0)).
-
-        Args:
-            _strict (bool): private argument to disable position validity check
-
-        Returns:
-            Position of the piece after the move
-
-        Raises:
-            RuntimeError: if the new position is not greater than (0, 0)
-        """
-        if _strict and ((self._new_x < 0) or (self._new_y < 0)):
-            pos = (self._new_x, self._new_y)
-            raise RuntimeError(f"Move's new position {pos} is invalid.")
-
-        return (self._new_x, self._new_y)
-
-    def get_piece(self) -> Piece:
-        """
-        Getter for the piece that will move. If there is no piece associated
-        with this move then a RuntimeError will be raised.
-
-        Args:
-            None
-
-        Returns:
-            Piece to be moved
-
-        Raises:
-            RuntimeError: if this move has no piece
-        """
-        if self._piece is None:
-            raise RuntimeError("Move has no piece!")
-
-        return self._piece
-
-    def is_kinging(self, borderwidth) -> bool:
-        """
-        return whether this Move will be kinging a piece
-        """
-        if self.get_piece().is_king():
-            return False
-
-        baseline = {PieceColor.RED: 0, PieceColor.BLACK: borderwidth - 1}
-        if baseline[self.get_piece().get_color()] == self.get_new_position()[1]:
-            return True
-
-        return False
-
-    def get_current_position(self, _strict: bool = True) -> Position:
-        """
-        Getter for the current position of the piece that will be moved. If
-        there is no position stored or if the position is invalid (captured)
-        then this method will raise RuntimeError.
-
-        Does not update the current position if the current position has
-        changed in the piece itself.
-
-        Args:
-            _strict (bool): private argument to disable position validity check
-
-        Returns:
-            Position: current position of the piece
-
-        Raises:
-            RuntimeError: if the position is invalid
-        """
-        # Check for invalid position
-        if _strict and (self._curr_x < 0 or self._curr_y < 0):
-            raise ValueError("Move's current position is invalid.")
-
-        return (self._curr_x, self._curr_y)
-
-    def __eq__(self, other: object) -> bool:
-        """
-        Implements the equality operator for type Move
-
-        Args:
-           other (object): the object to be compared to
-
-        Returns:
-            bool: True if equal, False if not
-        """
-        if not isinstance(other, Move):
-            return False
-
-        return (self._piece == other._piece
-                and self._new_x == other._new_x
-                and self._new_y == other._new_y)
-
-    def __str__(self) -> str:
-        """
-        Returns a string representation of the move. Raises RuntimeError if no
-        Piece is associated with this move or if the new position is invalid.
-
-        Args:
-            None
-
-        Returns:
-            str: String representation of the move
-
-        Raises:
-            RuntimeError: if this move has no piece
-            RuntimeError: if the new position is not greater than (0, 0)
-        """
-        if self._piece is None:
-            raise RuntimeError("Move has no piece!")
-
-        piece = str(self._piece)
-        old_loc = self.get_current_position()
-        new_loc = self.get_new_position()
-
-        return f'Move: {piece} from {old_loc} to {new_loc}'
-
-    def __repr__(self) -> str:
-        """
-        Returns the representation of the move. Intended for debugging.
-
-        Args:
-            None
-
-        Returns:
-            str: representation of the move
-        """
-        args = [
-            repr(self._piece),
-            str(self.get_new_position(False)),
-            str(self.get_current_position(False))
-        ]
-
-        return f'{__name__}.Move({", ".join(args)})'
-
-
-class Jump(Move):
-    """
-    Represents a jump that can done by a piece. Includes the opponent's piece
-    that will be captured if the jump is completed.
-    """
-
-    def __init__(self,
-                 piece: Piece,
-                 new_pos: Position,
-                 opponent_piece: Piece,
-                 curr_pos: Union[Position, None] = None) -> None:
-        """
-        Creates a new jump object.
-
-        Args:
-            piece (Piece): the piece this move belongs to
-            new_pos (Position): the new position after the jump
-            opponent_piece (Piece): the piece that will be captured
-        """
-        super().__init__(piece, new_pos, curr_pos)
-
-        # The Piece that would be captured during the move
-        self._opponent_piece = opponent_piece
-
-    def get_captured_piece(self) -> Piece:
-        """
-        Getter method that returns the piece that would be captured after the
-        jump.
-
-        Args:
-            None
-
-        Returns:
-            The Piece that would be captured during the move
-        """
-        return self._opponent_piece
-
-    def __eq__(self, other: object) -> bool:
-        """
-        Implements the equality operator for type Jump
-
-        Args:
-            other (object): the object to be compared to
-
-        Returns:
-            bool: True if equal, False if not
-        """
-        if not super().__eq__(other):
-            return False
-
-        if not isinstance(other, Jump):
-            return False
-
-        return self._opponent_piece == other._opponent_piece
-
-    def __str__(self) -> str:
-        """
-        Returns a string representation of the move
-
-        Args:
-            None
-
-        Returns:
-            str: String representation of the move
-        """
-        cap_loc = ' ' + str(self.get_captured_piece().get_position())
-        addl_txt = f', capturing {str(self.get_captured_piece())} at' + cap_loc
-
-        return "Jump" + super().__str__()[4:] + addl_txt
-
-    def __repr__(self) -> str:
-        """
-        Returns the representation of the jump. Intended for debugging.
-
-        Args:
-            None
-
-        Returns:
-            str: representation of the jump
-        """
-        args = [
-            repr(self._piece),
-            str(self.get_new_position(False)),
-            repr(self._opponent_piece),
-            str(self.get_current_position(False))
-        ]
-
-        return f'{__name__}.Jump({", ".join(args)})'
-
-
-class Resignation(Move):
-    """
-    Represents a resignation by one player. Upon resignation, an instance of
-    this class should be created by the GUI/TUI and be "played".
-    """
-
-    def __init__(self, color: PieceColor) -> None:
-        """
-        Create a new resignation object. The color of the player that is
-        resigning must be provided.
-
-        Args:
-            color (PieceColor): the color of the player that is resigning
-        """
-        super().__init__(None, (-1, -1))
-
-        self._resigning_color = color
-
-    def get_new_position(self) -> Position:
-        """
-        Overrides the parent Piece getter function. Raises TypeError.
-
-        Args:
-            None
-
-        Returns:
-            None
-
-        Raises:
-            TypeError, as this class does not contain valid values to get
-        """
-        raise TypeError
-
-    def get_piece(self) -> Piece:
-        """
-        Overrides the parent Piece getter function. Raises TypeError.
-
-        Args:
-            None
-
-        Returns:
-            None
-
-        Raises:
-            TypeError, as this class does not contain valid values to get
-        """
-        raise TypeError
-
-    def get_current_position(self) -> None:
-        """
-        Overrides the parent Piece getter function. Raises TypeError.
-
-        Args:
-            None
-
-        Returns:
-            None
-
-        Raises:
-            TypeError, as this class does not contain valid values to get
-        """
-        raise TypeError
-
-    def get_resigning_color(self) -> PieceColor:
-        """
-        Getter for the color of the player that is resigning.
-
-        Args:
-            None
-
-        Returns:
-            PieceColor: the color of the player that is resigning.
-        """
-        return self._resigning_color
-
-    def __eq__(self, other: object) -> bool:
-        """
-        Implements the equality operator for type Resignation
-
-        Args:
-            other (object): the object to be compared to
-
-        Returns:
-            bool: True if equal, False if not
-        """
-        if not isinstance(other, Resignation):
-            return False
-
-        return self._resigning_color == other._resigning_color
-
-    def __str__(self) -> str:
-        """
-        Returns a string representation of the resignation
-
-        Args:
-            None
-
-        Returns:
-            str: String representation of the move
-        """
-        if self._resigning_color == PieceColor.BLACK:
-            color = "black"
-        elif self._resigning_color == PieceColor.RED:
-            color = "red"
-        else:
-            raise RuntimeError(f"Resignations's color \
-({repr(self._resigning_color)}) was invalid")
-
-        return f'Resignation: {color} resigns'
-
-    def __repr__(self) -> str:
-        """
-        Returns the representation of the resignation. Intended for debugging.
-
-        Args:
-            None
-
-        Returns:
-            str: representation of the resignation
-        """
-        return f'{__name__}.Resignation({str(self._resigning_color)})'
-
-
-class DrawOffer(Move):
-    """
-    Represents an offer/acceptance of a draw.
-
-    When offering a draw, the GUI/TUI must create an instance of this class and
-    "play" it along with another "regular" move (move/jump).
-
-    When a draw is offered, the player will receive it when getting all valid
-    moves for that player. The color stored in that DrawOffer will be the
-    recipient player's color, NOT the offering player's color.
-
-    To accept a draw, the GUI/TUI must "play" the draw request provided when
-    getting the player's move. To reject, play any other move.
-    """
-
-    def __init__(self, offering_color: PieceColor) -> None:
-        """
-        Create a new draw offer. The offering player's color is stored.
-
-        Args:
-            offering_color (PieceColor): the color of player that is offering
-                                         the draw
-        """
-        super().__init__(None, (-1, -1))
-
-        # The color of the player offering the draw
-        self._offering_color = offering_color
-
-    def get_new_position(self) -> Position:
-        """
-        Overrides the parent Piece getter function. Raises TypeError.
-
-        Args:
-            None
-
-        Returns:
-            None
-
-        Raises:
-            TypeError, as this class does not contain valid values to get
-        """
-        raise TypeError
-
-    def get_piece(self) -> Piece:
-        """
-        Overrides the parent Piece getter function. Raises TypeError.
-
-        Args:
-            None
-
-        Returns:
-            None
-
-        Raises:
-            TypeError, as this class does not contain valid values to get
-        """
-        raise TypeError
-
-    def get_current_position(self) -> None:
-        """
-        Overrides the parent Piece getter function. Raises TypeError.
-
-        Args:
-            None
-
-        Returns:
-            None
-
-        Raises:
-            TypeError, as this class does not contain valid values to get
-        """
-        raise TypeError
-
-    def get_offering_color(self) -> PieceColor:
-        """
-        Getter to return the color that is offering the draw
-
-        Args:
-            None
-
-        Returns:
-            PieceColor of the player offering the draw
-        """
-        return self._offering_color
-
-    def __eq__(self, other: object) -> bool:
-        """
-        Implements the equality operator for type DrawOffer
-
-        Args:
-            other (object): the object to be compared to
-
-        Returns:
-            bool: True if equal, False if not
-        """
-        if not isinstance(other, DrawOffer):
-            return False
-
-        return self._offering_color == other._offering_color
-
-    def __str__(self) -> str:
-        """
-        Returns a string representation of the draw offer
-
-        Args:
-            None
-
-        Returns:
-            str: String representation of the move
-        """
-        if self._offering_color == PieceColor.BLACK:
-            color = "black"
-        elif self._offering_color == PieceColor.RED:
-            color = "red"
-        else:
-            raise RuntimeError(f"DrawOffer's color \
-({repr(self._offering_color)}) was invalid")
-
-        return f'Draw offer: {color} offers a draw'
-
-    def __repr__(self) -> str:
-        """
-        Returns the representation of the offer. Intended for debugging.
-
-        Args:
-            None
-
-        Returns:
-            str: representation of the offer
-        """
-        return f'{__name__}.DrawOffer({str(self._offering_color)})'
-
-
-# ===============
-# GAME BOARD CLASS
-# ===============
-
-
-class CheckersBoard:
+class CheckersBoard(Board):
     """
     Represents a checkers game. Provides methods for obtaining valid moves,
     validating moves, and acting upon moves according to the rules of checkers.
@@ -822,24 +92,25 @@ class CheckersBoard:
     containing the red pieces.
     """
 
-    def __init__(self, n: int) -> None:
+    def __init__(self, rows_per_player: int) -> None:
         """
         Creates a new Checkers game.
 
         Args:
-            n (int): the number of rows of pieces per player
+            rows_per_player (int): the number of rows of pieces per player
         """
-        self._n = n  # number of rows of pieces per player
-        self._board_length = 2 * (n + 1)  # length of board sides
+        super().__init__(rows_per_player)
 
-        # Dictionary of all uncaptured pieces and their positions
-        self._pieces: Dict[Position, Piece] = self._generate_pieces(n)
+        # ==================================
+        # CheckersBoard Specific Attributes
+        # ==================================
 
-        # Each player's pieces that have been captured by the other player
-        self._captured: Dict[PieceColor, List[Piece]] = {
-            PieceColor.BLACK: [],
-            PieceColor.RED: []
-        }
+        self._board_size = 2 * (rows_per_player + 1)
+        self._rows_per_player = rows_per_player
+
+        # Override parent definition of width and height
+        self._width = self._board_size
+        self._height = self._board_size
 
         # Represents an outstanding draw offer and acceptance
         self._draw_offer: Dict[PieceColor, bool] = {
@@ -852,49 +123,12 @@ class CheckersBoard:
         self._moves_since_capture = 0  # number of moves since a capture
         self._max_moves_since_capture = 40  # maximum moves before stalemate
 
-    def undo_move(self, move: Move) -> None:
-        """
-        Undo a move with a piece that has just been completed
-
-        Parameters:
-            move(Move): the move that is about to be undone
-
-        Return: None
-        """
-        old_pos = move.get_current_position()
-        new_pos = move.get_new_position()
-
-        target_piece = self._pieces[new_pos]
-
-        target_piece.set_position(old_pos)
-        self._pieces[old_pos] = target_piece
-        del self._pieces[new_pos]
-
-        if move.is_kinging(self.get_board_width()):
-            target_piece._king = False
-
-        if isinstance(move, Jump):
-            caught_piece = move.get_captured_piece()
-            caught_pos = (int((new_pos[0] + old_pos[0]) / 2),
-                          int((new_pos[1] + old_pos[1]) / 2))
-            self._pieces[caught_pos] = caught_piece
-            caught_piece.set_position(caught_pos)
-
-    def get_board_pieces(self) -> List[Piece]:
-        """
-        Getter method that returns a list of all pieces on the board.
-
-        Args:
-            None
-
-        Returns:
-            List[Piece]: list of pieces on the board
-        """
-        return list(self._pieces.values())
-
     def get_captured_pieces(self) -> List[Piece]:
         """
-        Getter method that reutrns a list of all captured pieces.
+        Getter method that returns a list of all captured pieces.
+
+        Overrides parent function definition since we know that in checkers
+        there are only two defined colors.
 
         Args:
             None
@@ -904,54 +138,6 @@ class CheckersBoard:
         """
         return (self._captured[PieceColor.RED]
                 + self._captured[PieceColor.BLACK])
-
-    def get_color_captured_pieces(self, color: PieceColor) -> List[Piece]:
-        """
-        Getter method that returns a list of captured pieces for a given player
-        color.
-
-        This method returns for a color, the pieces of that color that were
-        captured by the other player. It returns a list of pieces of the same
-        color that was provided.
-
-        Args:
-            color (PieceColor): the player being queried
-
-        Returns:
-            List[Piece]: list of captured pieces for a color"""
-        return self._captured[color]
-
-    def get_color_avail_pieces(self, color: PieceColor) -> List[Piece]:
-        """
-        Getter that returns a list of pieces still on the board for a given
-        player color.
-
-        Args:
-            color (PieceColor): the player being queried
-
-        Returns:
-            List[Piece]: list of pieces still on the board for that color
-        """
-        filtered_pieces: List[Piece] = []
-
-        # Sort each piece into the two colors
-        for piece in self._pieces.values():
-            if piece.get_color() == color:
-                filtered_pieces.append(piece)
-
-        return filtered_pieces
-
-    def get_board_width(self) -> int:
-        """
-        Getter method for the length of the board sides. 1-indexed.
-
-        Args:
-            None
-
-        Returns:
-            int: the length of the board sides"""
-
-        return self._board_length
 
     def complete_move(self, move: Move,
                       draw_offer: Union[DrawOffer, None] = None) -> List[Move]:
@@ -1056,7 +242,7 @@ was invalid.")
 
         # Check if black piece gets to bottom row
         elif (piece_color == PieceColor.BLACK
-              and new_pos[1] == (self._board_length - 1)):
+              and new_pos[1] == (self._board_size - 1)):
             piece.to_king()
             return []
 
@@ -1078,6 +264,48 @@ was invalid.")
 
         # Move completed, turn is over. See todo listed in docstring
         return []
+
+    def undo_move(self, move: Move) -> None:
+        """
+        Undo a provided move (Move or Jump). Implemented for the bot.
+
+        Args:
+            move (Move): the move that is to be undone
+
+        Returns:
+            None
+
+        Raises:
+            TypeError: if move is a DrawOffer or Resignation
+        """
+        if isinstance(move, (DrawOffer, Resignation)):
+            raise TypeError(f"Move {repr(move)} is not of type Move or Jump.")
+
+        old_pos = move.get_current_position()
+        new_pos = move.get_new_position()
+
+        target_piece = self._pieces[new_pos]
+
+        # "Undo" the move
+        target_piece.set_position(old_pos)
+        self._pieces[old_pos] = target_piece
+        del self._pieces[new_pos]
+
+        # Undo any kinging
+        if move.is_kinging(self._board_size):
+            target_piece.unking()
+
+        # Undo a jump, if necessary
+        if isinstance(move, Jump):
+            jumped_piece = move.get_captured_piece()
+
+            # Calculate the old position of the jumped piece
+            jumped_pos = (int((new_pos[0] + old_pos[0]) / 2),
+                          int((new_pos[1] + old_pos[1]) / 2))
+
+            # Undo the capture
+            self._pieces[jumped_pos] = jumped_piece
+            jumped_piece.set_position(jumped_pos)
 
     def get_piece_moves(self, piece: Piece,
                         jumps_only: bool = False) -> List[Move]:
@@ -1276,45 +504,6 @@ was invalid.")
         # have to either take the draw or resign.
         return GameStatus.IN_PROGRESS
 
-    def _generate_pieces(self, n: int) -> Dict[Position, Piece]:
-        """
-        Private method for setting up the pieces before the game begins.
-
-        Args:
-            n (int): number of rows of pieces per player
-
-        Returns:
-            Dict[Position, Piece]: Dictionary containing piece locations and
-                                   pieces for both players
-        """
-        board_length = 2 * n + 1  # 0 indexed max value of row, col
-
-        board: Dict[Position, Piece] = {}
-
-        # Generate black's pieces, iterating forwards
-        for row in range(0, n):
-            # Each row of pieces alternates starting in column 0 if odd or in
-            # column 1 if even
-            offset = 1 if (row % 2 == 0) else 0
-
-            for col in range(offset, board_length + offset, 2):
-                position = (col, row)
-
-                board[position] = Piece(position, PieceColor.BLACK)
-
-        # Generate red's pieces, iterating backwards from the end of the board
-        for row in range(board_length, board_length - n, -1):
-            # Each row of pieces alternates starting in column 0 if odd or in
-            # column 1 if even
-            offset = 1 if (row % 2 == 0) else 0
-
-            for col in range(offset, board_length + offset, 2):
-                position = (col, row)
-
-                board[position] = Piece(position, PieceColor.RED)
-
-        return board
-
     def _handle_draw_offer(self, offer: DrawOffer) -> PieceColor:
         """
         Private method to handle draw offers. Intended to be called by
@@ -1388,75 +577,58 @@ has an outstanding draw offer."
             return False
 
         # Check right and lower bounds
-        if (pos_col >= self._board_length) or (pos_row >= self._board_length):
+        if (pos_col >= self._board_size) or (pos_row >= self._board_size):
             return False
 
         return True
 
-    def __str__(self) -> str:
+    def _gen_pieces(self, height: Union[int, None] = None,
+                    width: Union[int, None] = None) -> Dict[Position, Piece]:
         """
-        Returns a string representation of the board only.
+        Private method for generating all pieces before the game begins.
+
+        Overrides the parent `_gen_pieces()` and thus keeps the same method
+        signature.
 
         Args:
-            None
+            height (int or None): the number of rows per player
+            width (int or None): Unused argument for CheckersBoard
 
         Returns:
-            str: String representation of the board
+            Dict[Position, Piece]: Dictionary containing piece locations and
+                                   pieces for both players
+
+        Raises:
+            ValueError: if parameter height is None
         """
-        board_length = (self._n + 1) * 2  # max index of a board size plus one
-        board = '_' * ((board_length + 1) * 2) + '\n'
+        if height is None:
+            raise ValueError("Parameter height cannot be None.")
 
-        for row in range(board_length):
-            board += '|'
+        rows_per_player = height  # rename for clarity
+        board_len = 2 * rows_per_player + 1  # 0 indexed max value of row, col
 
+        board: Dict[Position, Piece] = {}
+
+        # Generate black's pieces, iterating forwards
+        for row in range(0, rows_per_player):
             # Each row of pieces alternates starting in column 0 if odd or in
             # column 1 if even
             offset = 1 if (row % 2 == 0) else 0
 
-            # If there's an offset, need to add blank space to front of line
-            if offset:
-                board += '  '
-
-            # Only loop through columns that can have a piece
-            for col in range(offset, board_length + offset, 2):
+            for col in range(offset, board_len + offset, 2):
                 position = (col, row)
 
-                # Check for a piece in this position
-                if position in self._pieces:
-                    board += str(self._pieces[position]) + '   '
-                    continue
+                board[position] = Piece(position, PieceColor.BLACK)
 
-                # Blank black square, so use some other character
-                board += 'x   '
+        # Generate red's pieces, iterating backwards from the end of the board
+        for row in range(board_len, board_len - rows_per_player, -1):
+            # Each row of pieces alternates starting in column 0 if odd or in
+            # column 1 if even
+            offset = 1 if (row % 2 == 0) else 0
 
-            # If offset, need to remove 2 spaces at end from the else above for
-            # proper alignment of the trailing pipe character
-            if offset:
-                board = board[:-2]
+            for col in range(offset, board_len + offset, 2):
+                position = (col, row)
 
-            board += '|\n'
-
-        board += '‾' * ((board_length + 1) * 2)
+                board[position] = Piece(position, PieceColor.RED)
 
         return board
-
-    def __repr__(self) -> str:
-        """
-        Returns the representation of the board. Intended for debugging.
-        Includes captured pieces.
-
-        Args:
-            None
-
-        Returns:
-            str: representation of the board
-        """
-        uncaptured_reprs = '\n\nUncaptured pieces:\n'
-        for piece in self.get_board_pieces():
-            uncaptured_reprs += repr(piece) + '\n'
-
-        captured_reprs = '\nCaptured pieces:\n'
-        for piece in self.get_captured_pieces():
-            captured_reprs += repr(piece) + '\n'
-
-        return self.__str__() + uncaptured_reprs + captured_reprs
