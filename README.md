@@ -44,7 +44,7 @@ python3 src/gui.py
 ### Editorial notes
 
 - 📐 The interface is rendered responsively, so feel free to resize the window by dragging its corners
-- 🦾 Smart bots included
+- 🦾 Random and smart bot included
 - 🐌 GUI uses PyGame, which has less-than-ideal render performance for large board sizes (above 20 rows per player)
 
 ### Game setup
