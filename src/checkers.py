@@ -234,17 +234,10 @@ was invalid.")
         self._pieces[new_pos] = self._pieces.pop(curr_pos)
 
         # Process kinging
-        piece_color = piece.get_color()
-        # Check if red piece gets to the top row
-        if (piece_color == PieceColor.RED) and (new_pos[1] == 0):
+        was_kinging = False
+        if move.is_kinging(self._board_size):
             piece.to_king()
-            return []
-
-        # Check if black piece gets to bottom row
-        elif (piece_color == PieceColor.BLACK
-              and new_pos[1] == (self._board_size - 1)):
-            piece.to_king()
-            return []
+            was_kinging = True
 
         # Handle the capture, if it's a Jump
         if isinstance(move, Jump):
@@ -259,6 +252,10 @@ was invalid.")
             cap_piece.set_captured()
             self._moves_since_capture = 0  # reset counter
 
+            # If kinging, the turn is over regardless of further jumps
+            if was_kinging:
+                return []
+
             # Return list of following jumps, if any
             return self.get_piece_moves(piece, jumps_only=True)
 
@@ -267,7 +264,8 @@ was invalid.")
 
     def undo_move(self, move: Move) -> None:
         """
-        Undo a provided move (Move or Jump). Implemented for the bot.
+        Undo a provided move (Move or Jump). Implemented for the bot, may not
+        work when not used by the bot.
 
         Args:
             move (Move): the move that is to be undone

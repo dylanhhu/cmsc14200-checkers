@@ -372,14 +372,22 @@ class Move:
 
         return self._piece
 
-    def is_kinging(self, borderwidth) -> bool:
+    def is_kinging(self, board_length: int) -> bool:
         """
-        return whether this Move will be kinging a piece
+        Method that determines whether this move will result in the kinging of
+        this piece. Implemented exclusively for the bot, may not work if not
+        used by the bot.
+
+        Args:
+            board_length (int): the length of the board
+
+        Returns:
+            bool: True if this move will result in a kinging else False
         """
         if self.get_piece().is_king():
             return False
 
-        baseline = {PieceColor.RED: 0, PieceColor.BLACK: borderwidth - 1}
+        baseline = {PieceColor.RED: 0, PieceColor.BLACK: board_length - 1}
         if baseline[self.get_piece().get_color()] == self.get_new_position()[1]:
             return True
 
