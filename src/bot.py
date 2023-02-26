@@ -286,7 +286,7 @@ class SmartBot(Bot):
             (self._baseline_priority, 4),
             (self._king_priority, 1),
             (self._push_priority, 1),
-            (self._chase_priotiy, 1),
+            (self._chase_priotiy, 0.7),
             (self._stick_priority, 1),
             (self._center_priority, 1),
             (self._force_priority, 1)
