@@ -282,7 +282,7 @@ class SmartBot(Bot):
             (self._lose_priority, None),
             (self._sacrifice_priority, 1),
             (self._captured_priority, 1),
-            (self._corner_priority, 1),
+            (self._corner_priority, 0.7),
             (self._baseline_priority, 4),
             (self._king_priority, 1),
             (self._push_priority, 1),
