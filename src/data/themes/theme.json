@@ -1,0 +1,174 @@
+{
+  "#menu-button": {
+    "colours": {
+      "normal_bg": "#25292e",
+      "hovered_bg": "#35393e"
+    }
+  },
+  "#selected-piece-dropdown": {
+    "misc": {
+      "expand_direction": "up"
+    }
+  },
+  "#destination-dropdown": {
+    "misc": {
+      "expand_direction": "up"
+    }
+  },
+  "#submit-move-button": {
+    "colours": {
+      "normal_bg": "#115aad",
+      "hovered_bg": "#0b64ea"
+    },
+    "misc": {
+      "border_width": "0"
+    }
+  },
+  "#game-board": {
+    "misc": {
+      "border_width": "0"
+    }
+  },
+  "@board-square-light": {
+    "colours": {
+      "dark_bg": "#e5e5e5"
+    },
+    "misc": {
+      "border_width": "0"
+    }
+  },
+  "@board-square-dark": {
+    "colours": {
+      "dark_bg": "#b57017"
+    },
+    "misc": {
+      "border_width": "0"
+    }
+  },
+  "@board-square-dark-selected-red": {
+    "colours": {
+      "dark_bg": "#f4e10c",
+      "normal_border": "#f4420c"
+    },
+    "misc": {
+      "border_width": "4",
+      "shape": "rounded_rectangle"
+    }
+  },
+  "@board-square-dark-selected-black": {
+    "colours": {
+      "dark_bg": "#f4e10c",
+      "normal_border": "#000000"
+    },
+    "misc": {
+      "border_width": "4",
+      "shape": "rounded_rectangle"
+    }
+  },
+  "@board-red-piece": {
+    "colours": {
+      "dark_bg": "#D53C0E",
+      "normal_border": "#ffffff"
+    },
+    "misc": {
+      "border_width": "1",
+      "shape": "rounded_rectangle",
+      "shape_corner_radius": "100"
+    }
+  },
+  "@board-red-piece-king": {
+    "images": {
+      "background_image": {
+        "path": "data/images/24px/red-king.png"
+      }
+    },
+    "colours": {
+      "dark_bg": "#D53C0E",
+      "normal_border": "#ffffff"
+    },
+    "misc": {
+      "border_width": "1",
+      "shape": "rounded_rectangle",
+      "shape_corner_radius": "100"
+    }
+  },
+  "@board-red-piece-selected": {
+    "colours": {
+      "dark_bg": "#D53C0E",
+      "normal_border": "#f4e10c"
+    },
+    "misc": {
+      "border_width": "3",
+      "shape": "rounded_rectangle",
+      "shape_corner_radius": "100"
+    }
+  },
+  "@board-red-piece-king-selected": {
+    "images": {
+      "background_image": {
+        "path": "data/images/24px/red-king.png"
+      }
+    },
+    "colours": {
+      "dark_bg": "#D53C0E",
+      "normal_border": "#f4e10c"
+    },
+    "misc": {
+      "border_width": "3",
+      "shape": "rounded_rectangle",
+      "shape_corner_radius": "100"
+    }
+  },
+  "@board-black-piece": {
+    "colours": {
+      "dark_bg": "#000000"
+    },
+    "misc": {
+      "border_width": "0",
+      "shape": "rounded_rectangle",
+      "shape_corner_radius": "100"
+    }
+  },
+  "@board-black-piece-king": {
+    "images": {
+      "background_image": {
+        "path": "data/images/24px/black-king.png"
+      }
+    },
+    "colours": {
+      "dark_bg": "#000000"
+    },
+    "misc": {
+      "border_width": "0",
+      "shape": "rounded_rectangle",
+      "shape_corner_radius": "100"
+    }
+  },
+  "@board-black-piece-selected": {
+    "colours": {
+      "dark_bg": "#000000",
+      "normal_border": "#f4e10c"
+    },
+    "misc": {
+      "border_width": "3",
+      "shape": "rounded_rectangle",
+      "shape_corner_radius": "100"
+    }
+  },
+  "@board-black-piece-king-selected": {
+    "images": {
+      "background_image": {
+        "path": "data/images/24px/black-king.png"
+      }
+    },
+    "colours": {
+      "dark_bg": "#000000",
+      "normal_border": "#f4e10c"
+    },
+    "misc": {
+      "border_width": "3",
+      "shape": "rounded_rectangle",
+      "shape_corner_radius": "100"
+    }
+  }
+}

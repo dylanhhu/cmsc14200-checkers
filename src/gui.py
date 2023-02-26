@@ -2,10 +2,13 @@
 # © Kevin Gugelmann, 20 February 2023.
 # All rights reserved.
 #
+import json
 import random
+import shutil
 import threading
 from dataclasses import dataclass
-from enum import Enum
+from enum import Enum, IntEnum
+from functools import lru_cache
 from typing import Union, Callable, List, Set, Tuple
 
 import pygame
@@ -180,6 +183,27 @@ class _BotLevel(Enum):
         """
         return str(_BotLevel.HARD.value)
 
+
+class _KingPiecePngSize(IntEnum):
+    """
+    An enumeration to represent the different available PNG sizes for king
+    checkers piece background images.
+    """
+    S_8px = 8
+    S_12px = 12
+    S_16px = 16
+    S_20px = 20
+    S_24px = 24
+    S_32px = 32
+    S_36px = 36
+    S_42px = 42
+    S_48px = 48
+    S_56px = 56
+    S_64px = 64
+    S_80px = 80
+    S_96px = 96
+
+
 # ===============
 # STATIC CONSTANT 'ENUMS'
 # ===============
@@ -220,8 +244,8 @@ class _GeneralEvents:
                                               {PARAM_NAME: NAME_REBUILD,
                                                PARAM_DISABLE_MOVE: True})
     REBUILD_ENABLE_MOVE = pygame.event.Event(pygame.USEREVENT,
-                                              {PARAM_NAME: NAME_REBUILD,
-                                               PARAM_ENABLE_MOVE: True})
+                                             {PARAM_NAME: NAME_REBUILD,
+                                              PARAM_ENABLE_MOVE: True})
 
 
 class _SetupElems:
@@ -325,6 +349,20 @@ class _GameConsts:
     ACTION_BAR_X_PADDING = _Sizes.L
     ACTION_BAR_ARROW_X_MARGIN = _Sizes.S
 
+
+# ===============
+# UNSORTED CONSTANTS
+# ===============
+
+_COORD_SQUARES = 1  # Number of square-sized spaces for coordinates
+
+_THEME_FILE = "data/themes/theme.json"  # PyGame-GUI theme JSON file
+_DYNAMIC_THEME_FILE_NAME = "dynamic_theme.json"
+_DYNAMIC_THEME_FILE = f"data/themes/{_DYNAMIC_THEME_FILE_NAME}"
+_THEME_BOARD_KING_PIECES = ["@board-red-piece-king",
+                            "@board-red-piece-king-selected",
+                            "@board-black-piece-king",
+                            "@board-black-piece-king-selected"]
 
 # ===============
 # APP STATE CLASS
@@ -507,6 +545,27 @@ class _AppState:
     board: CheckersBoard = CheckersBoard(1)
     current_color = PieceColor.BLACK
 
+    @property
+    def board_side_num(self) -> int:
+        """
+        Getter method for the number of board squares per side.
+        
+        Returns:
+            int: number of squares
+        """
+        return 2 * self.num_rows_per_player + 2
+
+    @property
+    def square_side(self) -> Fraction:
+        """
+        Getter method for the fraction of the game board's width and height
+        occupied by one square.
+
+        Returns:
+            Fraction: fraction of board width/height occupied
+        """
+        return Fraction(1) / (self.board_side_num + _COORD_SQUARES)
+
     def current_player_name(self) -> str:
         """
         Get the current player's name. If human, this is their inputted name. If
@@ -515,6 +574,7 @@ class _AppState:
         Returns:
             str: player name
         """
+
         def current_bot_name() -> str:
             """
             Produce a string representing the current bot's name.
@@ -957,12 +1017,14 @@ class GuiApp:
 
         if debug:
             # Mock game setup
-            self._state.red_type = _PlayerType.HUMAN
+            self._state.red_type = _PlayerType.BOT
+            self._state.red_bot_level = _BotLevel.HARD
             self._state.red_name = "Kevin"
             self._state.black_type = _PlayerType.BOT
             self._state.black_bot_level = _BotLevel.RANDOM
             self._state.num_rows_per_player = 5
             self._state.board = CheckersBoard(self._state.num_rows_per_player)
+
             # Directly open Game screen
             self._state.update_move_options()
             self._state.screen = _Screens.GAME
@@ -970,10 +1032,16 @@ class GuiApp:
 
         # Window setup
         self._update_window(window_options)
-        self._bg_surface = None
+        self._bg_surface = None  # All elements will be painted on this surface
+
+        # Copy theme source file to new (dynamic) theme file
+        shutil.copyfile(_THEME_FILE, _DYNAMIC_THEME_FILE)
+
+        # Set up PyGame-GUI manager, with the dynamic theme file
         self._ui_manager = UIManager(self._get_window_resolution(),
                                      PackageResource(package="data.themes",
-                                                     resource="theme_1.json"))
+                                                     resource=
+                                                     _DYNAMIC_THEME_FILE_NAME))
 
         # Initialize the element library
         self._lib = GuiComponentLib()
@@ -1296,6 +1364,73 @@ class GuiApp:
             int: center y-coordinate
         """
         return self._get_window_dimensions().height // 2
+
+    def _update_responsive_assets(self) -> None:
+        """
+        Updates the PyGame-GUI theme JSON file so that the size of all assets
+        are suitable for the current window dimensions.
+
+        This should be called once when initializing the UI, and afterwards only
+        when detecting the window has been resized.
+
+        Must be called after updating the window size in memory and
+        rebuilding the UI.
+
+        Returns:
+            None
+        """
+
+        # ===============
+        # READ ORIGINAL THEME FILE
+        # ===============
+        with open(_THEME_FILE) as theme_file:
+            theme_json = json.load(theme_file)
+
+        # ===============
+        # SCREEN-RELEVANT ASSETS
+        # ===============
+        if self._state.screen == _Screens.GAME:
+            # ===============
+            # Responsively size king piece background images,
+            # so they fit well within the circular checkers piece UIPanel shape.
+            # ===============
+
+            # Calculate the width/height of individual board squares
+            square_size = self._lib.get_elem(_GameElems.BOARD)\
+                              .relative_rect.width \
+                                * self._state.square_side.value
+
+            def get_king_png_size() -> _KingPiecePngSize:
+                """
+                Choose the optimal PNG size for the king piece background image.
+
+                Returns:
+                    _KingPiecePngSize: PNG size
+                """
+
+                # Create list of all available king piece PNG sizes (from the enum)
+                king_piece_sizes = [e for e in _KingPiecePngSize]
+
+                for king_size_i in range(1, len(king_piece_sizes)):
+                    if square_size < float(king_piece_sizes[king_size_i]) * 2:
+                        # Did not overcome the size threshold (2x) for the given
+                        # PNG size, so return the PNG size just below threshold
+                        return king_piece_sizes[king_size_i - 1]
+
+                # By this point, overcame every threshold!
+                # Return largest PNG size
+                return king_piece_sizes[-1]
+
+            for king_piece_name in _THEME_BOARD_KING_PIECES:
+                color = "red" if "red" in king_piece_name else "black"
+                theme_json[king_piece_name]["images"]["background_image"]["path"] =\
+                    f"data/images/{get_king_png_size()}px/{color}-king.png"
+
+        # ===============
+        # UPDATE DYNAMIC JSON FILE
+        # ===============
+        with open(_DYNAMIC_THEME_FILE, "w") as theme_file:
+            json.dump(theme_json, theme_file)
 
     def _rebuild_ui(self) -> None:
         """
@@ -1815,14 +1950,9 @@ class GuiApp:
                 )
             )
 
-            # Side lengths
-            board_side_num = 2 * self._state.num_rows_per_player + 2
-            coordinate_square_num = 1
-            square_side = Fraction(1) / (board_side_num + coordinate_square_num)
-
             # Add every square to board
-            for row in range(board_side_num):
-                for col in range(board_side_num):
+            for row in range(self._state.board_side_num):
+                for col in range(self._state.board_side_num):
                     pos = (row, col)  # square position on game board
 
                     # Initialize board square
@@ -1840,7 +1970,7 @@ class GuiApp:
                     if self._state.dest_pos == pos:
                         elem_class += "-selected"
                         if self._state.get_piece_at_pos(
-                            self._state.start_pos).get_color() == \
+                                self._state.start_pos).get_color() == \
                                 PieceColor.RED:
                             elem_class += "-red"
                         else:
@@ -1851,7 +1981,7 @@ class GuiApp:
                         elem_id,
                         UIPanel(
                             self._rel_rect(
-                                width=square_side,
+                                width=self._state.square_side,
                                 height=MatchOtherSide(),
                                 parent_id=_GameElems.BOARD,
                                 ref_pos=ElemPos(
@@ -1864,10 +1994,10 @@ class GuiApp:
                                     RelPos.START
                                 ),
                                 offset=Offset(
-                                    square_side * (row + 1 +
-                                                   coordinate_square_num),
-                                    square_side * (col + 1 +
-                                                   coordinate_square_num)
+                                    self._state.square_side * (row + 1 +
+                                                               _COORD_SQUARES),
+                                    self._state.square_side * (col + 1 +
+                                                               _COORD_SQUARES)
                                 )
                             ),
                             starting_layer_height=0,
@@ -1878,7 +2008,7 @@ class GuiApp:
                     )
 
             # Add coordinates (do both horizontally and vertically at once)
-            for side_n in range(board_side_num):
+            for side_n in range(self._state.board_side_num):
                 # Initialize letter and number
                 letter_elem_id = f"coord-letter-{side_n + 1}"
                 self._lib.init_elem(letter_elem_id,
@@ -1893,8 +2023,8 @@ class GuiApp:
                     letter_elem_id,
                     UILabel(
                         self._rel_rect(
-                            width=square_side,
-                            height=square_side,
+                            width=self._state.square_side,
+                            height=MatchOtherSide(),
                             parent_id=_GameElems.BOARD,
                             ref_pos=ElemPos(
                                 self._board_square_id((side_n, 0)),
@@ -1905,8 +2035,10 @@ class GuiApp:
                                 RelPos.CENTER,
                                 RelPos.START
                             ),
-                            offset=Offset(0, NegFraction(square_side.value / 2))
-                        ),
+                            offset=Offset(
+                                0,
+                                NegFraction(self._state.square_side.value / 2)
+                            )),
                         _AppState.col_position_to_string(side_n)
                     )
                 )
@@ -1916,8 +2048,8 @@ class GuiApp:
                     num_elem_id,
                     UILabel(
                         self._rel_rect(
-                            width=square_side,
-                            height=square_side,
+                            width=self._state.square_side,
+                            height=MatchOtherSide(),
                             parent_id=_GameElems.BOARD,
                             ref_pos=ElemPos(
                                 self._board_square_id((0, side_n)),
@@ -1928,8 +2060,9 @@ class GuiApp:
                                 RelPos.START,
                                 RelPos.CENTER
                             ),
-                            offset=Offset(NegFraction(square_side.value / 2), 0)
-                        ),
+                            offset=Offset(
+                                NegFraction(self._state.square_side.value / 2),
+                                0)),
                         _AppState.row_position_to_string(side_n)
                     )
                 )
@@ -1949,6 +2082,10 @@ class GuiApp:
                     elem_class = "@board-red-piece"
                 else:
                     elem_class = "@board-black-piece"
+
+                # King?
+                if piece.is_king():
+                    elem_class += "-king"
 
                 # Selected?
                 if self._state.start_pos == pos:
@@ -2039,6 +2176,9 @@ class GuiApp:
             # Update the window & rebuild the UI
             self._update_window(should_refresh_title=False)
             self._rebuild_ui()
+
+            # Update responsive assets
+            self._update_responsive_assets()
 
     def _get_current_screen(self) -> _Screens:
         """
@@ -2286,7 +2426,6 @@ class GuiApp:
             Args:
                 new_difficulty (_BotLevel): new difficulty level
             """
-            print('black', new_difficulty)
             self._state.black_bot_level = new_difficulty
 
         process_panel_events(
@@ -2367,12 +2506,12 @@ class GuiApp:
         def visual_delay() -> float:
             """
             Generates a random number of seconds for a visual delay,
-            between 0.5 and 0.8 (inclusive).
+            between 0.4 and 0.6 (inclusive).
 
             Returns:
                 float: delay in seconds
             """
-            return max(random.random() * 0.8, 0.5)
+            return max(random.random() * 0.6, 0.4)
 
         def bot_execute_move() -> None:
             """
@@ -2541,6 +2680,17 @@ class GuiApp:
                     self._state.dest_pos = selected_pos
                     self._rebuild_ui()
 
+    @lru_cache(maxsize=1)
+    def _responsive_assets_setup(self) -> None:
+        """
+        Set up responsive PyGame-GUI asset sizing. Throwaway method that is
+        ignored after being called the first time.
+
+        Returns:
+            None
+        """
+        self._update_responsive_assets()
+
     def _process_events(self) -> None:
         """
         Process user interaction events. This is the planning stage for
@@ -2581,6 +2731,9 @@ class GuiApp:
                         # Rebuild option: ENABLE MOVE ELEMENTS
                         # ===============
                         self._enable_move_elems()
+
+        # If this is the first event loop, set up responsive assets
+        self._responsive_assets_setup()
 
         # In every loop, check whether the window has been resized
         self._check_window_dimensions_changed()
