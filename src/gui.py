@@ -2,6 +2,7 @@
 # © Kevin Gugelmann, 20 February 2023.
 # All rights reserved.
 #
+import itertools
 import json
 import random
 import shutil
@@ -364,6 +365,7 @@ _THEME_BOARD_KING_PIECES = ["@board-red-piece-king",
                             "@board-black-piece-king",
                             "@board-black-piece-king-selected"]
 
+
 # ===============
 # APP STATE CLASS
 # ===============
@@ -705,7 +707,7 @@ class _AppState:
         """
         self._start_pos = v
 
-        if self.dest_pos not in self._get_dest_piece_positions():
+        if self.dest_pos not in self.get_dest_piece_positions_set():
             # Destination position is no longer valid.
             # Update it with the first valid destination position.
             self.dest_pos = self.grid_position_from_string(
@@ -723,7 +725,7 @@ class _AppState:
         self.start_pos = self.grid_position_from_string(
             self.get_dropdown_start_positions()[0])
 
-    def _get_start_piece_positions(self) -> Set[Position]:
+    def get_start_piece_positions_set(self) -> Set[Position]:
         """
         Generate a set of the positions of all starting piece positions for the
         current player.
@@ -737,7 +739,7 @@ class _AppState:
 
         return result
 
-    def _get_dest_piece_positions(self) -> Set[Position]:
+    def get_dest_piece_positions_set(self) -> Set[Position]:
         """
         Generate a set of the positions of all destination piece positions for
         the current player.
@@ -950,7 +952,7 @@ class _AppState:
             List[str]: dropdown menu options
         """
         result = []
-        for pos in self._get_start_piece_positions():
+        for pos in self.get_start_piece_positions_set():
             result.append(self.grid_position_to_string(pos))
 
         # Sort descending
@@ -965,7 +967,7 @@ class _AppState:
             List[str]: dropdown menu options
         """
         result = []
-        for pos in self._get_dest_piece_positions():
+        for pos in self.get_dest_piece_positions_set():
             result.append(self.grid_position_to_string(pos))
 
         # Sort descending
@@ -980,7 +982,7 @@ class _AppState:
             List[str]: dropdown menu options
         """
         result = []
-        for pos in self._get_start_piece_positions():
+        for pos in self.get_start_piece_positions_set():
             result.append(self.grid_position_to_string(pos))
 
         # Sort descending
@@ -1396,9 +1398,9 @@ class GuiApp:
             # ===============
 
             # Calculate the width/height of individual board squares
-            square_size = self._lib.get_elem(_GameElems.BOARD)\
+            square_size = self._lib.get_elem(_GameElems.BOARD) \
                               .relative_rect.width \
-                                * self._state.square_side.value
+                          * self._state.square_side.value
 
             def get_king_png_size() -> _KingPiecePngSize:
                 """
@@ -1423,7 +1425,8 @@ class GuiApp:
 
             for king_piece_name in _THEME_BOARD_KING_PIECES:
                 color = "red" if "red" in king_piece_name else "black"
-                theme_json[king_piece_name]["images"]["background_image"]["path"] =\
+                theme_json[king_piece_name]["images"]["background_image"][
+                    "path"] = \
                     f"src/data/images/{get_king_png_size()}px/{color}-king.png"
 
         # ===============
@@ -1951,61 +1954,62 @@ class GuiApp:
             )
 
             # Add every square to board
-            for row in range(self._state.board_side_num):
-                for col in range(self._state.board_side_num):
-                    pos = (row, col)  # square position on game board
+            for row, col in itertools.product(
+                    range(self._state.board_side_num),
+                    range(self._state.board_side_num)):
+                pos = (row, col)  # square position on game board
 
-                    # Initialize board square
-                    elem_id = self._board_square_id(pos)
-                    self._lib.init_elem(elem_id,
-                                        self._get_current_screen_name())
-                    # Color
-                    if (row % 2 == 1 and col % 2 == 0) or \
-                            (row % 2 == 0 and col % 2 == 1):
-                        elem_class = "@board-square-dark"
+                # Initialize board square
+                elem_id = self._board_square_id(pos)
+                self._lib.init_elem(elem_id,
+                                    self._get_current_screen_name())
+                # Color
+                if (row % 2 == 1 and col % 2 == 0) or \
+                        (row % 2 == 0 and col % 2 == 1):
+                    elem_class = "@board-square-dark"
+                else:
+                    elem_class = "@board-square-light"
+
+                # Selected?
+                if self._state.dest_pos == pos:
+                    elem_class += "-selected"
+                    if self._state.get_piece_at_pos(
+                            self._state.start_pos).get_color() == \
+                            PieceColor.RED:
+                        elem_class += "-red"
                     else:
-                        elem_class = "@board-square-light"
+                        elem_class += "-black"
 
-                    # Selected?
-                    if self._state.dest_pos == pos:
-                        elem_class += "-selected"
-                        if self._state.get_piece_at_pos(
-                                self._state.start_pos).get_color() == \
-                                PieceColor.RED:
-                            elem_class += "-red"
-                        else:
-                            elem_class += "-black"
-
-                    # Draft square
-                    self._lib.draft(
-                        elem_id,
-                        UIPanel(
-                            self._rel_rect(
-                                width=self._state.square_side,
-                                height=MatchOtherSide(),
-                                parent_id=_GameElems.BOARD,
-                                ref_pos=ElemPos(
-                                    _GameElems.BOARD,
-                                    RelPos.START,
-                                    RelPos.START
-                                ),
-                                self_align=SelfAlign(
-                                    RelPos.START,
-                                    RelPos.START
-                                ),
-                                offset=Offset(
-                                    self._state.square_side * (row + 1 +
-                                                               _COORD_SQUARES),
-                                    self._state.square_side * (col + 1 +
-                                                               _COORD_SQUARES)
-                                )
+                # Draft square
+                self._lib.draft(
+                    elem_id,
+                    UIPanel(
+                        self._rel_rect(
+                            width=self._state.square_side,
+                            height=MatchOtherSide(),
+                            parent_id=_GameElems.BOARD,
+                            ref_pos=ElemPos(
+                                _GameElems.BOARD,
+                                RelPos.START,
+                                RelPos.START
                             ),
-                            starting_layer_height=0,
-                            object_id=ObjectID(
-                                class_id=elem_class,
-                                object_id=elem_id)
+                            self_align=SelfAlign(
+                                RelPos.START,
+                                RelPos.START
+                            ),
+                            offset=Offset(
+                                self._state.square_side * (row + 1 +
+                                                           _COORD_SQUARES),
+                                self._state.square_side * (col + 1 +
+                                                           _COORD_SQUARES)
+                            )
                         ),
-                    )
+                        starting_layer_height=0,
+                        object_id=ObjectID(
+                            class_id=elem_class,
+                            object_id=elem_id)
+                    ),
+                )
 
             # Add coordinates (do both horizontally and vertically at once)
             for side_n in range(self._state.board_side_num):
@@ -2650,7 +2654,7 @@ class GuiApp:
                 print("clicked: menu button")
                 # TODO: implement menu window
 
-        if event.type == pygame_gui.UI_DROP_DOWN_MENU_CHANGED:
+        elif event.type == pygame_gui.UI_DROP_DOWN_MENU_CHANGED:
             if event.ui_object_id == _GameElems.SELECTED_PIECE_DROPDOWN:
                 # ===============
                 # Selection: SELECTED PIECE DROPDOWN
@@ -2665,7 +2669,7 @@ class GuiApp:
                     # ===============
                     self._state.start_pos = selected_pos
                     self._rebuild_ui()
-            if event.ui_object_id == _GameElems.DESTINATION_DROPDOWN:
+            elif event.ui_object_id == _GameElems.DESTINATION_DROPDOWN:
                 # ===============
                 # Selection: DESTINATION DROPDOWN
                 # ===============
@@ -2679,6 +2683,45 @@ class GuiApp:
                     # ===============
                     self._state.dest_pos = selected_pos
                     self._rebuild_ui()
+
+        elif event.type == pygame.MOUSEBUTTONUP:
+            if not self._state.is_currently_bot() and \
+                    self._lib.get_elem(_GameElems.BOARD).relative_rect \
+                        .collidepoint(event.pos):
+                # ===============
+                # Clicked: CHECKERS BOARD
+                # Conditions: [is not bot]
+                # ===============
+
+                # Check if clicked on either:
+                # - a movable checkers piece, or
+                # - a valid destination square.
+                for click_pos in itertools.product(
+                        range(self._state.board_side_num),
+                        range(self._state.board_side_num)):
+                    # Get board square element ID
+                    square_id = self._board_square_id(click_pos)
+
+                    # Check if the cursor clicked on this board square
+                    if self._lib.get_elem(square_id) \
+                            .relative_rect.collidepoint(event.pos):
+                        # ===============
+                        # Clicked: BOARD SQUARE
+                        # ===============
+                        if click_pos in self._state \
+                                .get_start_piece_positions_set():
+                            # Board square contains a valid move start piece
+                            self._state.start_pos = click_pos
+                            self._rebuild_ui()
+
+                            break  # stop searching for valid board click
+                        elif click_pos in self._state \
+                                .get_dest_piece_positions_set():
+                            # Board square is a valid move destination
+                            self._state.dest_pos = click_pos
+                            self._rebuild_ui()
+
+                            break  # stop searching for valid board click
 
     @lru_cache(maxsize=1)
     def _responsive_assets_setup(self) -> None:
