@@ -71,7 +71,6 @@ python3 src/gui.py
 #### Needs implementing:
 - [ ] Game menu window
 - [ ] Click to select piece and destination square
-- [ ] Display king pieces differently from regular pieces
 - [ ] Check game state (win/draw)
 - [ ] Display captured pieces
 
