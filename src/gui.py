@@ -80,6 +80,14 @@ class _Screens(Enum):
         return str(_Screens.GAME.value)
 
 
+class _Dialogs(Enum):
+    """
+    An enumeration for the currently open dialog.
+    """
+    MENU = 0
+    GAME_OVER = 1
+
+
 class _PlayerType(Enum):
     """
     An enumeration for the internal representation of player types.
@@ -252,13 +260,13 @@ class _GeneralEvents:
 
     # PyGame event instances
     REBUILD = Event(pygame.USEREVENT,
-                                 {PARAM_NAME: NAME_REBUILD})
+                    {PARAM_NAME: NAME_REBUILD})
     REBUILD_DISABLE_MOVE = Event(pygame.USEREVENT,
-                                              {PARAM_NAME: NAME_REBUILD,
-                                               PARAM_DISABLE_MOVE: True})
+                                 {PARAM_NAME: NAME_REBUILD,
+                                  PARAM_DISABLE_MOVE: True})
     REBUILD_ENABLE_MOVE = Event(pygame.USEREVENT,
-                                             {PARAM_NAME: NAME_REBUILD,
-                                              PARAM_ENABLE_MOVE: True})
+                                {PARAM_NAME: NAME_REBUILD,
+                                 PARAM_ENABLE_MOVE: True})
     QUIT = Event(pygame.QUIT)
 
 
@@ -329,6 +337,20 @@ class _SetupConsts:
                               _BotLevel.get_hard_name()]
 
 
+def _conf_dialog_cancel_btn(dialog_id: str) -> str:
+    """
+    Get the unique reference string for the cancel button of a PyGame-GUI
+    confirmation dialog.
+
+    Args:
+        dialog_id (str): dialog element ID
+
+    Returns:
+        str: cancel button reference
+    """
+    return f"{dialog_id}.#cancel_button"
+
+
 class _GameElems:
     # ID
     screen_id = _Screens.get_game_name()
@@ -367,11 +389,16 @@ class _GameElems:
                 PIECES_LEFT_BAR]
 
     # ===============
-    # No need to init these
+    # No need to init these:
     # ===============
 
+    # Menu dialog
+    MENU_DIALOG = "#menu-dialog"
+    MENU_DIALOG_CANCEL = _conf_dialog_cancel_btn(MENU_DIALOG)
+
+    # Game Over dialog
     GAME_OVER_DIALOG = "#game-over-dialog"
-    GAME_OVER_DIALOG_CANCEL = "#game-over-dialog.#cancel_button"
+    GAME_OVER_DIALOG_CANCEL = _conf_dialog_cancel_btn(GAME_OVER_DIALOG)
 
 
 class _GameConsts:
@@ -444,6 +471,94 @@ class _AppState:
 
     # Current screen
     screen: _Screens = _Screens.SETUP
+
+    # Currently open dialog
+    _dialog: Union[_Dialogs, None] = None
+    _is_dialog_open: bool = False
+
+    @property
+    def dialog(self) -> _Dialogs:
+        """
+        Getter method for currently open dialog.
+
+        Returns:
+            _Dialogs: dialog
+        """
+        return self._dialog
+
+    def is_dialog_open(self) -> bool:
+        """
+        Checks whether there is any open dialog on the screen.
+
+        Returns:
+            bool: is open
+        """
+        return self._is_dialog_open
+
+    def post_dialog(self, dialog: _Dialogs) -> None:
+        """
+        Open a dialog at the end of the next app run cycle.
+
+        Args:
+            dialog (_Dialogs): dialog to open
+
+        Returns:
+            None
+        """
+        self._dialog = dialog
+
+    def mark_dialog_open(self) -> Union[_Dialogs, None]:
+        """
+        Mark a posted dialog as open. This should only be called when actually
+        displaying the dialog.
+
+        If no dialog posted beforehand - ignore and return None.
+
+        Returns:
+            Union[_Dialogs, None]: the opened dialog (if one was posted)
+        """
+        if not self._dialog:
+            # There's no dialog to open
+            return None
+
+        # Dialog opened!
+        self._is_dialog_open = True
+        return self._dialog
+
+    def handle_close_dialog_event(self) -> Union[_Dialogs, None]:
+        """
+        Handles all `pygame_gui.UI_WINDOW_CLOSE` events to ensure open dialogs
+        remain open after unlimited rebuilds, until explicitly instructed to
+        close the dialog via the `close_dialog()` state method.
+
+        In PyGame-GUI, dialogs close after each rebuild, which is not the
+        desired behavior. Therefore, if a dialog is currently open, mark it as
+        closed to re-enact posting.
+
+        For example, if the user resizes the app window (triggering rebuild),
+        this method will maintain the illusion that the dialog has never closed.
+
+        Returns:
+            Union[_Dialogs, None]: currently open dialog (if it exists)
+        """
+        if self.is_dialog_open():
+            self._is_dialog_open = False
+
+            # Just re-posted currently open dialog!
+            return self._dialog
+
+        # No dialog was previously open
+        return None
+
+    def close_dialog(self) -> None:
+        """
+        Must be called to close the currently open dialog.
+
+        Returns:
+            None
+        """
+        self._dialog = None
+        self._is_dialog_open = False
 
     # ===============
     # SETUP
@@ -649,7 +764,6 @@ class _AppState:
 
     current_color = PieceColor.BLACK
     winner: Union[PieceColor, None] = None
-    is_game_over_dialog_open: bool = False
 
     def current_player_name(self) -> str:
         """
@@ -1142,13 +1256,35 @@ class _AppState:
         Returns:
             float: fraction of pieces still available
         """
-        return self.pieces_avail_count(self.current_color) / self.\
+        return self.pieces_avail_count(self.current_color) / self. \
             _num_starting_pieces_per_player
 
 
 # ===============
-# WINDOW DIALOGS
+# DIALOGS
 # ===============
+
+class MenuDialog(UIConfirmationDialog):
+    """
+    Creating an instance of this class creates an in-game menu dialog.
+    """
+    def __init__(self, rel_rect: pygame.Rect) -> None:
+        """
+        Initialize the dialog by overriding parameters of
+        `UIConfirmationDialog`.
+
+        Args:
+            rel_rect (pygame.Rect): relative rectangle for dialog dimensions
+
+        Returns:
+            None
+        """
+        super().__init__(rel_rect,
+                         "Would you like to start a new game?",
+                         window_title="Game paused",
+                         action_short_name="New game",
+                         object_id=_GameElems.MENU_DIALOG)
+
 
 class GameOverDialog(UIConfirmationDialog):
     """
@@ -1212,7 +1348,7 @@ class GuiApp:
             self._state.red_name = "Kevin"
             self._state.black_type = _PlayerType.BOT
             self._state.black_bot_level = _BotLevel.RANDOM
-            self._state.num_rows_per_player = 5
+            self._state.num_rows_per_player = 1
             self._state.create_board()
 
             # Directly open Game screen
@@ -2953,6 +3089,15 @@ class GuiApp:
             """
             return max(random.random() * 0.6, 0.4)
 
+        def check_for_pause() -> bool:
+            """
+            Check whether gameplay should be paused.
+
+            Returns:
+                bool: is paused
+            """
+            return self._state.dialog is not None
+
         def bot_execute_move() -> None:
             """
             Bot executes their move.
@@ -2960,17 +3105,25 @@ class GuiApp:
             Returns:
                 None
             """
+            if check_for_pause():
+                # Stop before executing this move
+                return
+
             self._execute_move()  # toggles player color if end of turn
 
             if remaining_moves:
                 # Rebuild UI
-                self._rebuild_when_ready(can_user_move=False)
+                if not self._state.dialog:
+                    # No dialog has been posted: rebuild is fine
+                    self._rebuild_when_ready(can_user_move=False)
 
                 # Complete remaining moves for currently playing bot
                 self._execute_bot_moves(remaining_moves)
             else:
                 # If next player is also a bot, auto-complete their moves, too
-                if not self._attempt_start_bot_turn():
+                if self._state.dialog or not self._attempt_start_bot_turn():
+                    # First test: dialog posted, don't start next player's turn
+                    # Second test: next player is not bot, so is human
                     self._rebuild_when_ready(can_user_move=True)
 
         def bot_choose_dest() -> None:
@@ -2980,6 +3133,10 @@ class GuiApp:
             Returns:
                 None
             """
+            if check_for_pause():
+                # Stop before executing this move
+                return
+
             self._state.dest_pos = move.get_new_position()
             self._rebuild_when_ready(can_user_move=False)
 
@@ -2992,10 +3149,18 @@ class GuiApp:
             Returns:
                 None
             """
+            if check_for_pause():
+                # Stop before executing this move
+                return
+
             self._state.start_pos = move.get_current_position()
             self._rebuild_when_ready(can_user_move=False)
 
             threading.Timer(visual_delay(), bot_choose_dest).start()
+
+        if check_for_pause():
+            # Stop before executing this move
+            return
 
         # Set up bot's turn by disabling move elements for the user.
         self._rebuild_when_ready(can_user_move=False)
@@ -3019,11 +3184,12 @@ class GuiApp:
         # Check for end of game
         game_state = self._state.board.get_game_state()
         if game_state in (GameStatus.RED_WINS, GameStatus.BLACK_WINS):
-            # Someone has won the game
+            # Someone has won the game: find out which player
             if game_state == GameStatus.RED_WINS:
                 self._state.winner = PieceColor.RED
             else:
                 self._state.winner = PieceColor.BLACK
+            self._state.post_dialog(_Dialogs.GAME_OVER)
             self._rebuild_ui()
         else:
             # Check if current player has remaining moves
@@ -3061,10 +3227,10 @@ class GuiApp:
             # Complete all the bot's moves
             self._execute_bot_moves(bot_moves)
 
-            # Did start bot turn
+            # Started bot turn
             return True
 
-        # Did not start bot turn
+        # Player isn't bot
         return False
 
     def _submit_move_button(self) -> None:
@@ -3101,29 +3267,36 @@ class GuiApp:
                 # ===============
                 # Clicked: MENU BUTTON
                 # ===============
-                print("clicked: menu button")
-                # TODO: implement menu window
+                self._state.post_dialog(_Dialogs.MENU)
+                self._rebuild_ui()
+            elif event.ui_object_id == _GameElems.MENU_DIALOG_CANCEL:
+                # ===============
+                # Clicked: CLOSE MENU DIALOG
+                # ===============
+                self._state.close_dialog()
+                self._rebuild_ui()
+
+                # Start next player's turn if a bot
+                self._attempt_start_bot_turn()
             elif event.ui_object_id == _GameElems.GAME_OVER_DIALOG_CANCEL:
                 # ===============
                 # Clicked: QUIT GAME
                 # ===============
                 pygame.event.post(_GeneralEvents.QUIT)
         elif event.type == pygame_gui.UI_CONFIRMATION_DIALOG_CONFIRMED:
-            if event.ui_object_id == _GameElems.GAME_OVER_DIALOG:
+            if event.ui_object_id in (_GameElems.MENU_DIALOG,
+                                      _GameElems.GAME_OVER_DIALOG):
                 # ===============
                 # Confirmed: START NEW GAME
                 # ===============
                 self._state = _AppState()
                 self._rebuild_ui()
         elif event.type == pygame_gui.UI_WINDOW_CLOSE:
-            if event.ui_object_id == _GameElems.GAME_OVER_DIALOG:
-                # The only reason for the Game Over dialog closing is if the
-                # app window resizes. Therefore, re-open the Game Over dialog to
-                # maintain the illusion that the dialog has never closed.
-
-                # Mark the Game Over dialog as closed, so that it will be
-                # re-opened during the GuiApp's run() method
-                self._state.is_game_over_dialog_open = False
+            if _ := self._state.handle_close_dialog_event():
+                # ===============
+                # Re-posted: DIALOG
+                # (we don't need to know which dialog)
+                # ===============
                 self._rebuild_ui()
 
         elif event.type == pygame_gui.UI_DROP_DOWN_MENU_CHANGED:
@@ -3253,37 +3426,50 @@ class GuiApp:
         # In every loop, check whether the window has been resized
         self._check_window_dimensions_changed()
 
-    def _check_winner_dialog(self) -> None:
+    def _check_open_dialog(self) -> None:
         """
-        Check if a winner has been declared.
-
-        If yes, display a dialog with this game outcome, and offer to either
-        start a new game or quit.
+        If a dialog has been posted (i.e. planned to be opened), open it now.
 
         Must be run after UIManager has drawn the interface.
 
         Returns:
             None
         """
-        if self._state.winner and not self._state.is_game_over_dialog_open:
-            self._state.is_game_over_dialog_open = True
-            GameOverDialog(
-                self._rel_rect(
-                    width=Fraction(0.5),
-                    max_width=800,
-                    height=Fraction(0.5),
-                    max_height=500,
-                    ref_pos=ScreenPos(
-                        RelPos.CENTER,
-                        RelPos.CENTER
-                    ),
-                    self_align=SelfAlign(
-                        RelPos.CENTER,
-                        RelPos.CENTER
-                    )
+        if self._state.is_dialog_open():
+            # Dialog is already open
+            return
+
+        if opened_dialog := self._state.mark_dialog_open():
+            # ===============
+            # Posted: DIALOG
+            # ===============
+
+            # Use the same relative rect for all dialogs
+            dialog_rel_rect = self._rel_rect(
+                width=Fraction(0.5),
+                max_width=800,
+                height=Fraction(0.5),
+                max_height=500,
+                ref_pos=ScreenPos(
+                    RelPos.CENTER,
+                    RelPos.CENTER
                 ),
-                "red" if self._state.winner == PieceColor.RED else "black",
-                self._state.current_player_name())
+                self_align=SelfAlign(
+                    RelPos.CENTER,
+                    RelPos.CENTER
+                )
+            )
+
+            # Check for which dialog should be opened
+            if opened_dialog == _Dialogs.MENU:
+                MenuDialog(dialog_rel_rect)
+            elif opened_dialog == _Dialogs.GAME_OVER:
+                winner_color_str = "red" \
+                    if self._state.winner == PieceColor.RED else "black"
+                GameOverDialog(
+                    dialog_rel_rect,
+                    winner_color_str,
+                    self._state.current_player_name())
 
     def run(self) -> None:
         """
@@ -3304,14 +3490,15 @@ class GuiApp:
             # Update PyGame display
             pygame.display.update()
 
-            # Check if there's a winner - if yes: display a 'game over' dialog
-            self._check_winner_dialog()
+            # Open current dialog, if posted (and not already open)
+            self._check_open_dialog()
 
 
 if __name__ == "__main__":
     app = GuiApp(
         window_options=WindowOptions(
             min_dimensions=Dimensions(800, 600)
-        )
+        ),
+        debug=True
     )
     app.run()

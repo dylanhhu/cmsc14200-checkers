@@ -208,7 +208,7 @@
       "filled_bar": "#000000"
     }
   },
-  "#game-over-dialog": {
+  "window": {
     "misc":
     {
       "enable_close_button": "0"
