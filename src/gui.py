@@ -319,6 +319,50 @@ class _GameElems:
     # Board
     BOARD = "#game-board"
 
+    @staticmethod
+    def board_square(position: Position) -> str:
+        """
+        Get the element ID for a board square at a given position.
+
+        Board starts with light square in the top left hand corner.
+
+        Args:
+            position (Position): position on board
+
+        Returns:
+            str: element ID
+
+        Raises:
+            ValueError: if position is invalid.
+        """
+        x, y = position
+        if x < 0 or y < 0:
+            raise ValueError(f"Position {position} is invalid.")
+
+        return f"#board-square-({x},{y})"
+
+    @staticmethod
+    def checkers_piece(position: Position) -> str:
+        """
+        Get the element ID for a checkers piece at a given position.
+
+        Board starts with light square in the top left hand corner.
+
+        Args:
+            position (Position): position on board
+
+        Returns:
+            str: element ID
+
+        Raises:
+            ValueError: if position is invalid.
+        """
+        x, y = position
+        if x < 0 or y < 0:
+            raise ValueError(f"Position {position} is invalid.")
+
+        return f"#checkers-piece-({x},{y})"
+
     # Captured pieces panel
     CAPTURED_PANEL = "#captured-panel"
     CAPTURED_PANEL_TITLE = "#captured-panel-title"
@@ -2256,7 +2300,7 @@ class GuiApp:
                 pos = (row, col)  # square position on game board
 
                 # Board square unique ID
-                elem_id = self._board_square_id(pos)
+                elem_id = _GameElems.board_square(pos)
 
                 # Color
                 if (row % 2 == 1 and col % 2 == 0) or \
@@ -2317,7 +2361,7 @@ class GuiApp:
                             height=MatchOtherSide(),
                             parent_id=_GameElems.BOARD,
                             ref_pos=ElemPos(
-                                self._board_square_id((side_n, 0)),
+                                _GameElems.board_square((side_n, 0)),
                                 RelPos.CENTER,
                                 RelPos.CENTER
                             ),
@@ -2340,7 +2384,7 @@ class GuiApp:
                             height=MatchOtherSide(),
                             parent_id=_GameElems.BOARD,
                             ref_pos=ElemPos(
-                                self._board_square_id((0, side_n)),
+                                _GameElems.board_square((0, side_n)),
                                 RelPos.CENTER,
                                 RelPos.CENTER
                             ),
@@ -2360,7 +2404,7 @@ class GuiApp:
                 pos = piece.get_position()
 
                 # Checkers piece: unique element ID
-                elem_id = self._checkers_piece_id(pos)
+                elem_id = _GameElems.checkers_piece(pos)
 
                 # Color
                 if piece.get_color() == PieceColor.RED:
@@ -2377,7 +2421,7 @@ class GuiApp:
                     elem_class += "-selected"
 
                 # Draft checkers piece
-                parent_id = self._board_square_id(pos)
+                parent_id = _GameElems.board_square(pos)
                 self._lib.draft(
                     UIPanel(
                         self._rel_rect(
@@ -2612,50 +2656,6 @@ class GuiApp:
                     f"{self._state.current_player_name()} "
                     f"({num_pieces_avail}/{starting_num_avail}):",
                     object_id=_GameElems.PIECES_LEFT_TITLE))
-
-    @staticmethod
-    def _board_square_id(position: Position) -> str:
-        """
-        Get the element ID for a board square at a given position.
-
-        Board starts with light square in the top left hand corner.
-
-        Args:
-            position (Position): position on board
-
-        Returns:
-            str: element ID
-
-        Raises:
-            ValueError: if position is invalid.
-        """
-        x, y = position
-        if x < 0 or y < 0:
-            raise ValueError(f"Position {position} is invalid.")
-
-        return f"#board-square-({x},{y})"
-
-    @staticmethod
-    def _checkers_piece_id(position: Position) -> str:
-        """
-        Get the element ID for a checkers piece at a given position.
-
-        Board starts with light square in the top left hand corner.
-
-        Args:
-            position (Position): position on board
-
-        Returns:
-            str: element ID
-
-        Raises:
-            ValueError: if position is invalid.
-        """
-        x, y = position
-        if x < 0 or y < 0:
-            raise ValueError(f"Position {position} is invalid.")
-
-        return f"#checkers-piece-({x},{y})"
 
     def _check_window_dimensions_changed(self) -> None:
         """
