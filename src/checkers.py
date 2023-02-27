@@ -208,8 +208,11 @@ was invalid.")
             if any(self._draw_offer.values()):
                 self._reset_draw_offers()  # Offer rejected, clear them
 
-        # Make sure this is a valid move
-        if not self.validate_move(move):
+        # Complete the move of the piece
+        try:
+            super().complete_move(move)
+            self._moves_since_capture += 1  # Increment move counter
+        except ValueError:
             # Invalid move, check if draw offer undo needed
             if draw_offer_changed:
                 self._draw_offer[draw_offer_changed] = False  # undo draw offer
@@ -218,20 +221,10 @@ was invalid.")
                 if self._game_state == GameStatus.DRAW:
                     self._game_state = GameStatus.IN_PROGRESS
 
-            raise ValueError(f"Move {repr(move)} is not a valid move.")
+            raise  # Re-raise the exception
 
-        # Process Move - "moving" the piece
-        curr_pos = move.get_current_position()
-        new_pos = move.get_new_position()
-
-        # Store the piece in a separate variable rather than later having to
-        # reference it inside of self._pieces and keeping track of where it is
-        piece = self._pieces[curr_pos]
-        piece.set_position(new_pos)     # "Move" the piece
-        self._moves_since_capture += 1  # Increment move counter
-
-        # Replace with new Position
-        self._pieces[new_pos] = self._pieces.pop(curr_pos)
+        # move.get_piece() not guaranteed to be the same Piece instance as ours
+        piece = self._pieces[move.get_new_position()]
 
         # Process kinging
         was_kinging = False
@@ -242,7 +235,7 @@ was invalid.")
         # Handle the capture, if it's a Jump
         if isinstance(move, Jump):
             # Process the capture
-            cap_piece: Piece = move.get_captured_piece()  # type: ignore
+            cap_piece = move.get_captured_piece()
 
             # Move from board to captured pieces
             cap_color = cap_piece.get_color()
@@ -252,14 +245,14 @@ was invalid.")
             cap_piece.set_captured()
             self._moves_since_capture = 0  # reset counter
 
-            # If kinging, the turn is over regardless of further jumps
+            # If move was kinging, the turn is over regardless of further jumps
             if was_kinging:
                 return []
 
             # Return list of following jumps, if any
             return self.get_piece_moves(piece, jumps_only=True)
 
-        # Move completed, turn is over. See todo listed in docstring
+        # Move completed, turn is over
         return []
 
     def undo_move(self, move: Move) -> None:
@@ -436,18 +429,8 @@ was invalid.")
         Returns:
             bool: True if the move is valid, otherwise False
         """
-        # Validate type
-        if not isinstance(move, Move):
-            return False
-
-        # Make sure move contains a valid piece
-        if move.get_piece() not in self.get_board_pieces():
-            return False
-
-        # Make sure that new position is valid; comparing by equality and by
-        # whether they are the same object, see:
-        # https://docs.python.org/3.8/reference/expressions.html#membership-test-details
-        if move.get_new_position() in self._pieces:
+        # Validate type, piece, starting position, new position
+        if not super().validate_move(move):
             return False
 
         # To be able to check for other jumps, we must get all moves
@@ -557,28 +540,6 @@ has an outstanding draw offer."
             PieceColor.BLACK: False,
             PieceColor.RED: False
         }
-
-    def _validate_position(self, pos: Position) -> bool:
-        """
-        Helper method for checking if a provided position is on the board.
-
-        Args:
-            pos (Position): the position to validate
-
-        Returns:
-            bool: True if valid otherwise false
-        """
-        pos_col, pos_row = pos
-
-        # Check upper and left bounds
-        if (pos_col < 0) or (pos_row < 0):
-            return False
-
-        # Check right and lower bounds
-        if (pos_col >= self._board_size) or (pos_row >= self._board_size):
-            return False
-
-        return True
 
     def _gen_pieces(self, height: Union[int, None] = None,
                     width: Union[int, None] = None) -> Dict[Position, Piece]:

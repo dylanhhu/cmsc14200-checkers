@@ -138,6 +138,38 @@ class Board:
         """
         return self._width
 
+    def complete_move(self, move: Move) -> List[Move]:
+        """
+        Method for completing a move. First validates the move using
+        self.validate_move() which validates whether the move is even feasible,
+        or, if overloaded by a subclass, custom validation.
+
+        Args:
+            move (Move): the move to make
+
+        Returns:
+            List[Move]: An empty list of follow-up moves. Implementing 
+                subclasses ultimately determine meaning and usage of this 
+                return. 
+
+        Raises:
+            ValueError: If the move is not valid.
+        """
+        # Make sure this is a valid move
+        if not self.validate_move(move):
+            raise ValueError(f"Move {repr(move)} is not a valid move.")
+
+        # Process Move - "moving" the piece
+        curr_pos = move.get_current_position()
+        new_pos = move.get_new_position()
+
+        self._pieces[curr_pos].set_position(new_pos)  # "Move" the piece
+
+        # In self._pieces, replace old position with new position
+        self._pieces[new_pos] = self._pieces.pop(curr_pos)
+
+        return []  # Return nothing
+
     def undo_move(self, move: Move) -> None:
         """
         Abstract method for undoing a given move.
@@ -149,6 +181,50 @@ class Board:
             None
         """
         raise NotImplementedError
+
+    def validate_move(self, move: Move) -> bool:
+        """
+        Validates a potential move. Only checks if the piece exists, is on the
+        board, and if the new position is valid and not taken by another piece.
+
+        Args:
+            move (Move): the move to validate
+
+        Returns:
+            bool: True if the move is valid otherwise False
+        """
+        # Validate type
+        if not isinstance(move, Move):
+            return False
+
+        # Make sure move contains a valid piece and starting position
+        if move.get_piece() not in self.get_board_pieces():
+            return False
+
+        # Make sure that new position is valid and not taken
+        new_pos = move.get_new_position()
+        if (not self._validate_position(new_pos)) or (new_pos in self._pieces):
+            return False
+
+        return True
+
+    def _validate_position(self, pos: Position) -> bool:
+        """
+        Helper method for checking if a provided position is on the board.
+
+        Args:
+            pos (Position): the position to validate
+
+        Returns:
+            bool: True if valid otherwise false
+        """
+        pos_col, pos_row = pos
+
+        # Check if on the board
+        if (0 <= pos_col < self._width) and (0 <= pos_row < self._height):
+            return True
+
+        return False
 
     def _gen_pieces(self, height: Union[int, None] = None,
                     width: Union[int, None] = None) -> Dict[Position, Piece]:
