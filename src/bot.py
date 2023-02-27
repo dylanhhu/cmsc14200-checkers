@@ -339,12 +339,21 @@ class SmartBot(Bot):
         if weighted_mseq_list:
             # return the move list of the movesequence with the highest priority
             # https://www.programiz.com/python-programming/methods/built-in/max
+            # https://stackoverflow.com/questions/57548827/
+            # how-to-get-a-random-maximum-from-a-list
 
             max_priority_mseq = max(
-                weighted_mseq_list,
-                key=lambda m: m.get_priority()).get_move_list()
+                weighted_mseq_list, key=lambda m: m.get_priority())
 
-            return max_priority_mseq
+            # get the largest priority
+            max_priority = max_priority_mseq.get_priority()
+
+            # get a random MoveSequence with the max priority
+            return_mseq = random.choice([mseq for mseq in weighted_mseq_list
+                                         if mseq.get_priority() ==
+                                         max_priority])
+
+            return return_mseq.get_move_list()
 
         # we don't have any move to take, i.e. , we've lost
         return []
