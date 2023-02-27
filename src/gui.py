@@ -247,7 +247,7 @@ class _GeneralSizes(IntEnum):
 
 
 # ===============
-# EVENTS
+# UI EVENTS
 # ===============
 
 
@@ -272,32 +272,75 @@ class _GeneralEvents:
     QUIT = Event(pygame.QUIT)
 
 
+# ===============
+# SCREEN ELEMENTS
+# ===============
+
+
 class _SetupElems:
-    # ID
-    screen_id = _Screens.get_setup_name()
-
-    # ===============
-    # ELEMENTS
-    # ===============
-
+    # Welcome text
     WELCOME_TEXT = "#welcome-text"
 
+    # Red player panel
     RED_PANEL = "#player-1-panel"
     RED_PANEL_TITLE = "#player-1-type-title-label"
     RED_TYPE_DROPDOWN = "#player-1-type-dropdown"
     RED_NAME_TEXTINPUT = "#player-1-name-textinput"
     RED_BOT_DIFFICULTY_DROPDOWN = "#player-1-bot-difficulty-dropdown"
 
+    # Black player panel
     BLACK_PANEL = "#player-2-panel"
     BLACK_PANEL_TITLE = "#player-2-type-title-label"
     BLACK_TYPE_DROPDOWN = "#player-2-type-dropdown"
     BLACK_NAME_TEXTINPUT = "#player-2-name-textinput"
     BLACK_BOT_DIFFICULTY_DROPDOWN = "#player-2-bot-difficulty-dropdown"
 
+    # Number of rows per player
     NUM_PLAYER_ROWS_TEXTINPUT = "#num-player-rows-textinput"
     NUM_PLAYER_ROWS_TITLE = "#num-player-rows-title"
 
+    # Start game
     START_GAME_BUTTON = "#start-game-button"
+
+
+class _GameElems:
+    # Title bar
+    TITLE_TEXT = "#title-text"
+    MENU_BUTTON = "#menu-button"
+
+    # Action bar
+    ACTION_BAR = "#action-bar"
+    CURRENT_PLAYER_LABEL = "#current-player-label"
+    SELECTED_PIECE_DROPDOWN = "#selected-piece-dropdown"
+    PIECE_TO_DEST_ARROW = "#piece-to-destination-arrow"
+    DESTINATION_DROPDOWN = "#destination-dropdown"
+    SUBMIT_MOVE_BUTTON = "#submit-move-button"
+
+    # Board
+    BOARD = "#game-board"
+
+    # Captured pieces panel
+    CAPTURED_PANEL = "#captured-panel"
+    CAPTURED_PANEL_TITLE = "#captured-panel-title"
+    CAPTURED_BLACK_TITLE = "#captured-black-title"
+    CAPTURED_RED_TITLE = "#captured-red-title"
+    CAPTURED_BLACK_COUNT = "#captured-black-count"
+    CAPTURED_RED_COUNT = "#captured-red-count"
+    PIECES_LEFT_TITLE = "#pieces-left-title"
+    PIECES_LEFT_BAR = "#pieces-left-bar"
+
+    # Menu dialog
+    MENU_DIALOG = "#menu-dialog"
+    MENU_DIALOG_CANCEL = "#menu-dialog.#cancel_button"
+
+    # Game Over dialog
+    GAME_OVER_DIALOG = "#game-over-dialog"
+    GAME_OVER_DIALOG_CANCEL = "#game-over-dialog.#cancel_button"
+
+
+# ===============
+# SCREEN CONSTANTS
+# ===============
 
 
 class _SetupConsts:
@@ -326,55 +369,6 @@ class _SetupConsts:
                               _BotLevel.get_hard_name()]
 
 
-def _conf_dialog_cancel_btn(dialog_id: str) -> str:
-    """
-    Get the unique reference string for the cancel button of a PyGame-GUI
-    confirmation dialog.
-
-    Args:
-        dialog_id (str): dialog element ID
-
-    Returns:
-        str: cancel button reference
-    """
-    return f"{dialog_id}.#cancel_button"
-
-
-class _GameElems:
-    # ID
-    screen_id = _Screens.get_game_name()
-
-    # ===============
-    # ELEMENTS
-    # ===============
-
-    TITLE_TEXT = "#title-text"
-    MENU_BUTTON = "#menu-button"
-    ACTION_BAR = "#action-bar"
-    CURRENT_PLAYER_LABEL = "#current-player-label"
-    SELECTED_PIECE_DROPDOWN = "#selected-piece-dropdown"
-    PIECE_TO_DESTINATION_LABEL = "#piece-to-destination-label"
-    DESTINATION_DROPDOWN = "#destination-dropdown"
-    SUBMIT_MOVE_BUTTON = "#submit-move-button"
-    BOARD = "#game-board"
-    CAPTURED_PANEL = "#captured-panel"
-    CAPTURED_PANEL_TITLE = "#captured-panel-title"
-    CAPTURED_BLACK_TITLE = "#captured-black-title"
-    CAPTURED_RED_TITLE = "#captured-red-title"
-    CAPTURED_BLACK_COUNT = "#captured-black-count"
-    CAPTURED_RED_COUNT = "#captured-red-count"
-    PIECES_LEFT_TITLE = "#pieces-left-title"
-    PIECES_LEFT_BAR = "#pieces-left-bar"
-
-    # Menu dialog
-    MENU_DIALOG = "#menu-dialog"
-    MENU_DIALOG_CANCEL = _conf_dialog_cancel_btn(MENU_DIALOG)
-
-    # Game Over dialog
-    GAME_OVER_DIALOG = "#game-over-dialog"
-    GAME_OVER_DIALOG_CANCEL = _conf_dialog_cancel_btn(GAME_OVER_DIALOG)
-
-
 class _GameConsts:
     # Sizes
     ACTION_BAR_HEIGHT = 60
@@ -383,20 +377,23 @@ class _GameConsts:
     ACTION_BAR_ARROW_X_MARGIN = _Sizes.S
     BOARD_RIGHT_MARGIN = _Sizes.L
 
+    # Other values
+    MAX_NAME_LEN = 25  # Maximum player name length
+    COORD_SQUARES = 1  # Number of square-sized spaces for coordinates
+
 
 # ===============
-# UNSORTED CONSTANTS
+# UI THEMING
 # ===============
 
-_COORD_SQUARES = 1  # Number of square-sized spaces for coordinates
-
-_THEME_FILE = "src/data/themes/theme.json"  # PyGame-GUI theme JSON file
-_DYNAMIC_THEME_FILE_NAME = "dynamic_theme.json"
-_DYNAMIC_THEME_FILE = f"src/data/themes/{_DYNAMIC_THEME_FILE_NAME}"
-_THEME_BOARD_KING_PIECES = ["@board-red-piece-king",
-                            "@board-red-piece-king-selected",
-                            "@board-black-piece-king",
-                            "@board-black-piece-king-selected"]
+class _Theme:
+    SOURCE_FILE_PATH = "src/data/themes/theme.json"
+    DYNAMIC_FILE_NAME = "dynamic_theme.json"
+    DYNAMIC_FILE_PATH = f"src/data/themes/{DYNAMIC_FILE_NAME}"
+    KING_PIECES = {"@board-red-piece-king",
+                   "@board-red-piece-king-selected",
+                   "@board-black-piece-king",
+                   "@board-black-piece-king-selected"}
 
 
 # ===============
@@ -542,6 +539,16 @@ class _AppState:
     _red_name: str = ""
     _red_name_raw: str = str(_red_name)
 
+    # Black player
+    black_type: _PlayerType = _PlayerType.HUMAN
+    black_bot_level: _BotLevel = _BotLevel.SIMPLE
+    _black_name: str = ""
+    _black_name_raw: str = str(_black_name)
+
+    # Board settings
+    _num_rows_per_player: Union[int, None] = 3
+    _num_rows_per_player_raw_input: str = str(_num_rows_per_player)
+
     @property
     def red_name(self) -> str:
         """
@@ -579,12 +586,6 @@ class _AppState:
         """
         return self._red_name_raw
 
-    # Black player
-    black_type: _PlayerType = _PlayerType.HUMAN
-    black_bot_level: _BotLevel = _BotLevel.SIMPLE
-    _black_name: str = ""
-    _black_name_raw: str = str(_black_name)
-
     @property
     def black_name(self) -> str:
         """
@@ -621,10 +622,6 @@ class _AppState:
             str: raw input for black player's name
         """
         return self._black_name_raw
-
-    # Board settings
-    _num_rows_per_player: Union[int, None] = 3
-    _num_rows_per_player_raw_input: str = str(_num_rows_per_player)
 
     @property
     def num_rows_per_player(self) -> Union[int, None]:
@@ -676,7 +673,21 @@ class _AppState:
     # GAME
     # ===============
 
+    # Board
     _board: CheckersBoard = CheckersBoard(1)
+    _num_starting_pieces_per_player: int = 3
+
+    # 'Make a move' messages
+    _red_make_move_msg: str = ""
+    _black_make_move_msg: str = ""
+
+    # Players
+    current_color = PieceColor.BLACK
+    winner: Union[PieceColor, None] = None
+
+    # Positions
+    _start_pos: Union[Position, None] = None
+    dest_pos: Union[Position, None] = None
 
     @property
     def board(self) -> CheckersBoard:
@@ -701,6 +712,24 @@ class _AppState:
         self._num_starting_pieces_per_player = \
             self._board.get_board_width() * self.num_rows_per_player // 2
 
+        # Store 'make a move' messages for each player
+        if self.red_type == self.black_type:
+            # Players are of same type
+            self._red_make_move_msg = "Red's move"
+            self._black_make_move_msg = "Black's move"
+        else:
+            # Players are of different type
+            your_move_msg = "Your move"
+            bot_move_msg = "Bot's move"
+            if self.red_type == _PlayerType.HUMAN:
+                # Red is human, Black is bot
+                self._red_make_move_msg = your_move_msg
+                self._black_make_move_msg = bot_move_msg
+            else:
+                # Red is bot, Black is human
+                self._red_make_move_msg = bot_move_msg
+                self._black_make_move_msg = your_move_msg
+
     @property
     def board_side_num(self) -> int:
         """
@@ -720,9 +749,7 @@ class _AppState:
         Returns:
             Fraction: fraction of board width/height occupied
         """
-        return Fraction(1) / (self.board_side_num + _COORD_SQUARES)
-
-    _num_starting_pieces_per_player: int = 3
+        return Fraction(1) / (self.board_side_num + _GameConsts.COORD_SQUARES)
 
     @property
     def num_starting_pieces_per_player(self) -> int:
@@ -733,9 +760,6 @@ class _AppState:
             int: number of pieces
         """
         return self._num_starting_pieces_per_player
-
-    current_color = PieceColor.BLACK
-    winner: Union[PieceColor, None] = None
 
     def current_player_name(self) -> str:
         """
@@ -767,6 +791,17 @@ class _AppState:
             else:
                 return current_bot_name()
 
+    def make_move_msg(self) -> str:
+        """
+        Produces a message directing the current player to make their move.
+
+        Returns:
+            str: make move message
+        """
+        if self.current_color == PieceColor.RED:
+            return self._red_make_move_msg
+        return self._black_make_move_msg
+
     def toggle_color(self) -> None:
         """
         Toggle current player color.
@@ -774,13 +809,12 @@ class _AppState:
         Returns:
             None
         """
-        if self.current_color == PieceColor.RED:
-            self.current_color = PieceColor.BLACK
-        else:
-            self.current_color = PieceColor.RED
+        if self.winner:
+            # Winner exists: do not toggle to other player, since they won't
+            # have any moves remaining by definition of a win.
+            return
 
-    _start_pos: Union[Position, None] = None
-    dest_pos: Union[Position, None] = None
+        self.current_color = _other_color(self.current_color)
 
     def get_selected_move(self) -> Move:
         """
@@ -1329,19 +1363,22 @@ class GuiApp:
             self._state.update_move_options()
             self._state.screen = _Screens.GAME
             self._attempt_start_bot_turn()
+        else:
+            # In production, suppress all console warnings
+            warnings.filterwarnings("ignore")
 
         # Window setup
         self._update_window(window_options)
         self._bg_surface = None  # All elements will be painted on this surface
 
         # Copy theme source file to new (dynamic) theme file
-        shutil.copyfile(_THEME_FILE, _DYNAMIC_THEME_FILE)
+        shutil.copyfile(_Theme.SOURCE_FILE_PATH, _Theme.DYNAMIC_FILE_PATH)
 
         # Set up PyGame-GUI manager, with the dynamic theme file
         self._ui_manager = UIManager(self._get_window_resolution(),
                                      PackageResource(package="data.themes",
                                                      resource=
-                                                     _DYNAMIC_THEME_FILE_NAME))
+                                                     _Theme.DYNAMIC_FILE_NAME))
 
         # Initialize the element library
         self._lib = GuiComponentLib()
@@ -1679,7 +1716,7 @@ class GuiApp:
         # ===============
         # READ ORIGINAL THEME FILE
         # ===============
-        with open(_THEME_FILE) as theme_file:
+        with open(_Theme.SOURCE_FILE_PATH) as theme_file:
             theme_json = json.load(theme_file)
 
         # ===============
@@ -1718,7 +1755,7 @@ class GuiApp:
                 # Return largest PNG size
                 return king_piece_sizes[-1]
 
-            for king_piece_name in _THEME_BOARD_KING_PIECES:
+            for king_piece_name in _Theme.KING_PIECES:
                 color = "red" if "red" in king_piece_name else "black"
                 theme_json[king_piece_name]["images"]["background_image"][
                     "path"] = \
@@ -1727,7 +1764,7 @@ class GuiApp:
         # ===============
         # UPDATE DYNAMIC JSON FILE
         # ===============
-        with open(_DYNAMIC_THEME_FILE, "w") as theme_file:
+        with open(_Theme.DYNAMIC_FILE_PATH, "w") as theme_file:
             json.dump(theme_json, theme_file)
 
     def _rebuild_ui(self) -> None:
@@ -2112,7 +2149,7 @@ class GuiApp:
                         ),
                         offset=Offset(_GameConsts.ACTION_BAR_X_PADDING, 0)
                     ),
-                    f"{self._state.current_player_name()}'s move:",
+                    f"{self._state.make_move_msg()}:",
                     object_id=_GameElems.CURRENT_PLAYER_LABEL))
             self._lib.draft(
                 UIDropDownMenu(
@@ -2150,7 +2187,7 @@ class GuiApp:
                         offset=Offset(_GameConsts.ACTION_BAR_ARROW_X_MARGIN, 0)
                     ),
                     "→",
-                    object_id=_GameElems.PIECE_TO_DESTINATION_LABEL))
+                    object_id=_GameElems.PIECE_TO_DEST_ARROW))
             self._lib.draft(
                 UIDropDownMenu(
                     self._state.get_dropdown_dest_positions(),
@@ -2159,7 +2196,7 @@ class GuiApp:
                         width=_GameConsts.DROPDOWN_WIDTH,
                         height=_GeneralSizes.DROPDOWN_HEIGHT,
                         ref_pos=ElemPos(
-                            _GameElems.PIECE_TO_DESTINATION_LABEL,
+                            _GameElems.PIECE_TO_DEST_ARROW,
                             RelPos.END,
                             RelPos.CENTER
                         ),
@@ -2255,10 +2292,10 @@ class GuiApp:
                                 RelPos.START
                             ),
                             offset=Offset(
-                                self._state.square_side * (row + 1 +
-                                                           _COORD_SQUARES),
-                                self._state.square_side * (col + 1 +
-                                                           _COORD_SQUARES)
+                                self._state.square_side *
+                                (row + 1 + _GameConsts.COORD_SQUARES),
+                                self._state.square_side *
+                                (col + 1 + _GameConsts.COORD_SQUARES)
                             )
                         ),
                         object_id=ObjectID(
@@ -2572,7 +2609,7 @@ class GuiApp:
                         ),
                         offset=Offset(0, - _Sizes.S)
                     ),
-                    f"{current_color_str} "
+                    f"{self._state.current_player_name()} "
                     f"({num_pieces_avail}/{starting_num_avail}):",
                     object_id=_GameElems.PIECES_LEFT_TITLE))
 
@@ -2686,21 +2723,26 @@ class GuiApp:
         """
         try:
             if self._state.num_rows_per_player is None:
-                raise ValueError()
+                raise ValueError("Number of rows per player is invalid.")
             if self._state.red_type == _PlayerType.HUMAN:
                 if self._state.red_name == "":
-                    raise ValueError()
+                    raise ValueError("Name is empty.")
+                elif len(self._state.red_name) > _GameConsts.MAX_NAME_LEN:
+                    raise ValueError("Name exceeds maximum allowed length.")
             if self._state.black_type == _PlayerType.HUMAN:
                 if self._state.black_name == "":
-                    raise ValueError()
+                    raise ValueError("Name is empty.")
+                elif len(self._state.black_name) > _GameConsts.MAX_NAME_LEN:
+                    raise ValueError("Name exceeds maximum allowed length.")
             if self._state.red_type == _PlayerType.HUMAN and \
                     self._state.black_type == _PlayerType.HUMAN:
                 if self._state.red_name == self._state.black_name:
-                    raise ValueError()
+                    raise ValueError("Duplicate names.")
 
             # By this point, the game setup is all valid!
             self._lib.enable_elem(_SetupElems.START_GAME_BUTTON)
-        except ValueError:
+        except ValueError as e:
+            warnings.warn(str(e))
             self._lib.disable_elem(_SetupElems.START_GAME_BUTTON)
 
     def _process_setup_events(self, event: "Event") -> None:
@@ -3257,6 +3299,8 @@ class GuiApp:
         """
         Set up responsive PyGame-GUI asset sizing. Throwaway method that is
         ignored after being called the first time.
+
+        Inspiration for throwaway method: https://stackoverflow.com/a/74062603
 
         Returns:
             None
