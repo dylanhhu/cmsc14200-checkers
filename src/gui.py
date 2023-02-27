@@ -3477,7 +3477,7 @@ class GuiApp:
             self._process_events()
 
             # Update UI elements in memory
-            time_delta = self._render_clock.tick() / 1000.0
+            time_delta = self._render_clock.tick(60) / 1000.0
             self._ui_manager.update(time_delta)
 
             # Paint all changes
