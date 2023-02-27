@@ -1368,9 +1368,6 @@ class GuiApp:
                                      PackageResource(package="data.themes",
                                                      resource=
                                                      _DYNAMIC_THEME_FILE_NAME))
-        # Set up the default font
-        self._ui_manager.preload_fonts(
-            [{'name': 'fira_code', 'point_size': 14, 'style': 'regular'}])
 
         # Initialize the element library
         self._lib = GuiComponentLib()
