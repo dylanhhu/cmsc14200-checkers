@@ -3000,9 +3000,7 @@ class GuiApp:
 
             if remaining_moves:
                 # Rebuild UI
-                if not self._state.dialog:
-                    # No dialog has been posted: rebuild is fine
-                    self._rebuild_when_ready(can_user_move=False)
+                self._rebuild_when_ready(can_user_move=False)
 
                 # Complete remaining moves for currently playing bot
                 self._execute_bot_moves(remaining_moves)
