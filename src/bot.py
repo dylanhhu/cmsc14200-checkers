@@ -922,6 +922,11 @@ class SmartBot(Bot):
         MoveSequence. However, if all the MoveSequences contains a losing move, 
         we randomly select a move(at that point the game would already be over)
 
+        We only consider this strategy when there's below 4 pieces on our side 
+        given that it's not very likely that the opponent can win next round if 
+        we still have some pieces (most of them would have to be stuck with no 
+        moves which is unlikely)
+
         Parameters:
             mseq(MoveSequence): a MoveSequence whose priority is about to be 
                 updated
@@ -930,7 +935,17 @@ class SmartBot(Bot):
             lose strategy, if the MoveSequence doesn't contain a losing move, 
             we return the original priority, otherwise, we return -math.inf
         """
-        # check whether an opponent already been constructed for our mseq
+        # get the number of pieces left
+        our_avail_pieces = \
+            self._experimentboard.get_color_avail_pieces(self._own_color)
+        our_avail_num = len(our_avail_pieces)
+
+        # check whether we still have more than 4 pieces
+        if our_avail_num > 4:
+            # we have more than 4 pieces, skip this priority
+            return 0
+
+            # check whether an opponent already been constructed for our mseq
         if not self._curr_oppo:
             # if not, construct it
             self._curr_oppo = OppoBot(self._oppo_color,
