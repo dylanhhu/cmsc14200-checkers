@@ -7,6 +7,7 @@ import json
 import random
 import shutil
 import threading
+import warnings
 from dataclasses import dataclass
 from enum import Enum, IntEnum
 from functools import lru_cache, reduce
@@ -1321,7 +1322,7 @@ class GuiApp:
             self._state.red_name = "Kevin"
             self._state.black_type = _PlayerType.BOT
             self._state.black_bot_level = _BotLevel.RANDOM
-            self._state.num_rows_per_player = 1
+            self._state.num_rows_per_player = 3
             self._state.create_board()
 
             # Directly open Game screen
@@ -3367,7 +3368,12 @@ class GuiApp:
             # Update UI elements in memory
             time_delta = self._render_clock.tick(
                 self._window_options.get_fps()) / 1000.0
-            self._ui_manager.update(time_delta)
+
+            # Attempt update PyGame-GUI UI Manager
+            try:
+                self._ui_manager.update(time_delta)
+            except Exception as e:
+                warnings.warn(str(e))
 
             # Paint all changes
             self._window_surface.blit(self._bg_surface, (0, 0))
