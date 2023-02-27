@@ -56,13 +56,15 @@ class WindowOptions:
     DEFAULT_PADDING = 32
     DEFAULT_FULLSCREEN = False
     DEFAULT_TITLE = ""
+    DEFAULT_FPS = 60
 
     def __init__(self,
                  dimensions: Union[Dimensions, None] = None,
                  min_dimensions: Union[Dimensions, None] = None,
                  padding: Union[int, None] = None,
                  fullscreen: Union[bool, None] = None,
-                 title: Union[str, None] = None) -> None:
+                 title: Union[str, None] = None,
+                 fps: Union[int, None] = None) -> None:
         """
         Constructor for window options.
 
@@ -80,6 +82,7 @@ class WindowOptions:
         self._padding = self.DEFAULT_PADDING
         self._fullscreen = self.DEFAULT_FULLSCREEN
         self._title = self.DEFAULT_TITLE
+        self._fps = self.DEFAULT_FPS
 
         # Attempt set custom values
         if dimensions is not None:
@@ -92,6 +95,8 @@ class WindowOptions:
             self.set_fullscreen(fullscreen)
         if title is not None:
             self.set_title(title)
+        if fps is not None:
+            self.set_fps(fps)
 
     def set_dimensions(self, new_dimensions: Dimensions) -> None:
         """
@@ -244,3 +249,21 @@ class WindowOptions:
             str: window title
         """
         return self._title
+
+    def set_fps(self, new_fps: int) -> None:
+        """
+        Setter method for window frame rate.
+
+        Args:
+            new_fps (fps): the new frame rate
+        """
+        self._fps = new_fps
+
+    def get_fps(self) -> int:
+        """
+        Getter method that returns the window frame rate.
+
+        Returns:
+            int: window frame rate
+        """
+        return self._fps

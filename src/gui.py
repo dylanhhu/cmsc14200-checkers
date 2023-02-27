@@ -3366,7 +3366,8 @@ class GuiApp:
             self._process_events()
 
             # Update UI elements in memory
-            time_delta = self._render_clock.tick(60) / 1000.0
+            time_delta = self._render_clock.tick(
+                self._window_options.get_fps()) / 1000.0
             self._ui_manager.update(time_delta)
 
             # Paint all changes
@@ -3383,8 +3384,7 @@ class GuiApp:
 if __name__ == "__main__":
     app = GuiApp(
         window_options=WindowOptions(
-            min_dimensions=Dimensions(800, 600)
-        ),
-        debug=True
+            min_dimensions=Dimensions(800, 600),
+        )
     )
     app.run()
