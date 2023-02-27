@@ -273,6 +273,13 @@ class SmartBot(Bot):
         # smart level of the bot, reflecting in how many strategies are adopted
         self._level = level
 
+        # initialize two containers for 1)an opponent instance 2) a
+        # MoveSequence with an induced jump in response to our MoveSequences
+        # which is going to be used latter for predicting opponents moves
+        # according to our moves
+        self._curr_oppo = None
+        self._curr_oppo_induced = None
+
         # initialize a full list of strategies that can be implemented by the
         # bot
         # it comes with the weight that specifies how much influence should be
@@ -307,7 +314,7 @@ class SmartBot(Bot):
         # this is just for test, include specific strategies functionsthat we
         # want to test
         self._strategy_list_test = [
-            (self._chase_priotiy, 0.1)]
+            (self._captured_priority, 1)]
 
     def choose_move_list(self) -> List[Move]:
         """
@@ -353,7 +360,7 @@ class SmartBot(Bot):
                 strategy and their correponding weight
 
         Return: List[MoveSequence]:
-                A list of all possible MoveSequences with their updated priority
+            A list of all possible MoveSequences with their updated priority
         """
         # get all the immediate next moves that are possible
         nxt_move_list = self._get_avail_moves()
@@ -377,8 +384,13 @@ class SmartBot(Bot):
                 # of one potential move list, create a corresponding
                 # MoveSequence and add that to the Movesequence_list with its
                 # priority
-                mseq = MoveSequence(
-                    curr_path[:])
+
+                mseq = MoveSequence(curr_path[:])
+
+                # clear self._curr_oppo and self._curr_oppo_induced for the new
+                # MoveSequence
+                self._curr_oppo, self._curr_oppo_induced = None, None
+
                 self._assign_priority(mseq, strategy_list)
                 Movesequence_list.append(mseq)
 
@@ -411,7 +423,7 @@ class SmartBot(Bot):
 
         Parameters:
             mseq(Movesequence): the MoveSequence about to be updated
-                strategy_list(List[Tuple(Functionsm, float)]): a list of 
+            strategy_list(List[Tuple(Functionsm, float)]): a list of 
                 functions that are going to be applied for the update of the 
                 priority and their corresponding weights
 
@@ -573,62 +585,6 @@ class SmartBot(Bot):
 
         return weight * king_score
 
-    def _sacrifice_priority(self, mseq, weight) -> float:
-        """
-        update the priority of the available MoveSequence with the consideration
-        of sacrifice
-
-        Sometimes making a move means sacrificing the piece we are moving, we 
-        don't want to do this blindly so this function serves as a restricting 
-        method so that we don't blindly sacrifice our pieces for no reason.
-
-        However, we are more willing to sacrifice pieces when we are leading
-
-        Parameters:
-            mseq(MoveSequence): a MoveSequence whose priority is about to be 
-                updated
-            weight(float): a float that determine how much of an influence this 
-                strategy should be playing among all the strategies
-
-        Return: float: the value to add to priority to mseq according to the 
-            sacrificing strategy
-        """
-        # construct an instance of the opponent
-        Opponent = OppoBot(self._oppo_color,
-                           self._experimentboard, mseq, self._level)
-
-        oppo_jump_list = Opponent.get_induced_jump_mseq()
-        if oppo_jump_list:
-            # this MoveSequence leads to a sacrifice
-
-            # get the initial number of pieces for each side and the current
-            # number of pieces for each side
-            num_piece = self._experimentboard.get_board_width()/2 - 1
-            my_pieces = self._experimentboard.get_color_avail_pieces(
-                self._own_color)
-            oppo_pieces = self._experimentboard.get_color_avail_pieces(
-                self._oppo_color)
-
-            # intialize a list to take the sacrifice score
-            score_list = []
-            # traverse through all the induced jump movesequences
-            for oppo_jump in oppo_jump_list:
-                # depict the difference of the number of pieces between both
-                # sides, always negative, the more pieces we have over the
-                # opponent, the smaller the absolute value.
-                difference_factor = num_piece - \
-                    (len(my_pieces) - len(oppo_pieces))
-                # sacrifice core is bigger when (1)more pieces are captured (2)
-                # The more the opponent pieces is more than mine (3) a king is
-                # captured rather than a normal piece
-                score_list.append(Opponent._captured_priority(
-                    oppo_jump, 1) * difference_factor)
-
-            return - weight * max(score_list)
-
-        # this MoveSequence doesn't lead to a sacrifice
-        return 0
-
     def _chase_priotiy(self, mseq, weight) -> float:
         """
         update the priority of the available MoveSequence with the 
@@ -703,6 +659,66 @@ class SmartBot(Bot):
             chase_score = target_tuple[0] - \
                 self._distance(target_tuple[1], mseq.get_end_position())
             return chase_score * weight
+
+    def _sacrifice_priority(self, mseq, weight) -> float:
+        """
+        update the priority of the available MoveSequence with the consideration
+        of sacrifice
+
+        Sometimes making a move means sacrificing the piece we are moving, we 
+        don't want to do this blindly so this function serves as a restricting 
+        method so that we don't blindly sacrifice our pieces for no reason.
+
+        However, we are more willing to sacrifice pieces when we are leading
+
+        Parameters:
+            mseq(MoveSequence): a MoveSequence whose priority is about to be 
+                updated
+            weight(float): a float that determine how much of an influence this 
+                strategy should be playing among all the strategies
+
+        Return: float: the value to add to priority to mseq according to the 
+            sacrificing strategy
+        """
+        # check whether an opponent and its induced jump MoveSequence has
+        # already been constructed for our mseq. If not, construct them
+        if not self._curr_oppo:
+            self._curr_oppo = OppoBot(self._oppo_color,
+                                      self._experimentboard, mseq, self._level)
+        if not self._curr_oppo_induced:
+            self._curr_oppo_induced = self._curr_oppo.get_induced_jump_mseq()
+
+        # check whether the current MoveSequence will lead to a induced jump
+        if self._curr_oppo_induced:
+            # this MoveSequence leads to a sacrifice
+
+            # get the initial number of pieces for each side and the current
+            # number of pieces for each side
+            num_piece = self._experimentboard.get_board_width()/2 - 1
+            my_pieces = self._experimentboard.get_color_avail_pieces(
+                self._own_color)
+            oppo_pieces = self._experimentboard.get_color_avail_pieces(
+                self._oppo_color)
+
+            # intialize a list to take the sacrifice score
+            score_list = []
+            # traverse through all the induced jump movesequences
+            for oppo_jump in self._curr_oppo_induced:
+                # depict the difference of the number of pieces between both
+                # sides, always negative, the more pieces we have over the
+                # opponent, the smaller the absolute value.
+                difference_factor = num_piece - \
+                    (len(my_pieces) - len(oppo_pieces))
+                # sacrifice core is bigger when (1)more pieces are captured (2)
+                # The more the opponent pieces is more than mine (3) a king is
+                # captured rather than a normal piece
+                score_list.append(self._curr_oppo._captured_priority(
+                    oppo_jump, 1) * difference_factor)
+
+            return - weight * max(score_list)
+
+        # this MoveSequence doesn't lead to a sacrifice
+        return 0
 
     def _captured_priority(self, mseq, weight) -> float:
         """
@@ -914,13 +930,15 @@ class SmartBot(Bot):
             lose strategy, if the MoveSequence doesn't contain a losing move, 
             we return the original priority, otherwise, we return -math.inf
         """
-        # construct an instance of the opponent
-        Opponent = OppoBot(self._oppo_color, self._experimentboard, mseq,
-                           self._level)
+        # check whether an opponent already been constructed for our mseq
+        if not self._curr_oppo:
+            # if not, construct it
+            self._curr_oppo = OppoBot(self._oppo_color,
+                                      self._experimentboard, mseq, self._level)
 
         # check whether there is a winning move for the opponent if we take
         # this MoveSequence
-        if Opponent.contains_winning_mseq():
+        if self._curr_oppo.contains_winning_mseq():
             return - math.inf
         else:
             return 0
@@ -953,16 +971,18 @@ class SmartBot(Bot):
         Return: float: the value to add to priority to mseq according to the 
             forcing strategy
         """
-        # construct an instance of the opponent
-        Opponent = OppoBot(self._oppo_color, self._experimentboard, mseq,
-                           self._level)
+        # check whether an opponent and its induced jump MoveSequence has
+        # already been constructed for our mseq. If not, construct them
+        if not self._curr_oppo:
+            self._curr_oppo = OppoBot(self._oppo_color,
+                                      self._experimentboard, mseq, self._level)
+        if not self._curr_oppo_induced:
+            self._curr_oppo_induced = self._curr_oppo.get_induced_jump_mseq()
 
-        # get the induced jump MoveSequence of the opponent
-        oppo_mseq_list = Opponent.get_induced_jump_mseq()
-        if len(oppo_mseq_list) == 1:
+        if len(self._curr_oppo_induced) == 1:
             # if there is this unique induced jump MoveSequence, update the
             # board to the state that assumes the opponent has taken this move
-            oppo_mseq = oppo_mseq_list[0]
+            oppo_mseq = self._curr_oppo_induced[0]
             oppo_move_list = oppo_mseq.get_move_list()
             for move in oppo_move_list:
                 self._experimentboard.complete_move(move)
@@ -1032,8 +1052,13 @@ class OppoBot(SmartBot):
         """
         super().__init__(own_color, checkersboard, level)
 
-        # initialize the move sequence assumed to be taken by the SmartBot
+        # initialize a container for the last MoveSquence that the SmartBot was
+        # assumed to have taken
         self._last_mseq = last_mseq
+
+        # all the available MoveSequences with the conisderation of whether
+        # there exists a winning move
+        self._mseq_list = self._get_mseq_list([(self._winning_priority, None)])
 
     def contains_winning_mseq(self) -> bool:
         """
@@ -1045,10 +1070,8 @@ class OppoBot(SmartBot):
             Otherwise
         """
         # get all the possible move sequences and examine whether they contain
-        # winning moves
-        mseq_list = self._get_mseq_list([(self._winning_priority, None)])
 
-        for mseq in mseq_list:
+        for mseq in self._mseq_list:
             if mseq.get_priority() == math.inf:
                 # there exists a winning MoveSequence
                 return True
@@ -1070,11 +1093,9 @@ class OppoBot(SmartBot):
             the SmartBot, or None if such induced jump doesn't exist or is not 
             the only available move fro OppoBot
         """
-        # get all the MoveSequences available for the OppoBot
-        mseq_list = self._get_mseq_list([])
         # initialize an output list
         output_list = []
-        for mseq in mseq_list:
+        for mseq in self._mseq_list:
             first_move = mseq.get_move_list()[0]
             # check out whether the first move is a jump
             if isinstance(first_move, Jump):
