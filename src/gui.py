@@ -3007,9 +3007,8 @@ class GuiApp:
                 self._execute_bot_moves(remaining_moves)
             else:
                 # If next player is also a bot, auto-complete their moves, too
-                if self._state.dialog or not self._attempt_start_bot_turn():
-                    # First test: dialog posted, don't start next player's turn
-                    # Second test: next player is not bot, so is human
+                if not self._attempt_start_bot_turn():
+                    # Next player is not bot, so re-enable move interactions
                     self._rebuild_when_ready(can_user_move=True)
 
         def bot_choose_dest() -> None:
