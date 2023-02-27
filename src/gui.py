@@ -225,12 +225,7 @@ class _PlayerLeadStatus(Enum):
     DRAWING = "Drawing"
 
 
-# ===============
-# STATIC CONSTANT 'ENUMS'
-# ===============
-
-
-class _Sizes:
+class _Sizes(IntEnum):
     MICRO = 2
     XXS = 4
     XS = 8
@@ -242,7 +237,7 @@ class _Sizes:
     MEGA = 42
 
 
-class _GeneralSizes:
+class _GeneralSizes(IntEnum):
     # Sizes
     LABEL_HEIGHT = 20
     TEXTINPUT_HEIGHT = 40
@@ -250,9 +245,15 @@ class _GeneralSizes:
     BUTTON_HEIGHT = 40
 
 
+# ===============
+# EVENTS
+# ===============
+
+
 class _GeneralEvents:
     # Event names
     NAME_REBUILD = "rebuild"
+
     # Parameters
     PARAM_NAME = "name"
     PARAM_DISABLE_MOVE = "disable-move"
@@ -411,8 +412,6 @@ def _color_str(color: PieceColor) -> str:
 
     Returns:
         str: string representation of piece color
-
-    TODO: consider moving this function to `checkers.py`
     """
     if color == PieceColor.RED:
         return "Red"
