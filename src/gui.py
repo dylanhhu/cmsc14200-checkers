@@ -1268,6 +1268,7 @@ class MenuDialog(UIConfirmationDialog):
     """
     Creating an instance of this class creates an in-game menu dialog.
     """
+
     def __init__(self, rel_rect: pygame.Rect) -> None:
         """
         Initialize the dialog by overriding parameters of
@@ -1291,6 +1292,7 @@ class GameOverDialog(UIConfirmationDialog):
     Creating an instance of this class creates a 'game over' dialog for
     declaring a winner.
     """
+
     def __init__(self, rel_rect: pygame.Rect,
                  winner_color: str,
                  winner_name: str) -> None:
@@ -1787,7 +1789,6 @@ class GuiApp:
             # RED PANEL
             # ===============
             self._lib.draft(
-                _SetupElems.RED_PANEL,
                 UIPanel(
                     self._rel_rect(
                         width=_SetupConsts.PANEL_WIDTH,
@@ -1804,9 +1805,9 @@ class GuiApp:
                             - _SetupConsts.BETWEEN_PANELS // 2,
                             _SetupConsts.ABOVE_PANELS // 2),
                     ),
+                    object_id=_SetupElems.RED_PANEL,
                     starting_layer_height=0))
             self._lib.draft(
-                _SetupElems.RED_PANEL_TITLE,
                 UILabel(
                     self._rel_rect(
                         width=_SetupConsts.PANEL_TITLE_WIDTH,
@@ -1823,9 +1824,9 @@ class GuiApp:
                         ),
                         offset=Offset(0, _SetupConsts.ABOVE_PANEL_TITLE)
                     ),
-                    "Red"))
+                    "Red",
+                    object_id=_SetupElems.RED_PANEL_TITLE))
             self._lib.draft(
-                _SetupElems.RED_TYPE_DROPDOWN,
                 UIDropDownMenu(
                     _SetupConsts.PLAYER_MODE_OPTIONS,
                     str(self._state.red_type.value),
@@ -1842,10 +1843,8 @@ class GuiApp:
                             RelPos.END
                         ),
                         offset=Offset(0, _SetupConsts.BELOW_PANEL_TITLE)),
-                    object_id=_SetupElems.RED_TYPE_DROPDOWN,
-                    manager=self._ui_manager))
+                    object_id=_SetupElems.RED_TYPE_DROPDOWN))
             self._lib.draft(
-                _SetupElems.RED_NAME_TEXTINPUT,
                 UITextEntryLine(
                     self._rel_rect(
                         width=_SetupConsts.PANEL_CONTENT_WIDTH,
@@ -1867,7 +1866,6 @@ class GuiApp:
                     initial_text=self._state.red_name_raw,
                     visible=self._state.red_type == _PlayerType.HUMAN))
             self._lib.draft(
-                _SetupElems.RED_BOT_DIFFICULTY_DROPDOWN,
                 UIDropDownMenu(
                     _SetupConsts.BOT_DIFFICULTY_OPTIONS,
                     str(self._state.red_bot_level.value),
@@ -1893,7 +1891,6 @@ class GuiApp:
             # BLACK PANEL
             # ===============
             self._lib.draft(
-                _SetupElems.BLACK_PANEL,
                 UIPanel(
                     self._rel_rect(
                         width=_SetupConsts.PANEL_WIDTH,
@@ -1912,9 +1909,8 @@ class GuiApp:
                         ),
                     ),
                     starting_layer_height=0,
-                    manager=self._ui_manager))
+                    object_id=_SetupElems.BLACK_PANEL))
             self._lib.draft(
-                _SetupElems.BLACK_PANEL_TITLE,
                 UILabel(
                     self._rel_rect(
                         width=_SetupConsts.PANEL_TITLE_WIDTH,
@@ -1931,9 +1927,9 @@ class GuiApp:
                         ),
                         offset=Offset(0, _SetupConsts.ABOVE_PANEL_TITLE)
                     ),
-                    "Black"))
+                    "Black",
+                    object_id=_SetupElems.BLACK_PANEL_TITLE))
             self._lib.draft(
-                _SetupElems.BLACK_TYPE_DROPDOWN,
                 UIDropDownMenu(
                     _SetupConsts.PLAYER_MODE_OPTIONS,
                     str(self._state.black_type.value),
@@ -1950,10 +1946,8 @@ class GuiApp:
                             RelPos.END
                         ),
                         offset=Offset(0, _SetupConsts.BELOW_PANEL_TITLE)),
-                    object_id=_SetupElems.BLACK_TYPE_DROPDOWN,
-                    manager=self._ui_manager))
+                    object_id=_SetupElems.BLACK_TYPE_DROPDOWN))
             self._lib.draft(
-                _SetupElems.BLACK_NAME_TEXTINPUT,
                 UITextEntryLine(
                     self._rel_rect(
                         width=_SetupConsts.PANEL_CONTENT_WIDTH,
@@ -1969,13 +1963,11 @@ class GuiApp:
                         ),
                         offset=Offset(0,
                                       _SetupConsts.BELOW_PLAYER_MODE_DROPDOWN)),
-                    manager=self._ui_manager,
                     object_id=_SetupElems.BLACK_NAME_TEXTINPUT,
                     placeholder_text="Name...",
                     initial_text=self._state.black_name_raw,
                     visible=self._state.black_type == _PlayerType.HUMAN))
             self._lib.draft(
-                _SetupElems.BLACK_BOT_DIFFICULTY_DROPDOWN,
                 UIDropDownMenu(
                     _SetupConsts.BOT_DIFFICULTY_OPTIONS,
                     str(self._state.black_bot_level.value),
@@ -1991,9 +1983,9 @@ class GuiApp:
                             RelPos.CENTER,
                             RelPos.END
                         ),
-                        offset=Offset(0,
-                                      _SetupConsts.BELOW_PLAYER_MODE_DROPDOWN)),
-                    manager=self._ui_manager,
+                        offset=Offset(
+                            0, _SetupConsts.BELOW_PLAYER_MODE_DROPDOWN)
+                    ),
                     object_id=_SetupElems.BLACK_BOT_DIFFICULTY_DROPDOWN,
                     visible=self._state.black_type == _PlayerType.BOT))
 
@@ -2001,7 +1993,6 @@ class GuiApp:
             # WELCOME TEXT
             # ===============
             self._lib.draft(
-                _SetupElems.WELCOME_TEXT,
                 UILabel(
                     self._rel_rect(
                         width=Fraction(1),
@@ -2019,14 +2010,12 @@ class GuiApp:
                             RelPos.START
                         )),
                     "Welcome to Checkers!",
-                    self._ui_manager,
                     object_id=_SetupElems.WELCOME_TEXT))
 
             # ===============
             # START GAME BUTTON
             # ===============
             self._lib.draft(
-                _SetupElems.START_GAME_BUTTON,
                 UIButton(
                     self._rel_rect(
                         width=_SetupConsts.START_GAME_BUTTON_WIDTH,
@@ -2040,7 +2029,6 @@ class GuiApp:
                             RelPos.START
                         )),
                     "Start game",
-                    self._ui_manager,
                     object_id=_SetupElems.START_GAME_BUTTON))
             self._validate_game_setup()
 
@@ -2048,7 +2036,6 @@ class GuiApp:
             # NUM PLAYER ROWS
             # ===============
             self._lib.draft(
-                _SetupElems.NUM_PLAYER_ROWS_TEXTINPUT,
                 UITextEntryLine(
                     self._rel_rect(
                         width=_SetupConsts.NUM_PLAYER_ROWS_WIDTH,
@@ -2064,12 +2051,10 @@ class GuiApp:
                         ),
                         offset=Offset(- _SetupConsts.RIGHT_OF_NUM_ROWS, 0)
                     ),
-                    manager=self._ui_manager,
                     object_id=_SetupElems.NUM_PLAYER_ROWS_TEXTINPUT,
                     placeholder_text="Number...",
                     initial_text=self._state.num_rows_per_player_raw))
             self._lib.draft(
-                _SetupElems.NUM_PLAYER_ROWS_TITLE,
                 UILabel(
                     self._rel_rect(
                         width=IntrinsicSize(),
@@ -2086,14 +2071,13 @@ class GuiApp:
                         offset=Offset(0, - _SetupConsts.ABOVE_NUM_ROWS)
                     ),
                     "Rows per player",
-                )
-            )
+                    object_id=_SetupElems.NUM_PLAYER_ROWS_TITLE))
+
         elif self._state.screen == _Screens.GAME:
             # ===============
             # TITLE BAR
             # ===============
             self._lib.draft(
-                _GameElems.TITLE_TEXT,
                 UILabel(
                     self._rel_rect(
                         width=IntrinsicSize(),
@@ -2107,11 +2091,9 @@ class GuiApp:
                             RelPos.END
                         ),
                     ),
-                    "Checkers"
-                )
-            )
+                    "Checkers",
+                    object_id=_GameElems.TITLE_TEXT))
             self._lib.draft(
-                _GameElems.MENU_BUTTON,
                 UIButton(
                     self._rel_rect(
                         width=60,
@@ -2126,15 +2108,11 @@ class GuiApp:
                         ),
                     ),
                     "Menu",
-                    object_id=_GameElems.MENU_BUTTON,
-                    manager=self._ui_manager
-                )
-            )
+                    object_id=_GameElems.MENU_BUTTON))
             # ===============
             # ACTION BAR
             # ===============
             self._lib.draft(
-                _GameElems.ACTION_BAR,
                 UIPanel(
                     self._rel_rect(
                         width=Fraction(1),
@@ -2148,11 +2126,9 @@ class GuiApp:
                             RelPos.START
                         )
                     ),
-                    starting_layer_height=0
-                )
-            )
+                    object_id=_GameElems.ACTION_BAR,
+                    starting_layer_height=0))
             self._lib.draft(
-                _GameElems.CURRENT_PLAYER_LABEL,
                 UILabel(
                     self._rel_rect(
                         width=IntrinsicSize(),
@@ -2169,10 +2145,8 @@ class GuiApp:
                         offset=Offset(_GameConsts.ACTION_BAR_X_PADDING, 0)
                     ),
                     f"{self._state.current_player_name()}'s move:",
-                )
-            )
+                    object_id=_GameElems.CURRENT_PLAYER_LABEL))
             self._lib.draft(
-                _GameElems.SELECTED_PIECE_DROPDOWN,
                 UIDropDownMenu(
                     self._state.get_dropdown_start_positions(),
                     self._state.grid_position_to_string(self._state.start_pos),
@@ -2190,11 +2164,8 @@ class GuiApp:
                         ),
                         offset=Offset(_Sizes.M, 0)
                     ),
-                    object_id=_GameElems.SELECTED_PIECE_DROPDOWN
-                ),
-            )
+                    object_id=_GameElems.SELECTED_PIECE_DROPDOWN))
             self._lib.draft(
-                _GameElems.PIECE_TO_DESTINATION_LABEL,
                 UILabel(
                     self._rel_rect(
                         width=IntrinsicSize(),
@@ -2210,11 +2181,9 @@ class GuiApp:
                         ),
                         offset=Offset(_GameConsts.ACTION_BAR_ARROW_X_MARGIN, 0)
                     ),
-                    "→"
-                )
-            )
+                    "→",
+                    object_id=_GameElems.PIECE_TO_DESTINATION_LABEL))
             self._lib.draft(
-                _GameElems.DESTINATION_DROPDOWN,
                 UIDropDownMenu(
                     self._state.get_dropdown_dest_positions(),
                     self._state.grid_position_to_string(self._state.dest_pos),
@@ -2232,11 +2201,8 @@ class GuiApp:
                         ),
                         offset=Offset(_GameConsts.ACTION_BAR_ARROW_X_MARGIN, 0)
                     ),
-                    object_id=_GameElems.DESTINATION_DROPDOWN
-                ),
-            )
+                    object_id=_GameElems.DESTINATION_DROPDOWN))
             self._lib.draft(
-                _GameElems.SUBMIT_MOVE_BUTTON,
                 UIButton(
                     self._rel_rect(
                         width=80,
@@ -2253,9 +2219,7 @@ class GuiApp:
                         offset=Offset(-_GameConsts.ACTION_BAR_X_PADDING, 0)
                     ),
                     "Move",
-                    object_id=_GameElems.SUBMIT_MOVE_BUTTON
-                ),
-            )
+                    object_id=_GameElems.SUBMIT_MOVE_BUTTON))
             if self._state.winner:
                 # Someone has won the game: disable the action bar
                 self._disable_move_elems()
@@ -2263,7 +2227,6 @@ class GuiApp:
             # CHECKERS BOARD
             # ===============
             self._lib.draft(
-                _GameElems.BOARD,
                 UIPanel(
                     self._rel_rect(
                         width=MatchOtherSide(),
@@ -2279,9 +2242,7 @@ class GuiApp:
                         )
                     ),
                     object_id=_GameElems.BOARD,
-                    starting_layer_height=0
-                )
-            )
+                    starting_layer_height=0))
 
             # Add every square to board
             for row, col in itertools.product(
@@ -2312,7 +2273,6 @@ class GuiApp:
 
                 # Draft square
                 self._lib.draft(
-                    elem_id,
                     UIPanel(
                         self._rel_rect(
                             width=self._state.square_side,
@@ -2334,12 +2294,10 @@ class GuiApp:
                                                            _COORD_SQUARES)
                             )
                         ),
-                        starting_layer_height=0,
                         object_id=ObjectID(
                             class_id=elem_class,
-                            object_id=elem_id)
-                    ),
-                )
+                            object_id=elem_id),
+                        starting_layer_height=0))
 
             # Add coordinates (do both horizontally and vertically at once)
             for side_n in range(self._state.board_side_num):
@@ -2354,7 +2312,6 @@ class GuiApp:
 
                 # Add coordinate letter
                 self._lib.draft(
-                    letter_elem_id,
                     UILabel(
                         self._rel_rect(
                             width=self._state.square_side,
@@ -2373,13 +2330,11 @@ class GuiApp:
                                 0,
                                 NegFraction(self._state.square_side.value / 2)
                             )),
-                        _AppState.col_position_to_string(side_n)
-                    )
-                )
+                        _AppState.col_position_to_string(side_n),
+                        object_id=letter_elem_id))
 
                 # Add coordinate number
                 self._lib.draft(
-                    num_elem_id,
                     UILabel(
                         self._rel_rect(
                             width=self._state.square_side,
@@ -2397,9 +2352,8 @@ class GuiApp:
                             offset=Offset(
                                 NegFraction(self._state.square_side.value / 2),
                                 0)),
-                        _AppState.row_position_to_string(side_n)
-                    )
-                )
+                        _AppState.row_position_to_string(side_n),
+                        object_id=num_elem_id))
 
             # Add pieces
             for piece in self._state.board.get_board_pieces():
@@ -2428,7 +2382,6 @@ class GuiApp:
                 # Draft checkers piece
                 parent_id = self._board_square_id(pos)
                 self._lib.draft(
-                    elem_id,
                     UIPanel(
                         self._rel_rect(
                             width=Fraction(0.7),
@@ -2444,12 +2397,10 @@ class GuiApp:
                                 RelPos.CENTER
                             )
                         ),
-                        starting_layer_height=0,
                         object_id=ObjectID(
                             class_id=elem_class,
-                            object_id=elem_id)
-                    )
-                )
+                            object_id=elem_id),
+                        starting_layer_height=0))
 
             # ===============
             # CAPTURED PANEL
@@ -2465,7 +2416,6 @@ class GuiApp:
             captured_panel_height = self._lib.get_elem(_GameElems.BOARD) \
                 .relative_rect.height
             self._lib.draft(
-                _GameElems.CAPTURED_PANEL,
                 UIPanel(
                     self._rel_rect(
                         width=captured_panel_width,
@@ -2481,11 +2431,8 @@ class GuiApp:
                         ),
                     ),
                     object_id=_GameElems.CAPTURED_PANEL,
-                    starting_layer_height=0
-                )
-            )
+                    starting_layer_height=0))
             self._lib.draft(
-                _GameElems.CAPTURED_PANEL_TITLE,
                 UILabel(
                     self._rel_rect(
                         width=IntrinsicSize(),
@@ -2501,9 +2448,8 @@ class GuiApp:
                         ),
                         offset=Offset(_Sizes.L, _Sizes.XL)
                     ),
-                    "Captured pieces:"
-                )
-            )
+                    "Captured pieces:",
+                    object_id=_GameElems.CAPTURED_PANEL_TITLE))
 
             # ===============
             # CAPTURED PANEL DATA
@@ -2532,7 +2478,6 @@ class GuiApp:
 
             # Black player stats
             self._lib.draft(
-                _GameElems.CAPTURED_BLACK_TITLE,
                 UILabel(
                     self._rel_rect(
                         width=IntrinsicSize(),
@@ -2548,11 +2493,9 @@ class GuiApp:
                         ),
                         offset=Offset(_Sizes.M, _Sizes.XXL)
                     ),
-                    f"Black{black_status} = "
-                )
-            )
+                    f"Black{black_status} = ",
+                    object_id=_GameElems.CAPTURED_BLACK_TITLE))
             self._lib.draft(
-                _GameElems.CAPTURED_BLACK_COUNT,
                 UILabel(
                     self._rel_rect(
                         width=IntrinsicSize(),
@@ -2570,15 +2513,12 @@ class GuiApp:
                     ),
                     str(self._state.pieces_captured_count(PieceColor.BLACK)),
                     object_id=ObjectID(
-                        _GameElems.CAPTURED_BLACK_COUNT,
-                        "@captured-count"
-                    )
-                )
-            )
+                        object_id=_GameElems.CAPTURED_BLACK_COUNT,
+                        class_id="@captured-count"
+                    )))
 
             # Red player stats
             self._lib.draft(
-                _GameElems.CAPTURED_RED_TITLE,
                 UILabel(
                     self._rel_rect(
                         width=IntrinsicSize(),
@@ -2594,11 +2534,9 @@ class GuiApp:
                         ),
                         offset=Offset(0, _Sizes.M)
                     ),
-                    f"Red{red_status} = "
-                )
-            )
+                    f"Red{red_status} = ",
+                    object_id=_GameElems.CAPTURED_RED_TITLE))
             self._lib.draft(
-                _GameElems.CAPTURED_RED_COUNT,
                 UILabel(
                     self._rel_rect(
                         width=IntrinsicSize(),
@@ -2616,11 +2554,8 @@ class GuiApp:
                     ),
                     str(self._state.pieces_captured_count(PieceColor.RED)),
                     object_id=ObjectID(
-                        _GameElems.CAPTURED_RED_COUNT,
-                        "@captured-count"
-                    )
-                )
-            )
+                        object_id=_GameElems.CAPTURED_RED_COUNT,
+                        class_id="@captured-count")))
 
             # ===============
             # PIECES LEFT STATUS BAR
@@ -2633,7 +2568,6 @@ class GuiApp:
 
             # The status bar
             self._lib.draft(
-                _GameElems.PIECES_LEFT_BAR,
                 UIStatusBar(
                     self._rel_rect(
                         parent_id=_GameElems.CAPTURED_PANEL,
@@ -2650,13 +2584,11 @@ class GuiApp:
                         ),
                         offset=Offset(0, - _Sizes.L)
                     ),
-                    percent_method=self._state.current_player_avail_fraction,
                     object_id=ObjectID(
-                        _GameElems.PIECES_LEFT_BAR,
-                        f"@status-bar-{current_color_str.lower()}"
-                    )
-                )
-            )
+                        object_id=_GameElems.PIECES_LEFT_BAR,
+                        class_id=f"@status-bar-{current_color_str.lower()}"
+                    ),
+                    percent_method=self._state.current_player_avail_fraction))
 
             # Calculate available & original number of pieces
             num_pieces_avail = self._state.pieces_avail_count(
@@ -2665,7 +2597,6 @@ class GuiApp:
 
             # Title for the status bar
             self._lib.draft(
-                _GameElems.PIECES_LEFT_TITLE,
                 UILabel(
                     self._rel_rect(
                         width=IntrinsicSize(),
@@ -2682,9 +2613,8 @@ class GuiApp:
                         offset=Offset(0, - _Sizes.S)
                     ),
                     f"{current_color_str} "
-                    f"({num_pieces_avail}/{starting_num_avail}):"
-                )
-            )
+                    f"({num_pieces_avail}/{starting_num_avail}):",
+                    object_id=_GameElems.PIECES_LEFT_TITLE))
 
     @staticmethod
     def _board_square_id(position: Position) -> str:

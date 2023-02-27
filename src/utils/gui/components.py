@@ -247,12 +247,9 @@ class GuiComponentLib:
         """
         self._draft_screen = screen_id
 
-    def draft(self,
-              elem_id: ElementId,
-              new_elem: Element) -> None:
+    def draft(self, new_elem: Element) -> None:
         """
-        Draft a GUI element for painting, referencing it by its unique
-        element ID.
+        Draft a GUI element for painting. Must have an object ID.
 
         Requires that the element is already initialized (via `init_elem` or
         `init_screen_elems`).
@@ -260,19 +257,25 @@ class GuiComponentLib:
         Requires that the draft screen is already set (via `set_draft_screen`).
 
         Args:
-            elem_id (ElementId): unique element ID
             new_elem (Element): the new element
 
         Returns:
             None
 
         Raises:
-            ValueError if draft screen is not set.
+            ValueError if element doesn't have an Object ID.
+            RuntimeError if draft screen is not set.
             RuntimeError if draft screen ID doesn't exist.
             RuntimeError if element ID doesn't exist.
         """
         if self._draft_screen is None:
             raise ValueError("Draft screen must first be set.")
+
+        # Get unique element ID from Object ID
+        if object_ids := new_elem.object_ids:
+            elem_id = object_ids[0]
+        else:
+            raise ValueError("Element doesn't have an Object ID.")
 
         self._get_component(elem_id, self._draft_screen).elem = new_elem
 
