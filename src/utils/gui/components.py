@@ -251,9 +251,6 @@ class GuiComponentLib:
         """
         Draft a GUI element for painting. Must have an object ID.
 
-        Requires that the element is already initialized (via `init_elem` or
-        `init_screen_elems`).
-
         Requires that the draft screen is already set (via `set_draft_screen`).
 
         Args:
@@ -265,7 +262,6 @@ class GuiComponentLib:
         Raises:
             ValueError if element doesn't have an Object ID.
             RuntimeError if draft screen is not set.
-            RuntimeError if draft screen ID doesn't exist.
             RuntimeError if element ID doesn't exist.
         """
         if self._draft_screen is None:
@@ -277,6 +273,10 @@ class GuiComponentLib:
         else:
             raise ValueError("Element doesn't have an Object ID.")
 
+        # Initialize element for draft screen
+        self.init_elem(elem_id, self._draft_screen)
+
+        # Set element for the relevant stored component
         self._get_component(elem_id, self._draft_screen).elem = new_elem
 
     def mod_elem(self,

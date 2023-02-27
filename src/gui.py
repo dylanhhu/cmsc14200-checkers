@@ -297,19 +297,6 @@ class _SetupElems:
 
     START_GAME_BUTTON = "#start-game-button"
 
-    # ===============
-    # LIST OF ELEMENT IDS
-    # ===============
-
-    init_ids = [WELCOME_TEXT, RED_PANEL, BLACK_PANEL,
-                RED_PANEL_TITLE, BLACK_PANEL_TITLE,
-                RED_TYPE_DROPDOWN, BLACK_TYPE_DROPDOWN,
-                RED_NAME_TEXTINPUT, BLACK_NAME_TEXTINPUT,
-                RED_BOT_DIFFICULTY_DROPDOWN,
-                BLACK_BOT_DIFFICULTY_DROPDOWN,
-                NUM_PLAYER_ROWS_TEXTINPUT, NUM_PLAYER_ROWS_TITLE,
-                START_GAME_BUTTON]
-
 
 class _SetupConsts:
     # Sizes
@@ -376,21 +363,6 @@ class _GameElems:
     CAPTURED_RED_COUNT = "#captured-red-count"
     PIECES_LEFT_TITLE = "#pieces-left-title"
     PIECES_LEFT_BAR = "#pieces-left-bar"
-
-    # ===============
-    # LIST OF ELEMENT IDS
-    # ===============
-
-    init_ids = [TITLE_TEXT, MENU_BUTTON, ACTION_BAR, CURRENT_PLAYER_LABEL,
-                SELECTED_PIECE_DROPDOWN, PIECE_TO_DESTINATION_LABEL,
-                DESTINATION_DROPDOWN, SUBMIT_MOVE_BUTTON, BOARD, CAPTURED_PANEL,
-                CAPTURED_PANEL_TITLE, CAPTURED_BLACK_TITLE, CAPTURED_RED_TITLE,
-                CAPTURED_BLACK_COUNT, CAPTURED_RED_COUNT, PIECES_LEFT_TITLE,
-                PIECES_LEFT_BAR]
-
-    # ===============
-    # No need to init these:
-    # ===============
 
     # Menu dialog
     MENU_DIALOG = "#menu-dialog"
@@ -1373,10 +1345,6 @@ class GuiApp:
 
         # Initialize the element library
         self._lib = GuiComponentLib()
-        self._lib.init_screen_elems(_Screens.get_setup_name(),
-                                    _SetupElems.init_ids)
-        self._lib.init_screen_elems(_Screens.get_game_name(),
-                                    _GameElems.init_ids)
 
         # Build the UI for the first time
         self._rebuild_ui()
@@ -2250,10 +2218,9 @@ class GuiApp:
                     range(self._state.board_side_num)):
                 pos = (row, col)  # square position on game board
 
-                # Initialize board square
+                # Board square unique ID
                 elem_id = self._board_square_id(pos)
-                self._lib.init_elem(elem_id,
-                                    self._get_current_screen_name())
+
                 # Color
                 if (row % 2 == 1 and col % 2 == 0) or \
                         (row % 2 == 0 and col % 2 == 1):
@@ -2301,14 +2268,9 @@ class GuiApp:
 
             # Add coordinates (do both horizontally and vertically at once)
             for side_n in range(self._state.board_side_num):
-                # Initialize letter and number
+                # Letter and number: unique element IDs
                 letter_elem_id = f"coord-letter-{side_n + 1}"
-                self._lib.init_elem(letter_elem_id,
-                                    self._get_current_screen_name())
-
                 num_elem_id = f"coord-num-{side_n + 1}"
-                self._lib.init_elem(num_elem_id,
-                                    self._get_current_screen_name())
 
                 # Add coordinate letter
                 self._lib.draft(
@@ -2360,10 +2322,8 @@ class GuiApp:
                 # Get position
                 pos = piece.get_position()
 
-                # Initialize checkers piece
+                # Checkers piece: unique element ID
                 elem_id = self._checkers_piece_id(pos)
-                self._lib.init_elem(elem_id,
-                                    self._get_current_screen_name())
 
                 # Color
                 if piece.get_color() == PieceColor.RED:
