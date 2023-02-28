@@ -66,7 +66,7 @@ python3 src/gui.py
   - Using the right dropdown box, select the destination position you wish to move the selected piece to
 - While a bot is making their move, the other player must wait
 
-#### Implemented since Milestone 2:
+#### Changes since Milestone 2:
 - [x] Game menu window (to start new game)
 - [x] Click to select a piece and its destination square
 - [x] Display king pieces differently from regular pieces
