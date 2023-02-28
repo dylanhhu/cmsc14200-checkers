@@ -2712,8 +2712,12 @@ class GuiApp:
             new_screen (_Screens): screen to navigate to
         """
         if new_screen != self._get_current_screen():
+            # Close any open dialogs
+            self._state.close_dialog()
+
             # Screen is not already open
             self._set_current_screen(new_screen)
+
             # Needs rebuild UI to clear old screen & draw new screen
             self._rebuild_ui()
 
@@ -3223,7 +3227,7 @@ class GuiApp:
                 # ===============
                 # Confirmed: START NEW GAME
                 # ===============
-                self._state = _AppState()
+                self._open_screen(_Screens.SETUP)
                 self._rebuild_ui()
         elif event.type == pygame_gui.UI_WINDOW_CLOSE:
             if _ := self._state.handle_close_dialog_event():
