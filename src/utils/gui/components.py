@@ -2,8 +2,8 @@
 © Kevin Gugelmann, 20 February 2023.
 All rights reserved.
 
-This file contains a GUI element library for keeping track of elements that
-should be painted, organized by screen.
+This file contains a custom GUI element library for keeping track of elements
+that should be painted, organized by screen.
 
 'Drafting' is the process by which elements are set up to be painted during the
 next PyGame-GUI UIManager update.

@@ -10,24 +10,16 @@ stateful variables. For example, it holds all the user's setup information,
 including whether each player is human or a bot and how many rows per player.
 
 When the state changes, the GuiApp's `_rebuild_ui` must be called. This is
-because many of the elements that are drafted during the rebuild process take
-data from the app state, either by referencing a property directly (such as
-`current_color` for the current player's color) or via a function (such as
-`get_dropdown_dest_positions()` to get all destination board squares for the
-current move, to be displayed in a dropdown menu).
+because the (updated) state is only retrieved when drafting elements during the
+rebuild process - either by referencing a property directly (such as
+`current_color`) or via a function (such as `get_dropdown_dest_positions()`).
 
-The GuiApp itself contains:
-- methods for creating the app window (with custom options)
-- the `_rel_rect` function for producing PyGame rectangles relative to the
-app window dimensions or relative to another element's position and dimensions
-- PyGame event handling for both screens (such as clicking to select pieces)
+Notable GuiApp methods:
 - the `_rebuild_ui` method for drafting all elements for the current screen
-- updating assets used by PyGame-GUI dynamically as the app window size changes
-- methods for executing human player moves, as well as a sequence of bot player
-moves recursively
-- opening and closing dialogs, which pause game state if bot is playing
-- navigating between the Setup and Game screen (`_open_screen`)
-- setup screen form validation (`_validate_game_setup`)
+- the `_rel_rect` function for responsively positioning and sizing elements
+- event handling for both screens (such as clicking to select pieces)
+- responsive PyGame-GUI theming for the king checkers assets
+- executing bot moves recursively with a visual delay (requires multi-threading)
 """
 
 import itertools
@@ -50,8 +42,8 @@ from pygame_gui.elements import (UIButton, UILabel, UIPanel, UITextEntryLine,
                                  UIDropDownMenu, UIStatusBar)
 
 from bot import SmartLevel, SmartBot, RandomBot
-from checkers import PieceColor, CheckersBoard, Position, Piece, Move, \
-    GameStatus
+from checkers import (PieceColor, CheckersBoard, Position, Piece, Move,
+                      GameStatus)
 from utils.gui.ui_confirmation_dialog import UIConfirmationDialog
 from utils.gui.components import GuiElementLib, ModifyElemCommand, Element
 from utils.gui.relative_rect import (RelPos, ScreenPos, ElemPos, SelfAlign,
@@ -2561,10 +2553,11 @@ class GuiApp:
                   self_align: SelfAlign = SelfAlign(),
                   offset: Offset = Offset()) -> pygame.Rect:
         """
-        Create a responsive PyGame rectangle based on relative screen
-        positioning, relative alignment, element dimensions, and an offset.
+        Custom method to create a responsive PyGame rectangle based on relative
+        screen positioning, relative alignment, element dimensions, and an
+        offset.
 
-        Intrinsic sizing only works for PyGame-GUI elements.
+        Warning: using intrinsic sizing may cause unpredictable misalignments.
 
         Args:
             width (Union[int, Fraction, IntrinsicSize, MatchOtherSide]): element
