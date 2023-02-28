@@ -55,8 +55,9 @@ python3 src/gui.py
 
 #### Make sure your inputs are valid:
 
-> - No duplicate names (if both players are human)
-> - Natural number for rows per player (>= 1)
+- No duplicate names (if both players are human)
+- Names have maximum length of 25 characters
+- Natural number for rows per player (>= 1)
 
 ### Game play
 - Black always starts
@@ -65,8 +66,16 @@ python3 src/gui.py
   - Using the right dropdown box, select the destination position you wish to move the selected piece to
 - While a bot is making their move, the other player must wait
 
+#### Implemented since Milestone 2:
+- [x] Game menu window (to start new game)
+- [x] Click to select a piece and its destination square
+- [x] Display king pieces differently from regular pieces
+- [x] Check game state (in progress or win)
+- [x] Display captured pieces
+- [x] Maintain previous game setup when start new game
+
 #### Performance optimization:
-> By design, the GUI displays each bot move with a visual delay. This delay occurs on a thread separate from the main thread, so that the window does not become unresponsive while the bot is 'selecting and making' their move.
+By design, the GUI displays each bot move with a visual delay. This delay occurs on a thread separate from the main thread, so that the window does not become unresponsive while the bot is 'selecting and making' their move.
 
 ## Testing the bot
 - To test the Bot without using GUI or TUI, run the following code in Ipython
