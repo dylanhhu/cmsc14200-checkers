@@ -1393,7 +1393,8 @@ class GuiApp:
         pygame.init()
         self._state = _AppState()
 
-        if debug:
+        self._debug = debug
+        if self._debug:
             # Mock game setup
             self._state.red_type = _PlayerType.BOT
             self._state.red_bot_level = _BotLevel.HARD
@@ -3016,6 +3017,11 @@ class GuiApp:
             Returns:
                 float: delay in seconds
             """
+            if self._debug:
+                # In debug mode, speed-run the bots
+                return 0.005 * pow(self._state.num_rows_per_player, 2.2)
+
+            # Random float between [0.4, 0.6]
             return max(random.random() * 0.6, 0.4)
 
         def check_for_pause() -> bool:
@@ -3123,8 +3129,10 @@ class GuiApp:
                 # End of turn for current player: switch to other player.
                 self._state.toggle_color()
 
-            # Update the options for the next move
-            self._state.update_move_options()
+            if not self._state.winner:
+                warnings.warn('Prevented updating move options after a win.')
+                # Update the options for the next move
+                self._state.update_move_options()
 
     def _attempt_start_bot_turn(self) -> bool:
         """
@@ -3320,7 +3328,10 @@ class GuiApp:
 
             # Inform the PyGame-GUI UIManager of events
             # (e.g. updating button hover state)
-            self._ui_manager.process_events(event)
+            try:
+                self._ui_manager.process_events(event)
+            except Exception as e:
+                warnings.warn(str(e))
 
             # Process events for the current screen
             if self._get_current_screen() == _Screens.SETUP:
