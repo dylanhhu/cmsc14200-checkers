@@ -1,7 +1,21 @@
-#
-# © Kevin Gugelmann, 20 February 2023.
-# All rights reserved.
-#
+"""
+© Kevin Gugelmann, 20 February 2023.
+All rights reserved.
+
+This file contains a GUI element library for keeping track of elements that
+should be painted, organized by screen.
+
+'Drafting' is the process by which elements are set up to be painted during the
+next PyGame-GUI UIManager update.
+
+Elements can be referenced by their unique IDs for basic modification, which
+includes:
+- show
+- hide
+- enable
+- disable
+"""
+
 from enum import Enum
 from typing import Union, List, Dict
 from dataclasses import dataclass
@@ -19,14 +33,13 @@ from pygame_gui.elements import (UIImage, UIButton, UIHorizontalSlider,
 # TYPE ALIASES
 # ===============
 
-PyGameGUIElement = Union[UIImage, UIButton, UIHorizontalSlider,
+Element = Union[UIImage, UIButton, UIHorizontalSlider,
                          UIVerticalScrollBar,
                          UIHorizontalScrollBar, UILabel, UIPanel, UIProgressBar,
                          UIScreenSpaceHealthBar, UISelectionList, UITextBox,
                          UITextEntryLine, UITooltip, UIDropDownMenu,
                          UIStatusBar, UIWorldSpaceHealthBar, UIWindow,
                          UIScrollingContainer, UITextEntryBox]
-Element = Union[PyGameGUIElement]
 ScreenId = str
 ElementId = str
 
@@ -39,7 +52,12 @@ ElementId = str
 class ModifyElemCommand(Enum):
     """
     An enumeration for the internal representation of element modification
-    commands.
+    commands:
+
+    - show
+    - hide
+    - enable
+    - disable
     """
 
     SHOW = "show"
@@ -65,7 +83,7 @@ class _GuiComponent:
 # ===============
 
 
-class GuiComponentLib:
+class GuiElementLib:
     """
     GUI component library for keeping track of PyGame-GUI elements that are
     to be painted by PyGame.
@@ -88,7 +106,7 @@ class GuiComponentLib:
         self._unique_elem_ids: Dict[ScreenId, List[ElementId]] = {}
         self._draft_screen: Union[str, None] = None
 
-    def init_elem(self, elem_id: str, screen_id: str) -> \
+    def _init_elem(self, elem_id: str, screen_id: str) -> \
             None:
         """
         Initialize a new GUI element by its unique ID, and add it to the
@@ -125,30 +143,6 @@ class GuiComponentLib:
             self._components_by_screen.get(screen_id, []) + [
                 _GuiComponent(elem_id, None, screen_id)
             ]
-
-    def init_screen_elems(self,
-                          screen_id: ScreenId,
-                          elem_ids: List[ElementId]) -> None:
-        """
-        Initialize a list of GUI elements by their unique IDs, and then add
-        them to the library.
-
-        Args:
-            screen_id (ScreenId): screen to render the elements on
-            elem_ids (List[ElementId]): list of element ids
-
-        Returns:
-            None
-
-        Raises:
-            ValueError if invalid element ID is passed.
-            ValueError if invalid screen ID is passed.
-        """
-        if screen_id not in self._components_by_screen:
-            self._components_by_screen[screen_id] = []
-
-        for elem_id in elem_ids:
-            self.init_elem(elem_id, screen_id)
 
     def _get_component(self,
                        elem_id: ElementId,
@@ -234,7 +228,9 @@ class GuiComponentLib:
 
     def set_draft_screen(self, screen_id: ScreenId) -> None:
         """
-        Setter method for the screen being drafted.
+        Setter method for the new screen being drafted.
+
+        Clears the old draft screen first.
 
         Args:
             screen_id (ScreenId): screen ID
@@ -245,6 +241,11 @@ class GuiComponentLib:
         Raises:
             RuntimeError if screen ID doesn't exist.
         """
+
+        # Clear old screen
+        self._clear_screen(self._draft_screen)
+
+        # Set new draft screen
         self._draft_screen = screen_id
 
     def draft(self, new_elem: Element) -> None:
@@ -274,7 +275,7 @@ class GuiComponentLib:
             raise ValueError("Element doesn't have an Object ID.")
 
         # Initialize element for draft screen
-        self.init_elem(elem_id, self._draft_screen)
+        self._init_elem(elem_id, self._draft_screen)
 
         # Set element for the relevant stored component
         self._get_component(elem_id, self._draft_screen).elem = new_elem
@@ -396,7 +397,8 @@ class GuiComponentLib:
 
     def _clear_screen(self, screen_id: ScreenId) -> None:
         """
-        Clear the drafting of all GUI elements in a provided screen.
+        Clear the drafting of all GUI elements in a provided screen. If the
+        screen doesn't exist - ignore.
 
         Args:
             screen_id (ScreenId): screen ID
@@ -405,14 +407,4 @@ class GuiComponentLib:
             None
         """
         for component in self._components_by_screen.get(screen_id, []):
-            GuiComponentLib._clear_elem(component)
-
-    def clear_all_screens(self) -> None:
-        """
-        Clear the drafting of all GUI elements in every screen.
-
-        Returns:
-            None
-        """
-        for screen_id in self._components_by_screen:
-            self._clear_screen(screen_id)
+            GuiElementLib._clear_elem(component)

@@ -1,7 +1,35 @@
-#
-# © Kevin Gugelmann, 20 February 2023.
-# All rights reserved.
-#
+"""
+© Kevin Gugelmann, 20 February 2023.
+All rights reserved.
+
+This file contains the GuiApp class. Once instantiated, the run() command opens
+the checkers game GUI app.
+
+Crucially, the app relies on the `_AppState` data class to keep track of
+stateful variables. For example, it holds all the user's setup information,
+including whether each player is human or a bot and how many rows per player.
+
+When the state changes, the GuiApp's `_rebuild_ui` must be called. This is
+because many of the elements that are drafted during the rebuild process take
+data from the app state, either by referencing a property directly (such as
+`current_color` for the current player's color) or via a function (such as
+`get_dropdown_dest_positions()` to get all destination board squares for the
+current move, to be displayed in a dropdown menu).
+
+The GuiApp itself contains:
+- methods for creating the app window (with custom options)
+- the `_rel_rect` function for producing PyGame rectangles relative to the
+app window dimensions or relative to another element's position and dimensions
+- PyGame event handling for both screens (such as clicking to select pieces)
+- the `_rebuild_ui` method for drafting all elements for the current screen
+- updating assets used by PyGame-GUI dynamically as the app window size changes
+- methods for executing human player moves, as well as a sequence of bot player
+moves recursively
+- opening and closing dialogs, which pause game state if bot is playing
+- navigating between the Setup and Game screen (`_open_screen`)
+- setup screen form validation (`_validate_game_setup`)
+"""
+
 import itertools
 import json
 import random
@@ -25,7 +53,7 @@ from bot import SmartLevel, SmartBot, RandomBot
 from checkers import PieceColor, CheckersBoard, Position, Piece, Move, \
     GameStatus
 from utils.gui.ui_confirmation_dialog import UIConfirmationDialog
-from utils.gui.components import GuiComponentLib, ModifyElemCommand, Element
+from utils.gui.components import GuiElementLib, ModifyElemCommand, Element
 from utils.gui.relative_rect import (RelPos, ScreenPos, ElemPos, SelfAlign,
                                      Offset, Fraction, IntrinsicSize,
                                      MatchOtherSide, NegFraction)
@@ -83,7 +111,7 @@ class _Screens(Enum):
 
 class _Dialogs(Enum):
     """
-    An enumeration for the currently open dialog.
+    An enumeration for the internal representation of each dialog.
     """
     MENU = 0
     GAME_OVER = 1
@@ -135,7 +163,7 @@ class _PlayerType(Enum):
 
 class _BotLevel(Enum):
     """
-    An enumeration of the smart level for smart bots
+    An enumeration for the smart level of a specified smart bot.
     """
     RANDOM = "Random"
     SIMPLE = "Easy"
@@ -227,6 +255,10 @@ class _PlayerLeadStatus(Enum):
 
 
 class _Sizes(IntEnum):
+    """
+    An enumeration for preset integer sizes used for paddings and margins in
+    the PyGame interface.
+    """
     MICRO = 2
     XXS = 4
     XS = 8
@@ -238,12 +270,15 @@ class _Sizes(IntEnum):
     MEGA = 42
 
 
-class _GeneralSizes(IntEnum):
-    # Sizes
-    LABEL_HEIGHT = 20
-    TEXTINPUT_HEIGHT = 40
-    DROPDOWN_HEIGHT = 40
-    BUTTON_HEIGHT = 40
+class _GeneralCompHeights(IntEnum):
+    """
+    An enumeration for the heights of general components, including: labels,
+    text inputs, dropdown menus, and buttons.
+    """
+    LABEL = 20
+    TEXTINPUT = 40
+    DROPDOWN = 40
+    BUTTON = 40
 
 
 # ===============
@@ -278,6 +313,10 @@ class _GeneralEvents:
 
 
 class _SetupElems:
+    """
+    The unique element identifiers of each element on the Setup screen.
+    """
+
     # Welcome text
     WELCOME_TEXT = "#welcome-text"
 
@@ -304,6 +343,10 @@ class _SetupElems:
 
 
 class _GameElems:
+    """
+    The unique element identifiers of each element on the Game screen.
+    """
+
     # Title bar
     TITLE_TEXT = "#title-text"
     MENU_BUTTON = "#menu-button"
@@ -388,6 +431,10 @@ class _GameElems:
 
 
 class _SetupConsts:
+    """
+    Constants used on the Setup screen, including: sizes and dropdown options.
+    """
+
     # Sizes
     BETWEEN_PANELS = _Sizes.XL
     PANEL_WIDTH = Fraction(0.35)
@@ -414,6 +461,10 @@ class _SetupConsts:
 
 
 class _GameConsts:
+    """
+    Constants used on the Game screen, including: sizes and other values.
+    """
+
     # Sizes
     ACTION_BAR_HEIGHT = 60
     DROPDOWN_WIDTH = 100
@@ -431,9 +482,17 @@ class _GameConsts:
 # ===============
 
 class _Theme:
+    """
+    Constants used for custom PyGame-GUI theming, including: file paths and
+    sets of element class IDs (used for theming).
+    """
+
+    # Files
     SOURCE_FILE_PATH = "src/data/themes/theme.json"
     DYNAMIC_FILE_NAME = "dynamic_theme.json"
     DYNAMIC_FILE_PATH = f"src/data/themes/{DYNAMIC_FILE_NAME}"
+
+    # Element class IDs
     KING_PIECES = {"@board-red-piece-king",
                    "@board-red-piece-king-selected",
                    "@board-black-piece-king",
@@ -447,7 +506,7 @@ class _Theme:
 
 def _color_str(color: PieceColor) -> str:
     """
-    Get a string representation of a piece color.
+    Creates a string representation of a given piece color.
 
     Args:
         color (PieceColor): piece color
@@ -462,7 +521,8 @@ def _color_str(color: PieceColor) -> str:
 
 def _other_color(color: PieceColor) -> PieceColor:
     """
-    Get the other player's color.
+    Gets the other player's color. If red is passed in, black is returned,
+    and vice versa.
 
     Args:
         color: this player's color
@@ -476,7 +536,8 @@ def _other_color(color: PieceColor) -> PieceColor:
 @dataclass
 class _AppState:
     """
-    Data class holding PyGame stateful values and functions that process them.
+    Data class holding PyGame stateful values and the functions that process
+    them.
     """
 
     # Lifecycle
@@ -1220,21 +1281,6 @@ class _AppState:
         # Sort descending
         return sorted(result, key=_AppState._pos_string_sort_val)
 
-    def get_dropdown_piece_destinations(self) -> List[str]:
-        """
-        Generate dropdown options that represent the positions of every
-        destination available to the currently selected checkers piece.
-
-        Returns:
-            List[str]: dropdown menu options
-        """
-        result = []
-        for pos in self.get_start_piece_positions_set():
-            result.append(self.grid_position_to_string(pos))
-
-        # Sort descending
-        return sorted(result, key=_AppState._pos_string_sort_val)
-
     def pieces_avail_count(self, player: PieceColor) -> int:
         """
         Counts the number of pieces still on the board for the given player.
@@ -1311,7 +1357,7 @@ class _AppState:
 
 
 # ===============
-# DIALOGS
+# DIALOGS (MODALS)
 # ===============
 
 class MenuDialog(UIConfirmationDialog):
@@ -1426,7 +1472,7 @@ class GuiApp:
                                                      _Theme.DYNAMIC_FILE_NAME))
 
         # Initialize the element library
-        self._lib = GuiComponentLib()
+        self._lib = GuiElementLib()
 
         # Build the UI for the first time
         self._rebuild_ui()
@@ -1434,12 +1480,1010 @@ class GuiApp:
         # Start the render clock
         self._render_clock = pygame.time.Clock()
 
+    # ===============
+    # REBUILDING SCREEN
+    # ===============
+
+    def _rebuild_ui(self) -> None:
+        """
+        Rebuilds all UI elements on the current screen. This is where all
+        elements are drafted for later painting.
+
+        Only run this if absolutely necessary, since compute is expensive.
+        """
+
+        # Clean slate window
+        self._ui_manager.set_window_resolution(
+            self._get_window_resolution())
+        self._ui_manager.clear_and_reset()
+
+        # Fill background
+        self._bg_surface = pygame.Surface(self._get_window_resolution())
+        self._bg_surface.fill(
+            self._ui_manager.get_theme().get_colour("dark_bg")
+        )
+
+        # Create all UI elements for current screen only
+        self._lib.set_draft_screen(self._get_current_screen_name())
+        if self._state.screen == _Screens.SETUP:
+            # ===============
+            # RED PANEL
+            # ===============
+            self._lib.draft(
+                UIPanel(
+                    self._rel_rect(
+                        width=_SetupConsts.PANEL_WIDTH,
+                        height=_SetupConsts.PANEL_HEIGHT,
+                        ref_pos=ScreenPos(
+                            RelPos.CENTER,
+                            RelPos.CENTER
+                        ),
+                        self_align=SelfAlign(
+                            RelPos.START,
+                            RelPos.CENTER
+                        ),
+                        offset=Offset(
+                            - _SetupConsts.BETWEEN_PANELS // 2,
+                            _SetupConsts.ABOVE_PANELS // 2),
+                    ),
+                    object_id=_SetupElems.RED_PANEL,
+                    starting_layer_height=0))
+            self._lib.draft(
+                UILabel(
+                    self._rel_rect(
+                        width=_SetupConsts.PANEL_TITLE_WIDTH,
+                        height=_GeneralCompHeights.LABEL,
+                        parent_id=_SetupElems.RED_PANEL,
+                        ref_pos=ElemPos(
+                            _SetupElems.RED_PANEL,
+                            RelPos.CENTER,
+                            RelPos.START
+                        ),
+                        self_align=SelfAlign(
+                            RelPos.CENTER,
+                            RelPos.END
+                        ),
+                        offset=Offset(0, _SetupConsts.ABOVE_PANEL_TITLE)
+                    ),
+                    "Red",
+                    object_id=_SetupElems.RED_PANEL_TITLE))
+            self._lib.draft(
+                UIDropDownMenu(
+                    _SetupConsts.PLAYER_MODE_OPTIONS,
+                    str(self._state.red_type.value),
+                    self._rel_rect(
+                        width=_SetupConsts.PANEL_CONTENT_WIDTH,
+                        height=_GeneralCompHeights.DROPDOWN,
+                        parent_id=_SetupElems.RED_PANEL,
+                        ref_pos=ElemPos(
+                            _SetupElems.RED_PANEL_TITLE,
+                            RelPos.CENTER,
+                            RelPos.END),
+                        self_align=SelfAlign(
+                            RelPos.CENTER,
+                            RelPos.END
+                        ),
+                        offset=Offset(0, _SetupConsts.BELOW_PANEL_TITLE)),
+                    object_id=_SetupElems.RED_TYPE_DROPDOWN))
+            self._lib.draft(
+                UITextEntryLine(
+                    self._rel_rect(
+                        width=_SetupConsts.PANEL_CONTENT_WIDTH,
+                        height=_GeneralCompHeights.TEXTINPUT,
+                        parent_id=_SetupElems.RED_PANEL,
+                        ref_pos=ElemPos(
+                            _SetupElems.RED_TYPE_DROPDOWN,
+                            RelPos.CENTER,
+                            RelPos.END),
+                        self_align=SelfAlign(
+                            RelPos.CENTER,
+                            RelPos.END
+                        ),
+                        offset=Offset(0,
+                                      _SetupConsts.BELOW_PLAYER_MODE_DROPDOWN)),
+                    manager=self._ui_manager,
+                    object_id=_SetupElems.RED_NAME_TEXTINPUT,
+                    placeholder_text="Name...",
+                    initial_text=self._state.red_name_raw,
+                    visible=self._state.red_type == _PlayerType.HUMAN))
+            self._lib.draft(
+                UIDropDownMenu(
+                    _SetupConsts.BOT_DIFFICULTY_OPTIONS,
+                    str(self._state.red_bot_level.value),
+                    self._rel_rect(
+                        width=_SetupConsts.PANEL_CONTENT_WIDTH,
+                        height=_GeneralCompHeights.DROPDOWN,
+                        parent_id=_SetupElems.RED_PANEL,
+                        ref_pos=ElemPos(
+                            _SetupElems.RED_TYPE_DROPDOWN,
+                            RelPos.CENTER,
+                            RelPos.END),
+                        self_align=SelfAlign(
+                            RelPos.CENTER,
+                            RelPos.END
+                        ),
+                        offset=Offset(0,
+                                      _SetupConsts.BELOW_PLAYER_MODE_DROPDOWN)),
+                    manager=self._ui_manager,
+                    object_id=_SetupElems.RED_BOT_DIFFICULTY_DROPDOWN,
+                    visible=self._state.red_type == _PlayerType.BOT))
+
+            # ===============
+            # BLACK PANEL
+            # ===============
+            self._lib.draft(
+                UIPanel(
+                    self._rel_rect(
+                        width=_SetupConsts.PANEL_WIDTH,
+                        height=_SetupConsts.PANEL_HEIGHT,
+                        ref_pos=ScreenPos(
+                            RelPos.CENTER,
+                            RelPos.CENTER
+                        ),
+                        self_align=SelfAlign(
+                            RelPos.END,
+                            RelPos.CENTER
+                        ),
+                        offset=Offset(
+                            _SetupConsts.BETWEEN_PANELS // 2,
+                            _SetupConsts.ABOVE_PANELS // 2
+                        ),
+                    ),
+                    starting_layer_height=0,
+                    object_id=_SetupElems.BLACK_PANEL))
+            self._lib.draft(
+                UILabel(
+                    self._rel_rect(
+                        width=_SetupConsts.PANEL_TITLE_WIDTH,
+                        height=_GeneralCompHeights.LABEL,
+                        parent_id=_SetupElems.BLACK_PANEL,
+                        ref_pos=ElemPos(
+                            _SetupElems.BLACK_PANEL,
+                            RelPos.CENTER,
+                            RelPos.START
+                        ),
+                        self_align=SelfAlign(
+                            RelPos.CENTER,
+                            RelPos.END
+                        ),
+                        offset=Offset(0, _SetupConsts.ABOVE_PANEL_TITLE)
+                    ),
+                    "Black",
+                    object_id=_SetupElems.BLACK_PANEL_TITLE))
+            self._lib.draft(
+                UIDropDownMenu(
+                    _SetupConsts.PLAYER_MODE_OPTIONS,
+                    str(self._state.black_type.value),
+                    self._rel_rect(
+                        width=_SetupConsts.PANEL_CONTENT_WIDTH,
+                        height=_GeneralCompHeights.DROPDOWN,
+                        parent_id=_SetupElems.BLACK_PANEL,
+                        ref_pos=ElemPos(
+                            _SetupElems.BLACK_PANEL_TITLE,
+                            RelPos.CENTER,
+                            RelPos.END),
+                        self_align=SelfAlign(
+                            RelPos.CENTER,
+                            RelPos.END
+                        ),
+                        offset=Offset(0, _SetupConsts.BELOW_PANEL_TITLE)),
+                    object_id=_SetupElems.BLACK_TYPE_DROPDOWN))
+            self._lib.draft(
+                UITextEntryLine(
+                    self._rel_rect(
+                        width=_SetupConsts.PANEL_CONTENT_WIDTH,
+                        height=_GeneralCompHeights.TEXTINPUT,
+                        parent_id=_SetupElems.BLACK_PANEL,
+                        ref_pos=ElemPos(
+                            _SetupElems.BLACK_TYPE_DROPDOWN,
+                            RelPos.CENTER,
+                            RelPos.END),
+                        self_align=SelfAlign(
+                            RelPos.CENTER,
+                            RelPos.END
+                        ),
+                        offset=Offset(0,
+                                      _SetupConsts.BELOW_PLAYER_MODE_DROPDOWN)),
+                    object_id=_SetupElems.BLACK_NAME_TEXTINPUT,
+                    placeholder_text="Name...",
+                    initial_text=self._state.black_name_raw,
+                    visible=self._state.black_type == _PlayerType.HUMAN))
+            self._lib.draft(
+                UIDropDownMenu(
+                    _SetupConsts.BOT_DIFFICULTY_OPTIONS,
+                    str(self._state.black_bot_level.value),
+                    self._rel_rect(
+                        width=_SetupConsts.PANEL_CONTENT_WIDTH,
+                        height=_GeneralCompHeights.DROPDOWN,
+                        parent_id=_SetupElems.BLACK_PANEL,
+                        ref_pos=ElemPos(
+                            _SetupElems.BLACK_TYPE_DROPDOWN,
+                            RelPos.CENTER,
+                            RelPos.END),
+                        self_align=SelfAlign(
+                            RelPos.CENTER,
+                            RelPos.END
+                        ),
+                        offset=Offset(
+                            0, _SetupConsts.BELOW_PLAYER_MODE_DROPDOWN)
+                    ),
+                    object_id=_SetupElems.BLACK_BOT_DIFFICULTY_DROPDOWN,
+                    visible=self._state.black_type == _PlayerType.BOT))
+
+            # ===============
+            # WELCOME TEXT
+            # ===============
+            self._lib.draft(
+                UILabel(
+                    self._rel_rect(
+                        width=Fraction(1),
+                        height=_GeneralCompHeights.LABEL,
+                        ref_pos=ElemPos(
+                            _SetupElems.RED_PANEL,
+                            RelPos.END,
+                            RelPos.START
+                        ),
+                        offset=Offset(
+                            _SetupConsts.BETWEEN_PANELS // 2,
+                            - _SetupConsts.ABOVE_PANELS),
+                        self_align=SelfAlign(
+                            RelPos.CENTER,
+                            RelPos.START
+                        )),
+                    "Welcome to Checkers!",
+                    object_id=_SetupElems.WELCOME_TEXT))
+
+            # ===============
+            # START GAME BUTTON
+            # ===============
+            self._lib.draft(
+                UIButton(
+                    self._rel_rect(
+                        width=_SetupConsts.START_GAME_BUTTON_WIDTH,
+                        height=_GeneralCompHeights.BUTTON,
+                        ref_pos=ScreenPos(
+                            RelPos.END,
+                            RelPos.END
+                        ),
+                        self_align=SelfAlign(
+                            RelPos.START,
+                            RelPos.START
+                        )),
+                    "Start game",
+                    object_id=_SetupElems.START_GAME_BUTTON))
+            self._validate_game_setup()
+
+            # ===============
+            # NUM PLAYER ROWS
+            # ===============
+            self._lib.draft(
+                UITextEntryLine(
+                    self._rel_rect(
+                        width=_SetupConsts.NUM_PLAYER_ROWS_WIDTH,
+                        height=_GeneralCompHeights.BUTTON,  # match button
+                        ref_pos=ElemPos(
+                            _SetupElems.START_GAME_BUTTON,
+                            RelPos.START,
+                            RelPos.CENTER
+                        ),
+                        self_align=SelfAlign(
+                            RelPos.START,
+                            RelPos.CENTER
+                        ),
+                        offset=Offset(- _SetupConsts.RIGHT_OF_NUM_ROWS, 0)
+                    ),
+                    object_id=_SetupElems.NUM_PLAYER_ROWS_TEXTINPUT,
+                    placeholder_text="Number...",
+                    initial_text=self._state.num_rows_per_player_raw))
+            self._lib.draft(
+                UILabel(
+                    self._rel_rect(
+                        width=IntrinsicSize(),
+                        height=_GeneralCompHeights.LABEL,
+                        ref_pos=ElemPos(
+                            _SetupElems.NUM_PLAYER_ROWS_TEXTINPUT,
+                            RelPos.START,
+                            RelPos.START
+                        ),
+                        self_align=SelfAlign(
+                            RelPos.END,
+                            RelPos.START
+                        ),
+                        offset=Offset(0, - _SetupConsts.ABOVE_NUM_ROWS)
+                    ),
+                    "Rows per player",
+                    object_id=_SetupElems.NUM_PLAYER_ROWS_TITLE))
+
+        elif self._state.screen == _Screens.GAME:
+            # ===============
+            # TITLE BAR
+            # ===============
+            self._lib.draft(
+                UILabel(
+                    self._rel_rect(
+                        width=IntrinsicSize(),
+                        height=_GeneralCompHeights.BUTTON,
+                        # same as menu btn
+                        ref_pos=ScreenPos(
+                            RelPos.START,
+                            RelPos.START
+                        ),
+                        self_align=SelfAlign(
+                            RelPos.END,
+                            RelPos.END
+                        ),
+                    ),
+                    "Checkers",
+                    object_id=_GameElems.TITLE_TEXT))
+            self._lib.draft(
+                UIButton(
+                    self._rel_rect(
+                        width=60,
+                        height=_GeneralCompHeights.BUTTON,
+                        ref_pos=ScreenPos(
+                            RelPos.END,
+                            RelPos.START
+                        ),
+                        self_align=SelfAlign(
+                            RelPos.START,
+                            RelPos.END
+                        ),
+                    ),
+                    "Menu",
+                    object_id=_GameElems.MENU_BUTTON))
+            # ===============
+            # ACTION BAR
+            # ===============
+            self._lib.draft(
+                UIPanel(
+                    self._rel_rect(
+                        width=Fraction(1),
+                        height=_GameConsts.ACTION_BAR_HEIGHT,
+                        ref_pos=ScreenPos(
+                            RelPos.CENTER,
+                            RelPos.END
+                        ),
+                        self_align=SelfAlign(
+                            RelPos.CENTER,
+                            RelPos.START
+                        )
+                    ),
+                    object_id=_GameElems.ACTION_BAR,
+                    starting_layer_height=0))
+            self._lib.draft(
+                UILabel(
+                    self._rel_rect(
+                        width=IntrinsicSize(),
+                        height=_GeneralCompHeights.LABEL,
+                        ref_pos=ElemPos(
+                            _GameElems.ACTION_BAR,
+                            RelPos.START,
+                            RelPos.CENTER
+                        ),
+                        self_align=SelfAlign(
+                            RelPos.END,
+                            RelPos.CENTER
+                        ),
+                        offset=Offset(_GameConsts.ACTION_BAR_X_PADDING, 0)
+                    ),
+                    f"{self._state.make_move_msg()}:",
+                    object_id=_GameElems.CURRENT_PLAYER_LABEL))
+            self._lib.draft(
+                UIDropDownMenu(
+                    self._state.get_dropdown_start_positions(),
+                    self._state.grid_position_to_string(
+                        self._state.start_pos),
+                    self._rel_rect(
+                        width=_GameConsts.DROPDOWN_WIDTH,
+                        height=_GeneralCompHeights.DROPDOWN,
+                        ref_pos=ElemPos(
+                            _GameElems.CURRENT_PLAYER_LABEL,
+                            RelPos.END,
+                            RelPos.CENTER
+                        ),
+                        self_align=SelfAlign(
+                            RelPos.END,
+                            RelPos.CENTER
+                        ),
+                        offset=Offset(_Sizes.M, 0)
+                    ),
+                    object_id=_GameElems.SELECTED_PIECE_DROPDOWN))
+            self._lib.draft(
+                UILabel(
+                    self._rel_rect(
+                        width=IntrinsicSize(),
+                        height=_GeneralCompHeights.LABEL,
+                        ref_pos=ElemPos(
+                            _GameElems.SELECTED_PIECE_DROPDOWN,
+                            RelPos.END,
+                            RelPos.CENTER
+                        ),
+                        self_align=SelfAlign(
+                            RelPos.END,
+                            RelPos.CENTER
+                        ),
+                        offset=Offset(_GameConsts.ACTION_BAR_ARROW_X_MARGIN,
+                                      0)
+                    ),
+                    "→",
+                    object_id=_GameElems.PIECE_TO_DEST_ARROW))
+            self._lib.draft(
+                UIDropDownMenu(
+                    self._state.get_dropdown_dest_positions(),
+                    self._state.grid_position_to_string(
+                        self._state.dest_pos),
+                    self._rel_rect(
+                        width=_GameConsts.DROPDOWN_WIDTH,
+                        height=_GeneralCompHeights.DROPDOWN,
+                        ref_pos=ElemPos(
+                            _GameElems.PIECE_TO_DEST_ARROW,
+                            RelPos.END,
+                            RelPos.CENTER
+                        ),
+                        self_align=SelfAlign(
+                            RelPos.END,
+                            RelPos.CENTER
+                        ),
+                        offset=Offset(_GameConsts.ACTION_BAR_ARROW_X_MARGIN,
+                                      0)
+                    ),
+                    object_id=_GameElems.DESTINATION_DROPDOWN))
+            self._lib.draft(
+                UIButton(
+                    self._rel_rect(
+                        width=80,
+                        height=_GeneralCompHeights.BUTTON,
+                        ref_pos=ElemPos(
+                            _GameElems.ACTION_BAR,
+                            RelPos.END,
+                            RelPos.CENTER
+                        ),
+                        self_align=SelfAlign(
+                            RelPos.START,
+                            RelPos.CENTER
+                        ),
+                        offset=Offset(-_GameConsts.ACTION_BAR_X_PADDING, 0)
+                    ),
+                    "Move",
+                    object_id=_GameElems.SUBMIT_MOVE_BUTTON))
+            if self._state.winner:
+                # Someone has won the game: disable the action bar
+                self._disable_move_elems()
+            # ===============
+            # CHECKERS BOARD
+            # ===============
+            self._lib.draft(
+                UIPanel(
+                    self._rel_rect(
+                        width=MatchOtherSide(),
+                        max_width=Fraction(0.65),
+                        height=Fraction(0.7),
+                        ref_pos=ScreenPos(
+                            RelPos.START,
+                            RelPos.CENTER
+                        ),
+                        self_align=SelfAlign(
+                            RelPos.END,
+                            RelPos.CENTER
+                        )
+                    ),
+                    object_id=_GameElems.BOARD,
+                    starting_layer_height=0))
+
+            # Add every square to board
+            for row, col in itertools.product(
+                    range(self._state.board_side_num),
+                    range(self._state.board_side_num)):
+                pos = (row, col)  # square position on game board
+
+                # Board square unique ID
+                elem_id = _GameElems.board_square(pos)
+
+                # Color
+                if (row % 2 == 1 and col % 2 == 0) or \
+                        (row % 2 == 0 and col % 2 == 1):
+                    elem_class = "@board-square-dark"
+                else:
+                    elem_class = "@board-square-light"
+
+                # Selected? (only check if no-one has won)
+                if not self._state.winner and self._state.dest_pos == pos:
+                    elem_class += "-selected"
+                    if self._state.get_piece_at_pos(
+                            self._state.start_pos).get_color() == \
+                            PieceColor.RED:
+                        elem_class += "-red"
+                    else:
+                        elem_class += "-black"
+
+                # Draft square
+                self._lib.draft(
+                    UIPanel(
+                        self._rel_rect(
+                            width=self._state.square_side,
+                            height=MatchOtherSide(),
+                            parent_id=_GameElems.BOARD,
+                            ref_pos=ElemPos(
+                                _GameElems.BOARD,
+                                RelPos.START,
+                                RelPos.START
+                            ),
+                            self_align=SelfAlign(
+                                RelPos.START,
+                                RelPos.START
+                            ),
+                            offset=Offset(
+                                self._state.square_side *
+                                (row + 1 + _GameConsts.COORD_SQUARES),
+                                self._state.square_side *
+                                (col + 1 + _GameConsts.COORD_SQUARES)
+                            )
+                        ),
+                        object_id=ObjectID(
+                            class_id=elem_class,
+                            object_id=elem_id),
+                        starting_layer_height=0))
+
+            # Add coordinates (do both horizontally and vertically at once)
+            for side_n in range(self._state.board_side_num):
+                # Letter and number: unique element IDs
+                letter_elem_id = f"coord-letter-{side_n + 1}"
+                num_elem_id = f"coord-num-{side_n + 1}"
+
+                # Add coordinate letter
+                self._lib.draft(
+                    UILabel(
+                        self._rel_rect(
+                            width=self._state.square_side,
+                            height=MatchOtherSide(),
+                            parent_id=_GameElems.BOARD,
+                            ref_pos=ElemPos(
+                                _GameElems.board_square((side_n, 0)),
+                                RelPos.CENTER,
+                                RelPos.CENTER
+                            ),
+                            self_align=SelfAlign(
+                                RelPos.CENTER,
+                                RelPos.START
+                            ),
+                            offset=Offset(
+                                0,
+                                NegFraction(
+                                    self._state.square_side.value / 2)
+                            )),
+                        _AppState.col_position_to_string(side_n),
+                        object_id=letter_elem_id))
+
+                # Add coordinate number
+                self._lib.draft(
+                    UILabel(
+                        self._rel_rect(
+                            width=self._state.square_side,
+                            height=MatchOtherSide(),
+                            parent_id=_GameElems.BOARD,
+                            ref_pos=ElemPos(
+                                _GameElems.board_square((0, side_n)),
+                                RelPos.CENTER,
+                                RelPos.CENTER
+                            ),
+                            self_align=SelfAlign(
+                                RelPos.START,
+                                RelPos.CENTER
+                            ),
+                            offset=Offset(
+                                NegFraction(
+                                    self._state.square_side.value / 2),
+                                0)),
+                        _AppState.row_position_to_string(side_n),
+                        object_id=num_elem_id))
+
+            # Add pieces
+            for piece in self._state.board.get_board_pieces():
+                # Get position
+                pos = piece.get_position()
+
+                # Checkers piece: unique element ID
+                elem_id = _GameElems.checkers_piece(pos)
+
+                # Color
+                if piece.get_color() == PieceColor.RED:
+                    elem_class = "@board-red-piece"
+                else:
+                    elem_class = "@board-black-piece"
+
+                # King?
+                if piece.is_king():
+                    elem_class += "-king"
+
+                # Selected?
+                if self._state.start_pos == pos:
+                    elem_class += "-selected"
+
+                # Draft checkers piece
+                parent_id = _GameElems.board_square(pos)
+                self._lib.draft(
+                    UIPanel(
+                        self._rel_rect(
+                            width=Fraction(0.7),
+                            height=MatchOtherSide(),
+                            parent_id=parent_id,
+                            ref_pos=ElemPos(
+                                parent_id,
+                                RelPos.CENTER,
+                                RelPos.CENTER
+                            ),
+                            self_align=SelfAlign(
+                                RelPos.CENTER,
+                                RelPos.CENTER
+                            )
+                        ),
+                        object_id=ObjectID(
+                            class_id=elem_class,
+                            object_id=elem_id),
+                        starting_layer_height=0))
+
+            # ===============
+            # CAPTURED PANEL
+            # ===============
+
+            # Calculate the panel dimensions, based on board dimensions
+            captured_panel_width = self._get_window_dimensions().width - \
+                                   self._get_window_options().get_padding() \
+                                   * 2 - \
+                                   _GameConsts.BOARD_RIGHT_MARGIN - \
+                                   self._lib.get_elem(
+                                       _GameElems.BOARD).relative_rect.width
+            captured_panel_height = self._lib.get_elem(_GameElems.BOARD) \
+                .relative_rect.height
+            self._lib.draft(
+                UIPanel(
+                    self._rel_rect(
+                        width=captured_panel_width,
+                        max_width=400,
+                        height=captured_panel_height,
+                        ref_pos=ScreenPos(
+                            RelPos.END,
+                            RelPos.CENTER
+                        ),
+                        self_align=SelfAlign(
+                            RelPos.START,
+                            RelPos.CENTER
+                        ),
+                    ),
+                    object_id=_GameElems.CAPTURED_PANEL,
+                    starting_layer_height=0))
+            self._lib.draft(
+                UILabel(
+                    self._rel_rect(
+                        width=IntrinsicSize(),
+                        height=_GeneralCompHeights.LABEL,
+                        ref_pos=ElemPos(
+                            _GameElems.CAPTURED_PANEL,
+                            RelPos.START,
+                            RelPos.START
+                        ),
+                        self_align=SelfAlign(
+                            RelPos.END,
+                            RelPos.END
+                        ),
+                        offset=Offset(_Sizes.L, _Sizes.XL)
+                    ),
+                    "Captured pieces:",
+                    object_id=_GameElems.CAPTURED_PANEL_TITLE))
+
+            # ===============
+            # CAPTURED PANEL DATA
+            # ===============
+
+            # Text to display which player is leading (or if both are drawing).
+            # Can infer status of both players from just one player.
+            red_lead_status = self._state.player_lead_status(PieceColor.RED)
+
+            if red_lead_status == _PlayerLeadStatus.DRAWING:
+                # Players are drawing
+                drawing_str = " (drawing)"
+                red_status = drawing_str
+                black_status = drawing_str
+            else:
+                # One player is leading
+                leading_str = " (leading)"
+                if red_lead_status == _PlayerLeadStatus.LEADING:
+                    # Red player is leading
+                    red_status = leading_str
+                    black_status = ""
+                else:
+                    # Black player is leading
+                    red_status = ""
+                    black_status = leading_str
+
+            # Black player stats
+            self._lib.draft(
+                UILabel(
+                    self._rel_rect(
+                        width=IntrinsicSize(),
+                        height=_GeneralCompHeights.LABEL,
+                        ref_pos=ElemPos(
+                            _GameElems.CAPTURED_PANEL_TITLE,
+                            RelPos.START,
+                            RelPos.END
+                        ),
+                        self_align=SelfAlign(
+                            RelPos.START,
+                            RelPos.END
+                        ),
+                        offset=Offset(_Sizes.M, _Sizes.XXL)
+                    ),
+                    f"Black{black_status} = ",
+                    object_id=_GameElems.CAPTURED_BLACK_TITLE))
+            self._lib.draft(
+                UILabel(
+                    self._rel_rect(
+                        width=IntrinsicSize(),
+                        height=80,
+                        ref_pos=ElemPos(
+                            _GameElems.CAPTURED_BLACK_TITLE,
+                            RelPos.END,
+                            RelPos.CENTER
+                        ),
+                        self_align=SelfAlign(
+                            RelPos.START,
+                            RelPos.CENTER
+                        ),
+                        offset=Offset(_Sizes.MICRO, 0)
+                    ),
+                    str(self._state.pieces_captured_count(
+                        PieceColor.BLACK)),
+                    object_id=ObjectID(
+                        object_id=_GameElems.CAPTURED_BLACK_COUNT,
+                        class_id="@captured-count"
+                    )))
+
+            # Red player stats
+            self._lib.draft(
+                UILabel(
+                    self._rel_rect(
+                        width=IntrinsicSize(),
+                        height=_GeneralCompHeights.LABEL,
+                        ref_pos=ElemPos(
+                            _GameElems.CAPTURED_BLACK_TITLE,
+                            RelPos.START,
+                            RelPos.END
+                        ),
+                        self_align=SelfAlign(
+                            RelPos.START,
+                            RelPos.END
+                        ),
+                        offset=Offset(0, _Sizes.M)
+                    ),
+                    f"Red{red_status} = ",
+                    object_id=_GameElems.CAPTURED_RED_TITLE))
+            self._lib.draft(
+                UILabel(
+                    self._rel_rect(
+                        width=IntrinsicSize(),
+                        height=80,
+                        ref_pos=ElemPos(
+                            _GameElems.CAPTURED_RED_TITLE,
+                            RelPos.END,
+                            RelPos.CENTER
+                        ),
+                        self_align=SelfAlign(
+                            RelPos.START,
+                            RelPos.CENTER
+                        ),
+                        offset=Offset(_Sizes.MICRO, 0)
+                    ),
+                    str(self._state.pieces_captured_count(PieceColor.RED)),
+                    object_id=ObjectID(
+                        object_id=_GameElems.CAPTURED_RED_COUNT,
+                        class_id="@captured-count")))
+
+            # ===============
+            # PIECES LEFT STATUS BAR
+            # (for current player)
+            # ===============
+
+            # Get current color as string
+            current_color_str = 'Red' if \
+                self._state.current_color == PieceColor.RED else 'Black'
+
+            # The status bar
+            self._lib.draft(
+                UIStatusBar(
+                    self._rel_rect(
+                        parent_id=_GameElems.CAPTURED_PANEL,
+                        width=Fraction(0.9),
+                        height=_Sizes.L,
+                        ref_pos=ElemPos(
+                            _GameElems.CAPTURED_PANEL,
+                            RelPos.CENTER,
+                            RelPos.END
+                        ),
+                        self_align=SelfAlign(
+                            RelPos.CENTER,
+                            RelPos.START
+                        ),
+                        offset=Offset(0, - _Sizes.L)
+                    ),
+                    object_id=ObjectID(
+                        object_id=_GameElems.PIECES_LEFT_BAR,
+                        class_id=f"@status-bar-{current_color_str.lower()}"
+                    ),
+                    percent_method=self._state.current_player_avail_fraction))
+
+            # Calculate available & original number of pieces
+            num_pieces_avail = self._state.pieces_avail_count(
+                self._state.current_color)
+            starting_num_avail = self._state.num_starting_pieces_per_player
+
+            # Title for the status bar
+            self._lib.draft(
+                UILabel(
+                    self._rel_rect(
+                        width=IntrinsicSize(),
+                        height=_GeneralCompHeights.LABEL,
+                        ref_pos=ElemPos(
+                            _GameElems.PIECES_LEFT_BAR,
+                            RelPos.START,
+                            RelPos.START
+                        ),
+                        self_align=SelfAlign(
+                            RelPos.START,
+                            RelPos.START
+                        ),
+                        offset=Offset(0, - _Sizes.S)
+                    ),
+                    f"{self._state.current_player_name()} "
+                    f"({num_pieces_avail}/{starting_num_avail}):",
+                    object_id=_GameElems.PIECES_LEFT_TITLE))
+
+    @staticmethod
+    def _rebuild_ui_when_ready(
+            can_user_move: Union[bool, None] = None) -> None:
+        """
+        Rebuild the PyGame UI at the next drawing opportunity.
+
+        Args:
+            can_user_move (Union[bool, None]): whether the user is allowed to
+                interact with move UI after rebuild
+
+        Returns:
+            None
+        """
+        if can_user_move is None:
+            pygame.event.post(_GeneralEvents.REBUILD)
+        elif can_user_move:
+            pygame.event.post(_GeneralEvents.REBUILD_ENABLE_MOVE)
+        else:
+            pygame.event.post(_GeneralEvents.REBUILD_DISABLE_MOVE)
+
+    # ===============
+    # SCREENS AND ROUTING
+    # ===============
+
+    def _routing_open_screen(self, new_screen: _Screens) -> None:
+        """
+        Navigate to a different screen. If screen is already open – ignore.
+
+        Args:
+            new_screen (_Screens): screen to navigate to
+        """
+        if new_screen != self._get_current_screen():
+            # Close any open dialogs
+            self._state.close_dialog()
+
+            # Screen is not already open
+            self._set_current_screen(new_screen)
+
+            # Needs rebuild UI to clear old screen & draw new screen
+            self._rebuild_ui()
+
+    def _get_current_screen(self) -> _Screens:
+        """
+        Getter method for the current screen.
+
+        Returns:
+            _Screens: current screen
+        """
+        return self._state.screen
+
+    def _get_current_screen_name(self) -> str:
+        """
+        Getter method for the string representation of the current screen.
+
+        Returns:
+            str: current screen name
+        """
+        return str(self._get_current_screen().value)
+
+    def _set_current_screen(self, new_screen: _Screens) -> None:
+        """
+        Setter method for the current screen.
+
+        Args:
+            new_screen (_Screens): new screen
+        """
+        self._state.screen = new_screen
+
+    # ===============
+    # DIALOGS (MODALS)
+    # ===============
+
+    def _check_open_dialog(self) -> None:
+        """
+        If a dialog has been posted (i.e. planned to be opened), open it now.
+
+        Must be run after UIManager has drawn the interface.
+
+        Returns:
+            None
+        """
+        if self._state.is_dialog_open():
+            # Dialog is already open
+            return
+
+        if opened_dialog := self._state.mark_dialog_open():
+            # ===============
+            # Posted: DIALOG
+            # ===============
+
+            # Use the same relative rect for all dialogs
+            dialog_rel_rect = self._rel_rect(
+                width=Fraction(0.5),
+                max_width=800,
+                height=Fraction(0.5),
+                max_height=500,
+                ref_pos=ScreenPos(
+                    RelPos.CENTER,
+                    RelPos.CENTER
+                ),
+                self_align=SelfAlign(
+                    RelPos.CENTER,
+                    RelPos.CENTER
+                )
+            )
+
+            # Check for which dialog should be opened
+            if opened_dialog == _Dialogs.MENU:
+                MenuDialog(dialog_rel_rect)
+            elif opened_dialog == _Dialogs.GAME_OVER:
+                winner_color_str = "red" \
+                    if self._state.winner == PieceColor.RED else "black"
+                GameOverDialog(
+                    dialog_rel_rect,
+                    winner_color_str,
+                    self._state.current_player_name())
+
+    # ===============
+    # APP WINDOW
+    # ===============
+
+    def _check_window_dimensions_changed(self) -> None:
+        """
+        Checks whether the window dimensions have changed. If they have,
+        the UI is rebuilt accordingly.
+        """
+        current_dimensions_tuple = pygame.display.get_surface().get_size()
+        if current_dimensions_tuple != self._get_window_resolution():
+            # Window dimensions have changed since last paint:
+            # store the new dimensions in memory
+            self._window_options.set_dimensions(
+                Dimensions.from_tuple(current_dimensions_tuple))
+
+            # Update the window & rebuild the UI
+            self._update_window(should_refresh_title=False)
+            self._rebuild_ui()
+
+            # Update responsive assets
+            self._update_responsive_assets()
+
     def _update_window(self,
                        new_options: Union[WindowOptions, None] = None,
                        should_refresh_title: bool = True,
                        should_refresh_dimensions: bool = True) -> None:
         """
-        Setter method for the app's window options.
+        Setter method for the app's window options. Updates the app window
+        accordingly.
 
         Args:
             new_options (WindowOptions | None): new window options
@@ -1503,6 +2547,10 @@ class GuiApp:
         """
         return self._get_window_options().get_dimensions_tuple()
 
+    # ===============
+    # RESPONSIVE ELEMENT SIZING & POSITIONING
+    # ===============
+
     def _rel_rect(self,
                   width: Union[int, Fraction, IntrinsicSize, MatchOtherSide],
                   height: Union[int, Fraction, IntrinsicSize, MatchOtherSide],
@@ -1513,8 +2561,8 @@ class GuiApp:
                   self_align: SelfAlign = SelfAlign(),
                   offset: Offset = Offset()) -> pygame.Rect:
         """
-        Create a responsive pygame Rect based on relative screen positioning,
-        relative alignment, and an offset.
+        Create a responsive PyGame rectangle based on relative screen
+        positioning, relative alignment, element dimensions, and an offset.
 
         Intrinsic sizing only works for PyGame-GUI elements.
 
@@ -1743,6 +2791,10 @@ class GuiApp:
         """
         return self._get_window_dimensions().height // 2
 
+    # ===============
+    # PYGAME-GUI THEMING
+    # ===============
+
     def _update_responsive_assets(self) -> None:
         """
         Updates the PyGame-GUI theme JSON file so that the size of all assets
@@ -1812,914 +2864,22 @@ class GuiApp:
         with open(_Theme.DYNAMIC_FILE_PATH, "w") as theme_file:
             json.dump(theme_json, theme_file)
 
-    def _rebuild_ui(self) -> None:
+    @lru_cache(maxsize=1)
+    def _responsive_assets_setup(self) -> None:
         """
-        Rebuilds all UI elements. This is where all elements are drafted for
-        later painting.
+        Set up responsive PyGame-GUI asset sizing. Throwaway method that is
+        ignored after being called the first time.
 
-        Only run this if absolutely necessary, since compute is expensive.
-        """
-
-        # Clean slate window
-        self._ui_manager.set_window_resolution(
-            self._get_window_resolution())
-        self._ui_manager.clear_and_reset()
-
-        # Fill background
-        self._bg_surface = pygame.Surface(self._get_window_resolution())
-        self._bg_surface.fill(
-            self._ui_manager.get_theme().get_colour("dark_bg")
-        )
-
-        # Create all UI elements for current screen only
-        self._lib.clear_all_screens()
-        self._lib.set_draft_screen(self._get_current_screen_name())
-        if self._state.screen == _Screens.SETUP:
-            # ===============
-            # RED PANEL
-            # ===============
-            self._lib.draft(
-                UIPanel(
-                    self._rel_rect(
-                        width=_SetupConsts.PANEL_WIDTH,
-                        height=_SetupConsts.PANEL_HEIGHT,
-                        ref_pos=ScreenPos(
-                            RelPos.CENTER,
-                            RelPos.CENTER
-                        ),
-                        self_align=SelfAlign(
-                            RelPos.START,
-                            RelPos.CENTER
-                        ),
-                        offset=Offset(
-                            - _SetupConsts.BETWEEN_PANELS // 2,
-                            _SetupConsts.ABOVE_PANELS // 2),
-                    ),
-                    object_id=_SetupElems.RED_PANEL,
-                    starting_layer_height=0))
-            self._lib.draft(
-                UILabel(
-                    self._rel_rect(
-                        width=_SetupConsts.PANEL_TITLE_WIDTH,
-                        height=_GeneralSizes.LABEL_HEIGHT,
-                        parent_id=_SetupElems.RED_PANEL,
-                        ref_pos=ElemPos(
-                            _SetupElems.RED_PANEL,
-                            RelPos.CENTER,
-                            RelPos.START
-                        ),
-                        self_align=SelfAlign(
-                            RelPos.CENTER,
-                            RelPos.END
-                        ),
-                        offset=Offset(0, _SetupConsts.ABOVE_PANEL_TITLE)
-                    ),
-                    "Red",
-                    object_id=_SetupElems.RED_PANEL_TITLE))
-            self._lib.draft(
-                UIDropDownMenu(
-                    _SetupConsts.PLAYER_MODE_OPTIONS,
-                    str(self._state.red_type.value),
-                    self._rel_rect(
-                        width=_SetupConsts.PANEL_CONTENT_WIDTH,
-                        height=_GeneralSizes.DROPDOWN_HEIGHT,
-                        parent_id=_SetupElems.RED_PANEL,
-                        ref_pos=ElemPos(
-                            _SetupElems.RED_PANEL_TITLE,
-                            RelPos.CENTER,
-                            RelPos.END),
-                        self_align=SelfAlign(
-                            RelPos.CENTER,
-                            RelPos.END
-                        ),
-                        offset=Offset(0, _SetupConsts.BELOW_PANEL_TITLE)),
-                    object_id=_SetupElems.RED_TYPE_DROPDOWN))
-            self._lib.draft(
-                UITextEntryLine(
-                    self._rel_rect(
-                        width=_SetupConsts.PANEL_CONTENT_WIDTH,
-                        height=_GeneralSizes.TEXTINPUT_HEIGHT,
-                        parent_id=_SetupElems.RED_PANEL,
-                        ref_pos=ElemPos(
-                            _SetupElems.RED_TYPE_DROPDOWN,
-                            RelPos.CENTER,
-                            RelPos.END),
-                        self_align=SelfAlign(
-                            RelPos.CENTER,
-                            RelPos.END
-                        ),
-                        offset=Offset(0,
-                                      _SetupConsts.BELOW_PLAYER_MODE_DROPDOWN)),
-                    manager=self._ui_manager,
-                    object_id=_SetupElems.RED_NAME_TEXTINPUT,
-                    placeholder_text="Name...",
-                    initial_text=self._state.red_name_raw,
-                    visible=self._state.red_type == _PlayerType.HUMAN))
-            self._lib.draft(
-                UIDropDownMenu(
-                    _SetupConsts.BOT_DIFFICULTY_OPTIONS,
-                    str(self._state.red_bot_level.value),
-                    self._rel_rect(
-                        width=_SetupConsts.PANEL_CONTENT_WIDTH,
-                        height=_GeneralSizes.DROPDOWN_HEIGHT,
-                        parent_id=_SetupElems.RED_PANEL,
-                        ref_pos=ElemPos(
-                            _SetupElems.RED_TYPE_DROPDOWN,
-                            RelPos.CENTER,
-                            RelPos.END),
-                        self_align=SelfAlign(
-                            RelPos.CENTER,
-                            RelPos.END
-                        ),
-                        offset=Offset(0,
-                                      _SetupConsts.BELOW_PLAYER_MODE_DROPDOWN)),
-                    manager=self._ui_manager,
-                    object_id=_SetupElems.RED_BOT_DIFFICULTY_DROPDOWN,
-                    visible=self._state.red_type == _PlayerType.BOT))
-
-            # ===============
-            # BLACK PANEL
-            # ===============
-            self._lib.draft(
-                UIPanel(
-                    self._rel_rect(
-                        width=_SetupConsts.PANEL_WIDTH,
-                        height=_SetupConsts.PANEL_HEIGHT,
-                        ref_pos=ScreenPos(
-                            RelPos.CENTER,
-                            RelPos.CENTER
-                        ),
-                        self_align=SelfAlign(
-                            RelPos.END,
-                            RelPos.CENTER
-                        ),
-                        offset=Offset(
-                            _SetupConsts.BETWEEN_PANELS // 2,
-                            _SetupConsts.ABOVE_PANELS // 2
-                        ),
-                    ),
-                    starting_layer_height=0,
-                    object_id=_SetupElems.BLACK_PANEL))
-            self._lib.draft(
-                UILabel(
-                    self._rel_rect(
-                        width=_SetupConsts.PANEL_TITLE_WIDTH,
-                        height=_GeneralSizes.LABEL_HEIGHT,
-                        parent_id=_SetupElems.BLACK_PANEL,
-                        ref_pos=ElemPos(
-                            _SetupElems.BLACK_PANEL,
-                            RelPos.CENTER,
-                            RelPos.START
-                        ),
-                        self_align=SelfAlign(
-                            RelPos.CENTER,
-                            RelPos.END
-                        ),
-                        offset=Offset(0, _SetupConsts.ABOVE_PANEL_TITLE)
-                    ),
-                    "Black",
-                    object_id=_SetupElems.BLACK_PANEL_TITLE))
-            self._lib.draft(
-                UIDropDownMenu(
-                    _SetupConsts.PLAYER_MODE_OPTIONS,
-                    str(self._state.black_type.value),
-                    self._rel_rect(
-                        width=_SetupConsts.PANEL_CONTENT_WIDTH,
-                        height=_GeneralSizes.DROPDOWN_HEIGHT,
-                        parent_id=_SetupElems.BLACK_PANEL,
-                        ref_pos=ElemPos(
-                            _SetupElems.BLACK_PANEL_TITLE,
-                            RelPos.CENTER,
-                            RelPos.END),
-                        self_align=SelfAlign(
-                            RelPos.CENTER,
-                            RelPos.END
-                        ),
-                        offset=Offset(0, _SetupConsts.BELOW_PANEL_TITLE)),
-                    object_id=_SetupElems.BLACK_TYPE_DROPDOWN))
-            self._lib.draft(
-                UITextEntryLine(
-                    self._rel_rect(
-                        width=_SetupConsts.PANEL_CONTENT_WIDTH,
-                        height=_GeneralSizes.TEXTINPUT_HEIGHT,
-                        parent_id=_SetupElems.BLACK_PANEL,
-                        ref_pos=ElemPos(
-                            _SetupElems.BLACK_TYPE_DROPDOWN,
-                            RelPos.CENTER,
-                            RelPos.END),
-                        self_align=SelfAlign(
-                            RelPos.CENTER,
-                            RelPos.END
-                        ),
-                        offset=Offset(0,
-                                      _SetupConsts.BELOW_PLAYER_MODE_DROPDOWN)),
-                    object_id=_SetupElems.BLACK_NAME_TEXTINPUT,
-                    placeholder_text="Name...",
-                    initial_text=self._state.black_name_raw,
-                    visible=self._state.black_type == _PlayerType.HUMAN))
-            self._lib.draft(
-                UIDropDownMenu(
-                    _SetupConsts.BOT_DIFFICULTY_OPTIONS,
-                    str(self._state.black_bot_level.value),
-                    self._rel_rect(
-                        width=_SetupConsts.PANEL_CONTENT_WIDTH,
-                        height=_GeneralSizes.DROPDOWN_HEIGHT,
-                        parent_id=_SetupElems.BLACK_PANEL,
-                        ref_pos=ElemPos(
-                            _SetupElems.BLACK_TYPE_DROPDOWN,
-                            RelPos.CENTER,
-                            RelPos.END),
-                        self_align=SelfAlign(
-                            RelPos.CENTER,
-                            RelPos.END
-                        ),
-                        offset=Offset(
-                            0, _SetupConsts.BELOW_PLAYER_MODE_DROPDOWN)
-                    ),
-                    object_id=_SetupElems.BLACK_BOT_DIFFICULTY_DROPDOWN,
-                    visible=self._state.black_type == _PlayerType.BOT))
-
-            # ===============
-            # WELCOME TEXT
-            # ===============
-            self._lib.draft(
-                UILabel(
-                    self._rel_rect(
-                        width=Fraction(1),
-                        height=_GeneralSizes.LABEL_HEIGHT,
-                        ref_pos=ElemPos(
-                            _SetupElems.RED_PANEL,
-                            RelPos.END,
-                            RelPos.START
-                        ),
-                        offset=Offset(
-                            _SetupConsts.BETWEEN_PANELS // 2,
-                            - _SetupConsts.ABOVE_PANELS),
-                        self_align=SelfAlign(
-                            RelPos.CENTER,
-                            RelPos.START
-                        )),
-                    "Welcome to Checkers!",
-                    object_id=_SetupElems.WELCOME_TEXT))
-
-            # ===============
-            # START GAME BUTTON
-            # ===============
-            self._lib.draft(
-                UIButton(
-                    self._rel_rect(
-                        width=_SetupConsts.START_GAME_BUTTON_WIDTH,
-                        height=_GeneralSizes.BUTTON_HEIGHT,
-                        ref_pos=ScreenPos(
-                            RelPos.END,
-                            RelPos.END
-                        ),
-                        self_align=SelfAlign(
-                            RelPos.START,
-                            RelPos.START
-                        )),
-                    "Start game",
-                    object_id=_SetupElems.START_GAME_BUTTON))
-            self._validate_game_setup()
-
-            # ===============
-            # NUM PLAYER ROWS
-            # ===============
-            self._lib.draft(
-                UITextEntryLine(
-                    self._rel_rect(
-                        width=_SetupConsts.NUM_PLAYER_ROWS_WIDTH,
-                        height=_GeneralSizes.BUTTON_HEIGHT,  # match button
-                        ref_pos=ElemPos(
-                            _SetupElems.START_GAME_BUTTON,
-                            RelPos.START,
-                            RelPos.CENTER
-                        ),
-                        self_align=SelfAlign(
-                            RelPos.START,
-                            RelPos.CENTER
-                        ),
-                        offset=Offset(- _SetupConsts.RIGHT_OF_NUM_ROWS, 0)
-                    ),
-                    object_id=_SetupElems.NUM_PLAYER_ROWS_TEXTINPUT,
-                    placeholder_text="Number...",
-                    initial_text=self._state.num_rows_per_player_raw))
-            self._lib.draft(
-                UILabel(
-                    self._rel_rect(
-                        width=IntrinsicSize(),
-                        height=_GeneralSizes.LABEL_HEIGHT,
-                        ref_pos=ElemPos(
-                            _SetupElems.NUM_PLAYER_ROWS_TEXTINPUT,
-                            RelPos.START,
-                            RelPos.START
-                        ),
-                        self_align=SelfAlign(
-                            RelPos.END,
-                            RelPos.START
-                        ),
-                        offset=Offset(0, - _SetupConsts.ABOVE_NUM_ROWS)
-                    ),
-                    "Rows per player",
-                    object_id=_SetupElems.NUM_PLAYER_ROWS_TITLE))
-
-        elif self._state.screen == _Screens.GAME:
-            # ===============
-            # TITLE BAR
-            # ===============
-            self._lib.draft(
-                UILabel(
-                    self._rel_rect(
-                        width=IntrinsicSize(),
-                        height=_GeneralSizes.BUTTON_HEIGHT,  # same as menu btn
-                        ref_pos=ScreenPos(
-                            RelPos.START,
-                            RelPos.START
-                        ),
-                        self_align=SelfAlign(
-                            RelPos.END,
-                            RelPos.END
-                        ),
-                    ),
-                    "Checkers",
-                    object_id=_GameElems.TITLE_TEXT))
-            self._lib.draft(
-                UIButton(
-                    self._rel_rect(
-                        width=60,
-                        height=_GeneralSizes.BUTTON_HEIGHT,
-                        ref_pos=ScreenPos(
-                            RelPos.END,
-                            RelPos.START
-                        ),
-                        self_align=SelfAlign(
-                            RelPos.START,
-                            RelPos.END
-                        ),
-                    ),
-                    "Menu",
-                    object_id=_GameElems.MENU_BUTTON))
-            # ===============
-            # ACTION BAR
-            # ===============
-            self._lib.draft(
-                UIPanel(
-                    self._rel_rect(
-                        width=Fraction(1),
-                        height=_GameConsts.ACTION_BAR_HEIGHT,
-                        ref_pos=ScreenPos(
-                            RelPos.CENTER,
-                            RelPos.END
-                        ),
-                        self_align=SelfAlign(
-                            RelPos.CENTER,
-                            RelPos.START
-                        )
-                    ),
-                    object_id=_GameElems.ACTION_BAR,
-                    starting_layer_height=0))
-            self._lib.draft(
-                UILabel(
-                    self._rel_rect(
-                        width=IntrinsicSize(),
-                        height=_GeneralSizes.LABEL_HEIGHT,
-                        ref_pos=ElemPos(
-                            _GameElems.ACTION_BAR,
-                            RelPos.START,
-                            RelPos.CENTER
-                        ),
-                        self_align=SelfAlign(
-                            RelPos.END,
-                            RelPos.CENTER
-                        ),
-                        offset=Offset(_GameConsts.ACTION_BAR_X_PADDING, 0)
-                    ),
-                    f"{self._state.make_move_msg()}:",
-                    object_id=_GameElems.CURRENT_PLAYER_LABEL))
-            self._lib.draft(
-                UIDropDownMenu(
-                    self._state.get_dropdown_start_positions(),
-                    self._state.grid_position_to_string(self._state.start_pos),
-                    self._rel_rect(
-                        width=_GameConsts.DROPDOWN_WIDTH,
-                        height=_GeneralSizes.DROPDOWN_HEIGHT,
-                        ref_pos=ElemPos(
-                            _GameElems.CURRENT_PLAYER_LABEL,
-                            RelPos.END,
-                            RelPos.CENTER
-                        ),
-                        self_align=SelfAlign(
-                            RelPos.END,
-                            RelPos.CENTER
-                        ),
-                        offset=Offset(_Sizes.M, 0)
-                    ),
-                    object_id=_GameElems.SELECTED_PIECE_DROPDOWN))
-            self._lib.draft(
-                UILabel(
-                    self._rel_rect(
-                        width=IntrinsicSize(),
-                        height=_GeneralSizes.LABEL_HEIGHT,
-                        ref_pos=ElemPos(
-                            _GameElems.SELECTED_PIECE_DROPDOWN,
-                            RelPos.END,
-                            RelPos.CENTER
-                        ),
-                        self_align=SelfAlign(
-                            RelPos.END,
-                            RelPos.CENTER
-                        ),
-                        offset=Offset(_GameConsts.ACTION_BAR_ARROW_X_MARGIN, 0)
-                    ),
-                    "→",
-                    object_id=_GameElems.PIECE_TO_DEST_ARROW))
-            self._lib.draft(
-                UIDropDownMenu(
-                    self._state.get_dropdown_dest_positions(),
-                    self._state.grid_position_to_string(self._state.dest_pos),
-                    self._rel_rect(
-                        width=_GameConsts.DROPDOWN_WIDTH,
-                        height=_GeneralSizes.DROPDOWN_HEIGHT,
-                        ref_pos=ElemPos(
-                            _GameElems.PIECE_TO_DEST_ARROW,
-                            RelPos.END,
-                            RelPos.CENTER
-                        ),
-                        self_align=SelfAlign(
-                            RelPos.END,
-                            RelPos.CENTER
-                        ),
-                        offset=Offset(_GameConsts.ACTION_BAR_ARROW_X_MARGIN, 0)
-                    ),
-                    object_id=_GameElems.DESTINATION_DROPDOWN))
-            self._lib.draft(
-                UIButton(
-                    self._rel_rect(
-                        width=80,
-                        height=_GeneralSizes.BUTTON_HEIGHT,
-                        ref_pos=ElemPos(
-                            _GameElems.ACTION_BAR,
-                            RelPos.END,
-                            RelPos.CENTER
-                        ),
-                        self_align=SelfAlign(
-                            RelPos.START,
-                            RelPos.CENTER
-                        ),
-                        offset=Offset(-_GameConsts.ACTION_BAR_X_PADDING, 0)
-                    ),
-                    "Move",
-                    object_id=_GameElems.SUBMIT_MOVE_BUTTON))
-            if self._state.winner:
-                # Someone has won the game: disable the action bar
-                self._disable_move_elems()
-            # ===============
-            # CHECKERS BOARD
-            # ===============
-            self._lib.draft(
-                UIPanel(
-                    self._rel_rect(
-                        width=MatchOtherSide(),
-                        max_width=Fraction(0.65),
-                        height=Fraction(0.7),
-                        ref_pos=ScreenPos(
-                            RelPos.START,
-                            RelPos.CENTER
-                        ),
-                        self_align=SelfAlign(
-                            RelPos.END,
-                            RelPos.CENTER
-                        )
-                    ),
-                    object_id=_GameElems.BOARD,
-                    starting_layer_height=0))
-
-            # Add every square to board
-            for row, col in itertools.product(
-                    range(self._state.board_side_num),
-                    range(self._state.board_side_num)):
-                pos = (row, col)  # square position on game board
-
-                # Board square unique ID
-                elem_id = _GameElems.board_square(pos)
-
-                # Color
-                if (row % 2 == 1 and col % 2 == 0) or \
-                        (row % 2 == 0 and col % 2 == 1):
-                    elem_class = "@board-square-dark"
-                else:
-                    elem_class = "@board-square-light"
-
-                # Selected? (only check if no-one has won)
-                if not self._state.winner and self._state.dest_pos == pos:
-                    elem_class += "-selected"
-                    if self._state.get_piece_at_pos(
-                            self._state.start_pos).get_color() == \
-                            PieceColor.RED:
-                        elem_class += "-red"
-                    else:
-                        elem_class += "-black"
-
-                # Draft square
-                self._lib.draft(
-                    UIPanel(
-                        self._rel_rect(
-                            width=self._state.square_side,
-                            height=MatchOtherSide(),
-                            parent_id=_GameElems.BOARD,
-                            ref_pos=ElemPos(
-                                _GameElems.BOARD,
-                                RelPos.START,
-                                RelPos.START
-                            ),
-                            self_align=SelfAlign(
-                                RelPos.START,
-                                RelPos.START
-                            ),
-                            offset=Offset(
-                                self._state.square_side *
-                                (row + 1 + _GameConsts.COORD_SQUARES),
-                                self._state.square_side *
-                                (col + 1 + _GameConsts.COORD_SQUARES)
-                            )
-                        ),
-                        object_id=ObjectID(
-                            class_id=elem_class,
-                            object_id=elem_id),
-                        starting_layer_height=0))
-
-            # Add coordinates (do both horizontally and vertically at once)
-            for side_n in range(self._state.board_side_num):
-                # Letter and number: unique element IDs
-                letter_elem_id = f"coord-letter-{side_n + 1}"
-                num_elem_id = f"coord-num-{side_n + 1}"
-
-                # Add coordinate letter
-                self._lib.draft(
-                    UILabel(
-                        self._rel_rect(
-                            width=self._state.square_side,
-                            height=MatchOtherSide(),
-                            parent_id=_GameElems.BOARD,
-                            ref_pos=ElemPos(
-                                _GameElems.board_square((side_n, 0)),
-                                RelPos.CENTER,
-                                RelPos.CENTER
-                            ),
-                            self_align=SelfAlign(
-                                RelPos.CENTER,
-                                RelPos.START
-                            ),
-                            offset=Offset(
-                                0,
-                                NegFraction(self._state.square_side.value / 2)
-                            )),
-                        _AppState.col_position_to_string(side_n),
-                        object_id=letter_elem_id))
-
-                # Add coordinate number
-                self._lib.draft(
-                    UILabel(
-                        self._rel_rect(
-                            width=self._state.square_side,
-                            height=MatchOtherSide(),
-                            parent_id=_GameElems.BOARD,
-                            ref_pos=ElemPos(
-                                _GameElems.board_square((0, side_n)),
-                                RelPos.CENTER,
-                                RelPos.CENTER
-                            ),
-                            self_align=SelfAlign(
-                                RelPos.START,
-                                RelPos.CENTER
-                            ),
-                            offset=Offset(
-                                NegFraction(self._state.square_side.value / 2),
-                                0)),
-                        _AppState.row_position_to_string(side_n),
-                        object_id=num_elem_id))
-
-            # Add pieces
-            for piece in self._state.board.get_board_pieces():
-                # Get position
-                pos = piece.get_position()
-
-                # Checkers piece: unique element ID
-                elem_id = _GameElems.checkers_piece(pos)
-
-                # Color
-                if piece.get_color() == PieceColor.RED:
-                    elem_class = "@board-red-piece"
-                else:
-                    elem_class = "@board-black-piece"
-
-                # King?
-                if piece.is_king():
-                    elem_class += "-king"
-
-                # Selected?
-                if self._state.start_pos == pos:
-                    elem_class += "-selected"
-
-                # Draft checkers piece
-                parent_id = _GameElems.board_square(pos)
-                self._lib.draft(
-                    UIPanel(
-                        self._rel_rect(
-                            width=Fraction(0.7),
-                            height=MatchOtherSide(),
-                            parent_id=parent_id,
-                            ref_pos=ElemPos(
-                                parent_id,
-                                RelPos.CENTER,
-                                RelPos.CENTER
-                            ),
-                            self_align=SelfAlign(
-                                RelPos.CENTER,
-                                RelPos.CENTER
-                            )
-                        ),
-                        object_id=ObjectID(
-                            class_id=elem_class,
-                            object_id=elem_id),
-                        starting_layer_height=0))
-
-            # ===============
-            # CAPTURED PANEL
-            # ===============
-
-            # Calculate the panel dimensions, based on board dimensions
-            captured_panel_width = self._get_window_dimensions().width - \
-                                   self._get_window_options().get_padding() \
-                                   * 2 - \
-                                   _GameConsts.BOARD_RIGHT_MARGIN - \
-                                   self._lib.get_elem(
-                                       _GameElems.BOARD).relative_rect.width
-            captured_panel_height = self._lib.get_elem(_GameElems.BOARD) \
-                .relative_rect.height
-            self._lib.draft(
-                UIPanel(
-                    self._rel_rect(
-                        width=captured_panel_width,
-                        max_width=400,
-                        height=captured_panel_height,
-                        ref_pos=ScreenPos(
-                            RelPos.END,
-                            RelPos.CENTER
-                        ),
-                        self_align=SelfAlign(
-                            RelPos.START,
-                            RelPos.CENTER
-                        ),
-                    ),
-                    object_id=_GameElems.CAPTURED_PANEL,
-                    starting_layer_height=0))
-            self._lib.draft(
-                UILabel(
-                    self._rel_rect(
-                        width=IntrinsicSize(),
-                        height=_GeneralSizes.LABEL_HEIGHT,
-                        ref_pos=ElemPos(
-                            _GameElems.CAPTURED_PANEL,
-                            RelPos.START,
-                            RelPos.START
-                        ),
-                        self_align=SelfAlign(
-                            RelPos.END,
-                            RelPos.END
-                        ),
-                        offset=Offset(_Sizes.L, _Sizes.XL)
-                    ),
-                    "Captured pieces:",
-                    object_id=_GameElems.CAPTURED_PANEL_TITLE))
-
-            # ===============
-            # CAPTURED PANEL DATA
-            # ===============
-
-            # Text to display which player is leading (or if both are drawing).
-            # Can infer status of both players from just one player.
-            red_lead_status = self._state.player_lead_status(PieceColor.RED)
-
-            if red_lead_status == _PlayerLeadStatus.DRAWING:
-                # Players are drawing
-                drawing_str = " (drawing)"
-                red_status = drawing_str
-                black_status = drawing_str
-            else:
-                # One player is leading
-                leading_str = " (leading)"
-                if red_lead_status == _PlayerLeadStatus.LEADING:
-                    # Red player is leading
-                    red_status = leading_str
-                    black_status = ""
-                else:
-                    # Black player is leading
-                    red_status = ""
-                    black_status = leading_str
-
-            # Black player stats
-            self._lib.draft(
-                UILabel(
-                    self._rel_rect(
-                        width=IntrinsicSize(),
-                        height=_GeneralSizes.LABEL_HEIGHT,
-                        ref_pos=ElemPos(
-                            _GameElems.CAPTURED_PANEL_TITLE,
-                            RelPos.START,
-                            RelPos.END
-                        ),
-                        self_align=SelfAlign(
-                            RelPos.START,
-                            RelPos.END
-                        ),
-                        offset=Offset(_Sizes.M, _Sizes.XXL)
-                    ),
-                    f"Black{black_status} = ",
-                    object_id=_GameElems.CAPTURED_BLACK_TITLE))
-            self._lib.draft(
-                UILabel(
-                    self._rel_rect(
-                        width=IntrinsicSize(),
-                        height=80,
-                        ref_pos=ElemPos(
-                            _GameElems.CAPTURED_BLACK_TITLE,
-                            RelPos.END,
-                            RelPos.CENTER
-                        ),
-                        self_align=SelfAlign(
-                            RelPos.START,
-                            RelPos.CENTER
-                        ),
-                        offset=Offset(_Sizes.MICRO, 0)
-                    ),
-                    str(self._state.pieces_captured_count(PieceColor.BLACK)),
-                    object_id=ObjectID(
-                        object_id=_GameElems.CAPTURED_BLACK_COUNT,
-                        class_id="@captured-count"
-                    )))
-
-            # Red player stats
-            self._lib.draft(
-                UILabel(
-                    self._rel_rect(
-                        width=IntrinsicSize(),
-                        height=_GeneralSizes.LABEL_HEIGHT,
-                        ref_pos=ElemPos(
-                            _GameElems.CAPTURED_BLACK_TITLE,
-                            RelPos.START,
-                            RelPos.END
-                        ),
-                        self_align=SelfAlign(
-                            RelPos.START,
-                            RelPos.END
-                        ),
-                        offset=Offset(0, _Sizes.M)
-                    ),
-                    f"Red{red_status} = ",
-                    object_id=_GameElems.CAPTURED_RED_TITLE))
-            self._lib.draft(
-                UILabel(
-                    self._rel_rect(
-                        width=IntrinsicSize(),
-                        height=80,
-                        ref_pos=ElemPos(
-                            _GameElems.CAPTURED_RED_TITLE,
-                            RelPos.END,
-                            RelPos.CENTER
-                        ),
-                        self_align=SelfAlign(
-                            RelPos.START,
-                            RelPos.CENTER
-                        ),
-                        offset=Offset(_Sizes.MICRO, 0)
-                    ),
-                    str(self._state.pieces_captured_count(PieceColor.RED)),
-                    object_id=ObjectID(
-                        object_id=_GameElems.CAPTURED_RED_COUNT,
-                        class_id="@captured-count")))
-
-            # ===============
-            # PIECES LEFT STATUS BAR
-            # (for current player)
-            # ===============
-
-            # Get current color as string
-            current_color_str = 'Red' if \
-                self._state.current_color == PieceColor.RED else 'Black'
-
-            # The status bar
-            self._lib.draft(
-                UIStatusBar(
-                    self._rel_rect(
-                        parent_id=_GameElems.CAPTURED_PANEL,
-                        width=Fraction(0.9),
-                        height=_Sizes.L,
-                        ref_pos=ElemPos(
-                            _GameElems.CAPTURED_PANEL,
-                            RelPos.CENTER,
-                            RelPos.END
-                        ),
-                        self_align=SelfAlign(
-                            RelPos.CENTER,
-                            RelPos.START
-                        ),
-                        offset=Offset(0, - _Sizes.L)
-                    ),
-                    object_id=ObjectID(
-                        object_id=_GameElems.PIECES_LEFT_BAR,
-                        class_id=f"@status-bar-{current_color_str.lower()}"
-                    ),
-                    percent_method=self._state.current_player_avail_fraction))
-
-            # Calculate available & original number of pieces
-            num_pieces_avail = self._state.pieces_avail_count(
-                self._state.current_color)
-            starting_num_avail = self._state.num_starting_pieces_per_player
-
-            # Title for the status bar
-            self._lib.draft(
-                UILabel(
-                    self._rel_rect(
-                        width=IntrinsicSize(),
-                        height=_GeneralSizes.LABEL_HEIGHT,
-                        ref_pos=ElemPos(
-                            _GameElems.PIECES_LEFT_BAR,
-                            RelPos.START,
-                            RelPos.START
-                        ),
-                        self_align=SelfAlign(
-                            RelPos.START,
-                            RelPos.START
-                        ),
-                        offset=Offset(0, - _Sizes.S)
-                    ),
-                    f"{self._state.current_player_name()} "
-                    f"({num_pieces_avail}/{starting_num_avail}):",
-                    object_id=_GameElems.PIECES_LEFT_TITLE))
-
-    def _check_window_dimensions_changed(self) -> None:
-        """
-        Checks whether the window dimensions have changed. If they have,
-        the UI is rebuilt accordingly.
-        """
-        current_dimensions_tuple = pygame.display.get_surface().get_size()
-        if current_dimensions_tuple != self._get_window_resolution():
-            # Window dimensions have changed since last paint:
-            # store the new dimensions in memory
-            self._window_options.set_dimensions(
-                Dimensions.from_tuple(current_dimensions_tuple))
-
-            # Update the window & rebuild the UI
-            self._update_window(should_refresh_title=False)
-            self._rebuild_ui()
-
-            # Update responsive assets
-            self._update_responsive_assets()
-
-    def _get_current_screen(self) -> _Screens:
-        """
-        Getter method for the current screen.
+        Inspiration for throwaway method: https://stackoverflow.com/a/74062603
 
         Returns:
-            _Screens: current screen
+            None
         """
-        return self._state.screen
+        self._update_responsive_assets()
 
-    def _get_current_screen_name(self) -> str:
-        """
-        Getter method for the string representation of the current screen.
-
-        Returns:
-            str: current screen name
-        """
-        return str(self._get_current_screen().value)
-
-    def _set_current_screen(self, new_screen: _Screens) -> None:
-        """
-        Setter method for the current screen.
-
-        Args:
-            new_screen (_Screens): new screen
-        """
-        self._state.screen = new_screen
-
-    def _open_screen(self, new_screen: _Screens) -> None:
-        """
-        Navigate to a different screen. If screen is already open – ignore.
-
-        Args:
-            new_screen (_Screens): screen to navigate to
-        """
-        if new_screen != self._get_current_screen():
-            # Close any open dialogs
-            self._state.close_dialog()
-
-            # Screen is not already open
-            self._set_current_screen(new_screen)
-
-            # Needs rebuild UI to clear old screen & draw new screen
-            self._rebuild_ui()
+    # ===============
+    # SETUP-ONLY LOGIC
+    # ===============
 
     def _validate_game_setup(self) -> None:
         """
@@ -2750,6 +2910,234 @@ class GuiApp:
             warnings.warn(str(e))
             self._lib.disable_elem(_SetupElems.START_GAME_BUTTON)
 
+    # ===============
+    # GAME-ONLY LOGIC
+    # ===============
+
+    def _execute_move(self) -> None:
+        """
+        Execute the currently selected move.
+
+        Then checks whether game has ended at the end of the move, and takes
+        action accordingly.
+
+        Returns:
+            None
+        """
+        move_result = self._state.board.complete_move(
+            self._state.get_selected_move()
+        )
+
+        # Check for end of game
+        game_state = self._state.board.get_game_state()
+        if game_state in (GameStatus.RED_WINS, GameStatus.BLACK_WINS):
+            # Someone has won the game: find out which player
+            if game_state == GameStatus.RED_WINS:
+                self._state.winner = PieceColor.RED
+            else:
+                self._state.winner = PieceColor.BLACK
+            self._state.post_dialog(_Dialogs.GAME_OVER)
+            self._rebuild_ui()
+        else:
+            # Check if current player has remaining moves
+            if not move_result:
+                # End of turn for current player: switch to other player.
+                self._state.toggle_color()
+
+            if not self._state.winner:
+                warnings.warn('Prevented updating move options after a win.')
+                # Update the options for the next move
+                self._state.update_move_options()
+
+    def _execute_bot_moves(self, moves: List[Move]) -> None:
+        """
+        Complete a series of moves for the currently playing bot.
+
+        While the bot's moves are ongoing, the user-facing move elements are
+        disabled.
+
+        Returns:
+            None
+        """
+        # Check if a winner exists
+        if self._state.winner:
+            # Means this bot has made a winning move: stop move sequence
+            return
+
+        move, *remaining_moves = moves
+
+        def visual_delay() -> float:
+            """
+            Generates a random number of seconds for a visual delay,
+            between 0.4 and 0.6 (inclusive).
+
+            Returns:
+                float: delay in seconds
+            """
+            if self._debug:
+                # In debug mode, speed-run the bots
+                return 0.005 * pow(self._state.num_rows_per_player, 2.2)
+
+            # Random float between [0.4, 0.6]
+            return max(random.random() * 0.6, 0.4)
+
+        def check_for_pause() -> bool:
+            """
+            Check whether gameplay should be paused.
+
+            Returns:
+                bool: is paused
+            """
+            return self._state.dialog is not None
+
+        def bot_execute_move() -> None:
+            """
+            Bot executes their move.
+
+            Returns:
+                None
+            """
+            if check_for_pause():
+                # Stop before executing this move
+                return
+
+            self._execute_move()  # toggles player color if end of turn
+
+            if remaining_moves:
+                # Rebuild UI
+                self._rebuild_ui_when_ready(can_user_move=False)
+
+                # Complete remaining moves for currently playing bot
+                self._execute_bot_moves(remaining_moves)
+            else:
+                # If next player is also a bot, auto-complete their moves, too
+                if not self._attempt_start_bot_turn():
+                    # Next player is not bot, so re-enable move interactions
+                    self._rebuild_ui_when_ready(can_user_move=True)
+
+        def bot_choose_dest() -> None:
+            """
+            Bot selects their move destination.
+
+            Returns:
+                None
+            """
+            if check_for_pause():
+                # Stop before executing this move
+                return
+
+            self._state.dest_pos = move.get_new_position()
+            self._rebuild_ui_when_ready(can_user_move=False)
+
+            threading.Timer(visual_delay(), bot_execute_move).start()
+
+        def bot_choose_start_pos() -> None:
+            """
+            Bot selects their move start position.
+
+            Returns:
+                None
+            """
+            if check_for_pause():
+                # Stop before executing this move
+                return
+
+            self._state.start_pos = move.get_current_position()
+            self._rebuild_ui_when_ready(can_user_move=False)
+
+            threading.Timer(visual_delay(), bot_choose_dest).start()
+
+        if check_for_pause():
+            # Stop before executing this move
+            return
+
+        # Set up bot's turn by disabling move elements for the user.
+        self._rebuild_ui_when_ready(can_user_move=False)
+
+        threading.Timer(visual_delay(), bot_choose_start_pos).start()
+
+    def _attempt_start_bot_turn(self) -> bool:
+        """
+        If the current player is a bot, autoplay their sequence of moves.
+
+        Only call at the start of the player's turn.
+
+        Returns:
+            bool: whether started bot turn
+        """
+        if self._state.is_currently_bot():
+            # Get random or smart bot moves,
+            # according to player bot level
+            if self._state.current_bot_level() == _BotLevel.RANDOM:
+                bot_moves = RandomBot(
+                    own_color=self._state.current_color,
+                    checkersboard=self._state.board
+                ).choose_move_list()
+            else:
+                bot_moves = SmartBot(
+                    own_color=self._state.current_color,
+                    checkersboard=self._state.board,
+                    level=self._state.current_bot_smart_level()
+                ).choose_move_list()
+
+            # Complete all the bot's moves
+            self._execute_bot_moves(bot_moves)
+
+            # Started bot turn
+            return True
+
+        # Player isn't bot
+        return False
+
+    def _submit_move_button(self) -> None:
+        """
+        User submits the currently selected move.
+
+        Returns:
+            None
+        """
+        # Button pressed means HUMAN just played.
+        # Execute the move.
+        self._execute_move()
+
+        # Rebuild the game interface
+        self._rebuild_ui()
+
+        # Current player is bot? -> compute and make moves automatically
+        self._attempt_start_bot_turn()
+
+    def _disable_move_elems(self) -> None:
+        """
+        Disable all elements that the user interacts with to move pieces.
+
+        Returns:
+            None
+        """
+        self._lib.disable_elem(
+            _GameElems.SELECTED_PIECE_DROPDOWN)
+        self._lib.disable_elem(
+            _GameElems.DESTINATION_DROPDOWN)
+        self._lib.disable_elem(
+            _GameElems.SUBMIT_MOVE_BUTTON)
+
+    def _enable_move_elems(self) -> None:
+        """
+        Enable all elements that the user interacts with to move pieces.
+
+        Returns:
+            None
+        """
+        self._lib.enable_elem(
+            _GameElems.SELECTED_PIECE_DROPDOWN)
+        self._lib.enable_elem(
+            _GameElems.DESTINATION_DROPDOWN)
+        self._lib.enable_elem(
+            _GameElems.SUBMIT_MOVE_BUTTON)
+
+    # ===============
+    # PROCESS USER EVENTS
+    # ===============
+
     def _process_setup_events(self, event: "Event") -> None:
         """
         Process user interactions events for the Setup screen.
@@ -2771,7 +3159,7 @@ class GuiApp:
                 self._state.update_move_options()
 
                 # Open Game screen
-                self._open_screen(_Screens.GAME)
+                self._routing_open_screen(_Screens.GAME)
 
                 # If starting player is bot, autoplay their turn
                 self._attempt_start_bot_turn()
@@ -2949,245 +3337,6 @@ class GuiApp:
         # is set up correctly.
         self._validate_game_setup()
 
-    @staticmethod
-    def _rebuild_when_ready(can_user_move: Union[bool, None] = None) -> None:
-        """
-        Rebuild the PyGame UI at the next drawing opportunity.
-
-        Args:
-            can_user_move (Union[bool, None]): whether the user is allowed to
-                interact with move UI after rebuild
-
-        Returns:
-            None
-        """
-        if can_user_move is None:
-            pygame.event.post(_GeneralEvents.REBUILD)
-        elif can_user_move:
-            pygame.event.post(_GeneralEvents.REBUILD_ENABLE_MOVE)
-        else:
-            pygame.event.post(_GeneralEvents.REBUILD_DISABLE_MOVE)
-
-    def _disable_move_elems(self) -> None:
-        """
-        Disable all elements that the user interacts with to move pieces.
-
-        Returns:
-            None
-        """
-        self._lib.disable_elem(
-            _GameElems.SELECTED_PIECE_DROPDOWN)
-        self._lib.disable_elem(
-            _GameElems.DESTINATION_DROPDOWN)
-        self._lib.disable_elem(
-            _GameElems.SUBMIT_MOVE_BUTTON)
-
-    def _enable_move_elems(self) -> None:
-        """
-        Enable all elements that the user interacts with to move pieces.
-
-        Returns:
-            None
-        """
-        self._lib.enable_elem(
-            _GameElems.SELECTED_PIECE_DROPDOWN)
-        self._lib.enable_elem(
-            _GameElems.DESTINATION_DROPDOWN)
-        self._lib.enable_elem(
-            _GameElems.SUBMIT_MOVE_BUTTON)
-
-    def _execute_bot_moves(self, moves: List[Move]) -> None:
-        """
-        Complete a series of moves for the currently playing bot.
-
-        While the bot's moves are ongoing, the user-facing move elements are
-        disabled.
-
-        Returns:
-            None
-        """
-        # Check if a winner exists
-        if self._state.winner:
-            # Means this bot has made a winning move: stop move sequence
-            return
-
-        move, *remaining_moves = moves
-
-        def visual_delay() -> float:
-            """
-            Generates a random number of seconds for a visual delay,
-            between 0.4 and 0.6 (inclusive).
-
-            Returns:
-                float: delay in seconds
-            """
-            if self._debug:
-                # In debug mode, speed-run the bots
-                return 0.005 * pow(self._state.num_rows_per_player, 2.2)
-
-            # Random float between [0.4, 0.6]
-            return max(random.random() * 0.6, 0.4)
-
-        def check_for_pause() -> bool:
-            """
-            Check whether gameplay should be paused.
-
-            Returns:
-                bool: is paused
-            """
-            return self._state.dialog is not None
-
-        def bot_execute_move() -> None:
-            """
-            Bot executes their move.
-
-            Returns:
-                None
-            """
-            if check_for_pause():
-                # Stop before executing this move
-                return
-
-            self._execute_move()  # toggles player color if end of turn
-
-            if remaining_moves:
-                # Rebuild UI
-                self._rebuild_when_ready(can_user_move=False)
-
-                # Complete remaining moves for currently playing bot
-                self._execute_bot_moves(remaining_moves)
-            else:
-                # If next player is also a bot, auto-complete their moves, too
-                if not self._attempt_start_bot_turn():
-                    # Next player is not bot, so re-enable move interactions
-                    self._rebuild_when_ready(can_user_move=True)
-
-        def bot_choose_dest() -> None:
-            """
-            Bot selects their move destination.
-
-            Returns:
-                None
-            """
-            if check_for_pause():
-                # Stop before executing this move
-                return
-
-            self._state.dest_pos = move.get_new_position()
-            self._rebuild_when_ready(can_user_move=False)
-
-            threading.Timer(visual_delay(), bot_execute_move).start()
-
-        def bot_choose_start_pos() -> None:
-            """
-            Bot selects their move start position.
-
-            Returns:
-                None
-            """
-            if check_for_pause():
-                # Stop before executing this move
-                return
-
-            self._state.start_pos = move.get_current_position()
-            self._rebuild_when_ready(can_user_move=False)
-
-            threading.Timer(visual_delay(), bot_choose_dest).start()
-
-        if check_for_pause():
-            # Stop before executing this move
-            return
-
-        # Set up bot's turn by disabling move elements for the user.
-        self._rebuild_when_ready(can_user_move=False)
-
-        threading.Timer(visual_delay(), bot_choose_start_pos).start()
-
-    def _execute_move(self) -> None:
-        """
-        Execute the currently selected move.
-
-        Then checks whether game has ended at the end of the move, and takes
-        action accordingly.
-
-        Returns:
-            None
-        """
-        move_result = self._state.board.complete_move(
-            self._state.get_selected_move()
-        )
-
-        # Check for end of game
-        game_state = self._state.board.get_game_state()
-        if game_state in (GameStatus.RED_WINS, GameStatus.BLACK_WINS):
-            # Someone has won the game: find out which player
-            if game_state == GameStatus.RED_WINS:
-                self._state.winner = PieceColor.RED
-            else:
-                self._state.winner = PieceColor.BLACK
-            self._state.post_dialog(_Dialogs.GAME_OVER)
-            self._rebuild_ui()
-        else:
-            # Check if current player has remaining moves
-            if not move_result:
-                # End of turn for current player: switch to other player.
-                self._state.toggle_color()
-
-            if not self._state.winner:
-                warnings.warn('Prevented updating move options after a win.')
-                # Update the options for the next move
-                self._state.update_move_options()
-
-    def _attempt_start_bot_turn(self) -> bool:
-        """
-        If the current player is a bot, autoplay their sequence of moves.
-
-        Only call at the start of the player's turn.
-
-        Returns:
-            bool: whether started bot turn
-        """
-        if self._state.is_currently_bot():
-            # Get random or smart bot moves,
-            # according to player bot level
-            if self._state.current_bot_level() == _BotLevel.RANDOM:
-                bot_moves = RandomBot(
-                    own_color=self._state.current_color,
-                    checkersboard=self._state.board
-                ).choose_move_list()
-            else:
-                bot_moves = SmartBot(
-                    own_color=self._state.current_color,
-                    checkersboard=self._state.board,
-                    level=self._state.current_bot_smart_level()
-                ).choose_move_list()
-
-            # Complete all the bot's moves
-            self._execute_bot_moves(bot_moves)
-
-            # Started bot turn
-            return True
-
-        # Player isn't bot
-        return False
-
-    def _submit_move_button(self) -> None:
-        """
-        User submits the currently selected move.
-
-        Returns:
-            None
-        """
-        # Button pressed means HUMAN just played.
-        # Execute the move.
-        self._execute_move()
-
-        # Rebuild the game interface
-        self._rebuild_ui()
-
-        # Current player is bot? -> compute and make moves automatically
-        self._attempt_start_bot_turn()
-
     def _process_game_events(self, event: "Event") -> None:
         """
         Process user interactions events for the Game screen.
@@ -3227,7 +3376,7 @@ class GuiApp:
                 # ===============
                 # Confirmed: START NEW GAME
                 # ===============
-                self._open_screen(_Screens.SETUP)
+                self._routing_open_screen(_Screens.SETUP)
                 self._rebuild_ui()
         elif event.type == pygame_gui.UI_WINDOW_CLOSE:
             if _ := self._state.handle_close_dialog_event():
@@ -3306,19 +3455,6 @@ class GuiApp:
 
                             break  # stop searching for valid board click
 
-    @lru_cache(maxsize=1)
-    def _responsive_assets_setup(self) -> None:
-        """
-        Set up responsive PyGame-GUI asset sizing. Throwaway method that is
-        ignored after being called the first time.
-
-        Inspiration for throwaway method: https://stackoverflow.com/a/74062603
-
-        Returns:
-            None
-        """
-        self._update_responsive_assets()
-
     def _process_events(self) -> None:
         """
         Process user interaction events. This is the planning stage for
@@ -3369,54 +3505,13 @@ class GuiApp:
         # In every loop, check whether the window has been resized
         self._check_window_dimensions_changed()
 
-    def _check_open_dialog(self) -> None:
-        """
-        If a dialog has been posted (i.e. planned to be opened), open it now.
-
-        Must be run after UIManager has drawn the interface.
-
-        Returns:
-            None
-        """
-        if self._state.is_dialog_open():
-            # Dialog is already open
-            return
-
-        if opened_dialog := self._state.mark_dialog_open():
-            # ===============
-            # Posted: DIALOG
-            # ===============
-
-            # Use the same relative rect for all dialogs
-            dialog_rel_rect = self._rel_rect(
-                width=Fraction(0.5),
-                max_width=800,
-                height=Fraction(0.5),
-                max_height=500,
-                ref_pos=ScreenPos(
-                    RelPos.CENTER,
-                    RelPos.CENTER
-                ),
-                self_align=SelfAlign(
-                    RelPos.CENTER,
-                    RelPos.CENTER
-                )
-            )
-
-            # Check for which dialog should be opened
-            if opened_dialog == _Dialogs.MENU:
-                MenuDialog(dialog_rel_rect)
-            elif opened_dialog == _Dialogs.GAME_OVER:
-                winner_color_str = "red" \
-                    if self._state.winner == PieceColor.RED else "black"
-                GameOverDialog(
-                    dialog_rel_rect,
-                    winner_color_str,
-                    self._state.current_player_name())
+    # ===============
+    # RUNNING THE APP
+    # ===============
 
     def run(self) -> None:
         """
-        Start the app in a GUI window.
+        Starts the app in a GUI window.
         """
         while self._state.is_alive:
             # Check for user interaction

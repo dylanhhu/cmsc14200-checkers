@@ -1,3 +1,11 @@
+"""
+© Kevin Gugelmann, 26 February 2023.
+All rights reserved.
+
+This file is a fork of PyGame-GUI's UI Confirmation Dialog, with an added
+argument to set the label of the cancel button.
+"""
+
 import warnings
 from typing import Union, Optional, Dict
 

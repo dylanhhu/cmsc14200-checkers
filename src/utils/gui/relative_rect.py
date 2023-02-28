@@ -1,7 +1,11 @@
-#
-# © Kevin Gugelmann, 20 February 2023.
-# All rights reserved.
-#
+"""
+© Kevin Gugelmann, 20 February 2023.
+All rights reserved.
+
+This file contains enums and data classes used to calculate a PyGame relative
+rectangle.
+"""
+
 from dataclasses import dataclass
 from enum import Enum
 from typing import Union
@@ -61,6 +65,16 @@ class SelfAlign:
     """
     Data class representing an element's alignment in relation to its calculated
     position.
+
+    In the vertical axis:
+        START: above the reference point
+        CENTER: centered with the reference point
+        END: below the reference point
+
+    In the horizontal axis:
+        START: left of the reference point
+        CENTER: center of the reference point
+        END: right of the reference point
     """
     x_pos: RelPos = RelPos.START
     y_pos: RelPos = RelPos.START
@@ -164,7 +178,10 @@ class Fraction:
 @dataclass
 class NegFraction(Fraction):
     """
-    Data class representing a negative fraction, its value given between [0,1].
+    Data class representing a negative fractional value between [-1,0].
+
+    Takes a value between [0,1], where positive values represent their negative
+    counterpart.
     """
 
 
