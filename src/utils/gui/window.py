@@ -1,7 +1,11 @@
-#
-# © Kevin Gugelmann, 20 February 2023.
-# All rights reserved.
-#
+"""
+© Kevin Gugelmann, 20 February 2023.
+All rights reserved.
+
+This file contains type aliases and classes for setting a GUI app's window
+options, including: current and minimum dimensions, padding, title, and FPS.
+"""
+
 from typing import Union, Tuple
 from dataclasses import dataclass
 

@@ -278,7 +278,16 @@ class _GeneralCompHeights(IntEnum):
 # ===============
 
 
-class _GeneralEvents:
+class _UiEvents:
+    """
+    User interaction events that can be posted within game logic, and then
+    caught later when processing PyGame events.
+
+    Custom events are of type `pygame.USEREVENT` and are given several
+    parameters so that the events are handled differently. All custom events
+    require the name parameter (`PARAM_NAME`).
+    """
+
     # Event names
     NAME_REBUILD = "rebuild"
 
@@ -2343,11 +2352,11 @@ class GuiApp:
             None
         """
         if can_user_move is None:
-            pygame.event.post(_GeneralEvents.REBUILD)
+            pygame.event.post(_UiEvents.REBUILD)
         elif can_user_move:
-            pygame.event.post(_GeneralEvents.REBUILD_ENABLE_MOVE)
+            pygame.event.post(_UiEvents.REBUILD_ENABLE_MOVE)
         else:
-            pygame.event.post(_GeneralEvents.REBUILD_DISABLE_MOVE)
+            pygame.event.post(_UiEvents.REBUILD_DISABLE_MOVE)
 
     # ===============
     # SCREENS AND ROUTING
@@ -3362,7 +3371,7 @@ class GuiApp:
                 # ===============
                 # Clicked: QUIT GAME
                 # ===============
-                pygame.event.post(_GeneralEvents.QUIT)
+                pygame.event.post(_UiEvents.QUIT)
         elif event.type == pygame_gui.UI_CONFIRMATION_DIALOG_CONFIRMED:
             if event.ui_object_id in (_GameElems.MENU_DIALOG,
                                       _GameElems.GAME_OVER_DIALOG):
@@ -3474,19 +3483,19 @@ class GuiApp:
 
             # Custom events
             if event.type == pygame.USEREVENT:
-                if event.dict.get(_GeneralEvents.PARAM_NAME, None) == \
-                        _GeneralEvents.NAME_REBUILD:
+                if event.dict.get(_UiEvents.PARAM_NAME, None) == \
+                        _UiEvents.NAME_REBUILD:
                     # ===============
                     # REBUILD USER INTERFACE
                     # ===============
                     self._rebuild_ui()
-                    if event.dict.get(_GeneralEvents.PARAM_DISABLE_MOVE, False):
+                    if event.dict.get(_UiEvents.PARAM_DISABLE_MOVE, False):
                         # ===============
                         # Rebuild option: DISABLE MOVE ELEMENTS
                         # ===============
                         self._disable_move_elems()
                     elif event.dict.get(
-                            _GeneralEvents.PARAM_ENABLE_MOVE, False):
+                            _UiEvents.PARAM_ENABLE_MOVE, False):
                         # ===============
                         # Rebuild option: ENABLE MOVE ELEMENTS
                         # ===============

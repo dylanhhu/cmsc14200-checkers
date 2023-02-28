@@ -73,6 +73,10 @@ class ModifyElemCommand(Enum):
 
 @dataclass
 class _GuiComponent:
+    """
+    Private data class that stores a PyGame-GUI element along with its unique
+    identifier and the screen it should be painted on.
+    """
     elem_id: str
     elem: Union[Element, None]
     screen_id: str
