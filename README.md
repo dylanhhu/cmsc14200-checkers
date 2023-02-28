@@ -41,11 +41,11 @@ To run the GUI, run the following from the root of the repository:
 python3 src/gui.py
 ```
 
-### Editorial notes
+### Overview
 
 - 📐 The interface is rendered responsively, so feel free to resize the window by dragging its corners
 - 🦾 Random and smart bot included
-- 🐌 GUI uses PyGame, which has less-than-ideal render performance for large board sizes (above 20 rows per player)
+- 🐌 GUI uses PyGame, which has less-than-ideal render performance for large board sizes (keep below 15 rows per player)
 
 ### Game setup
 
@@ -65,6 +65,8 @@ python3 src/gui.py
   - Using the left dropdown box, select the position of the checkers piece you wish to move
   - Using the right dropdown box, select the destination position you wish to move the selected piece to
 - While a bot is making their move, the other player must wait
+
+### Additional notes
 
 #### Changes since Milestone 2:
 - [x] Game menu window (to start new game)
