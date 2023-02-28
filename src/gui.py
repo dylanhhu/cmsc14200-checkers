@@ -3432,7 +3432,7 @@ class GuiApp:
                         range(self._state.board_side_num),
                         range(self._state.board_side_num)):
                     # Get board square element ID
-                    square_id = self._board_square_id(click_pos)
+                    square_id = _GameElems.board_square(click_pos)
 
                     # Check if the cursor clicked on this board square
                     if self._lib.get_elem(square_id) \
