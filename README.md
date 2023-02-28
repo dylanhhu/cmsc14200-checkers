@@ -15,24 +15,51 @@ This project targets Python versions 3.8 and above. This project requires a few 
 
 We encourage the use of a Python virtual environment to install the dependencies required for this project. To get started, run the following from the root of the repository:
 
-```
+```shell
 python3 -m venv env
 ```
 
 Activate the environment using the following (for POSIX, Windows may differ):
-```
+```shell
 source env/bin/activate
 ```
 
 Install the required libraries:
-```
+```shell
 pip3 install -r requirements.txt
 ```
 
 To deactivate the virtual environment, run:
-```
+```shell
 deactivate
 ```
+
+## Design changes since Milestone 1
+
+TODO
+
+## Changes since Milestone 2
+
+### GUI
+
+- [x] Game menu window (to start new game)
+- [x] Click to select a piece and its destination square
+- [x] Display king pieces differently from regular pieces
+- [x] Check game state (in progress or win)
+- [x] Display captured pieces
+- [x] Maintain previous game setup when starting new game
+
+### TUI
+
+TODO
+
+### Logic
+
+TODO
+
+### Bot
+
+TODO
 
 ## Running the GUI
 
@@ -68,20 +95,12 @@ python3 src/gui.py
 
 ### Additional notes
 
-#### Changes since Milestone 2:
-- [x] Game menu window (to start new game)
-- [x] Click to select a piece and its destination square
-- [x] Display king pieces differently from regular pieces
-- [x] Check game state (in progress or win)
-- [x] Display captured pieces
-- [x] Maintain previous game setup when start new game
-
 #### Performance optimization:
 By design, the GUI displays each bot move with a visual delay. This delay occurs on a thread separate from the main thread, so that the window does not become unresponsive while the bot is 'selecting and making' their move.
 
 ## Testing the bot
 - To test the Bot without using GUI or TUI, run the following code in Ipython
-```
+```python
 # random vs smart
 from bot import *
 black_win = 0  # to record how many rounds has the black side win
