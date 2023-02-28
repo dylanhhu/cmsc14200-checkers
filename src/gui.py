@@ -635,7 +635,7 @@ class _AppState:
         self._is_dialog_open = False
 
     # ===============
-    # SETUP
+    # SETUP SCREEN
     # ===============
 
     # Red player
@@ -775,7 +775,7 @@ class _AppState:
             self._num_rows_per_player = None
 
     # ===============
-    # GAME
+    # GAME SCREEN
     # ===============
 
     # Board
