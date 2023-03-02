@@ -17,7 +17,7 @@ def play_checkers():
 
     # Set the starting player to black
     current_player = checkers.PieceColor.BLACK
-    print("Welcome! Black will start:")
+    print('Welcome! Black will start:')
 
     # Keep playing until there is a winner:
     while True:
@@ -25,7 +25,7 @@ def play_checkers():
         print(b)
 
         # Get moves and display to player
-        print("Select a move from the list below:")
+        print('Select a move from the list below:')
         player_moves = b.get_player_moves(current_player)
         for i in range(len(player_moves)):
             print(f"Move {i}: {player_moves[i]}")
@@ -34,8 +34,8 @@ def play_checkers():
         # Ask for a move (and re-ask if a valid move is not provided)
         move = None
         while move is None:
-            i = input("> ")
-            if i in range(len(player_moves)):
+            i = input('> ')
+            if i != '' and int(i) in range(len(player_moves)):
                 i = int(i)
                 move = i
 
@@ -46,14 +46,14 @@ def play_checkers():
         # if b.complete_move(player_moves[i]) == []:
 
         # If the game has ended break out of the loop
-        if game_status != GameStatus.IN_PROGRESS:
+        if b.get_game_state() != checkers.GameStatus.IN_PROGRESS:
             break
 
         # Update the player
-        if current_player == PieceColor.BLACK:
-            current_player = PieceColor.RED
-        elif current_player == PieceColor.RED:
-            current_player = PieceColor.BLACK
+        if current_player == checkers.PieceColor.BLACK:
+            current_player = checkers.PieceColor.RED
+        elif current_player == checkers.PieceColor.RED:
+            current_player = checkers.PieceColor.BLACK
 
     print(b)
     print(f"The winner is {current_player}!")
