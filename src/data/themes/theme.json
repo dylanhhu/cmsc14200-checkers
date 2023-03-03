@@ -5,6 +5,16 @@
       "hovered_bg": "#35393e"
     }
   },
+  "#action-bar":
+  {
+    "colours": {
+      "dark_bg": "#1a1a1a",
+      "normal_border": "#2f2f2f"
+    },
+    "misc": {
+      "border_width": "1"
+    }
+  },
   "#selected-piece-dropdown": {
     "misc": {
       "expand_direction": "up"
@@ -236,10 +246,11 @@
   "#captured-panel":
   {
     "colours": {
-      "dark_bg": "#1e2428"
+      "dark_bg": "#333333",
+      "normal_border": "#3c3c3c"
     },
     "misc": {
-      "border_width": "0"
+      "border_width": "1"
     }
   },
   "@captured-count":
