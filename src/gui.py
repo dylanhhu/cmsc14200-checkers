@@ -3017,7 +3017,7 @@ class GuiApp:
         def visual_delay() -> float:
             """
             Generates a random number of seconds for a visual delay,
-            between 0.4 and 0.6 (inclusive).
+            between 0.3 and 0.5 (inclusive).
 
             Returns:
                 float: delay in seconds
@@ -3026,8 +3026,8 @@ class GuiApp:
                 # In debug mode, speed-run the bots
                 return 0.005 * pow(self._state.num_rows_per_player, 2.2)
 
-            # Random float between [0.4, 0.6]
-            return max(random.random() * 0.6, 0.4)
+            # Random float between [0.3, 0.5]
+            return max(random.random() * 0.5, 0.3)
 
         def check_for_pause() -> bool:
             """
