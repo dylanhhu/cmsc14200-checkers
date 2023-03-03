@@ -3389,6 +3389,7 @@ class GuiApp:
                 # ===============
                 # Confirmed: START NEW GAME
                 # ===============
+                self._state.winner = None
                 self._routing_open_screen(_Screens.SETUP)
                 self._rebuild_ui()
         elif event.type == pygame_gui.UI_WINDOW_CLOSE:
