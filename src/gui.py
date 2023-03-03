@@ -496,8 +496,10 @@ class _Theme:
     # Element class IDs
     KING_PIECES = {"@board-red-piece-king",
                    "@board-red-piece-king-selected",
+                   "@board-red-piece-king-available",
                    "@board-black-piece-king",
-                   "@board-black-piece-king-selected"}
+                   "@board-black-piece-king-selected",
+                   "@board-black-piece-king-available"}
 
 
 # ===============
@@ -1987,15 +1989,21 @@ class GuiApp:
                 else:
                     elem_class = "@board-square-light"
 
-                # Selected? (only check if no-one has won)
-                if not self._state.winner and self._state.dest_pos == pos:
-                    elem_class += "-selected"
-                    if self._state.get_piece_at_pos(
-                            self._state.start_pos).get_color() == \
-                            PieceColor.RED:
-                        elem_class += "-red"
-                    else:
-                        elem_class += "-black"
+                # Highlight square as available/selected
+                # [only check if no-one has won, otherwise runtime error likely]
+                if not self._state.winner:
+                    if self._state.dest_pos == pos:
+                        # This square has been selected
+                        elem_class += "-selected"
+
+                        # Set the current player's color as the square border
+                        if self._state.current_color == PieceColor.RED:
+                            elem_class += "-red"
+                        else:
+                            elem_class += "-black"
+                    elif pos in self._state.get_dest_piece_positions_set():
+                        # This square is an unselected but available destination
+                        elem_class += "-available"
 
                 # Draft square
                 self._lib.draft(
@@ -2096,9 +2104,12 @@ class GuiApp:
                 if piece.is_king():
                     elem_class += "-king"
 
-                # Selected?
                 if self._state.start_pos == pos:
+                    # Piece is selected for the current move
                     elem_class += "-selected"
+                elif pos in self._state.get_start_piece_positions_set():
+                    # Piece is unselected, but available for the current move
+                    elem_class += "-available"
 
                 # Draft checkers piece
                 parent_id = _GameElems.board_square(pos)

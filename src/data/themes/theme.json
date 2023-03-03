@@ -45,6 +45,14 @@
       "border_width": "0"
     }
   },
+  "@board-square-dark-available": {
+    "colours": {
+      "dark_bg": "#f4e10c"
+    },
+    "misc": {
+      "border_width": "0"
+    }
+  },
   "@board-square-dark-selected-red": {
     "colours": {
       "dark_bg": "#f4e10c",
@@ -119,6 +127,33 @@
       "shape_corner_radius": "100"
     }
   },
+  "@board-red-piece-available": {
+    "colours": {
+      "dark_bg": "#D53C0E",
+      "normal_border": "#d6d6d6"
+    },
+    "misc": {
+      "border_width": "3",
+      "shape": "rounded_rectangle",
+      "shape_corner_radius": "100"
+    }
+  },
+  "@board-red-piece-king-available": {
+    "images": {
+      "background_image": {
+        "path": "src/data/images/24px/red-king.png"
+      }
+    },
+    "colours": {
+      "dark_bg": "#D53C0E",
+      "normal_border": "#d6d6d6"
+    },
+    "misc": {
+      "border_width": "3",
+      "shape": "rounded_rectangle",
+      "shape_corner_radius": "100"
+    }
+  },
   "@board-black-piece": {
     "colours": {
       "dark_bg": "#000000"
@@ -164,6 +199,33 @@
     "colours": {
       "dark_bg": "#000000",
       "normal_border": "#f4e10c"
+    },
+    "misc": {
+      "border_width": "3",
+      "shape": "rounded_rectangle",
+      "shape_corner_radius": "100"
+    }
+  },
+  "@board-black-piece-available": {
+    "colours": {
+      "dark_bg": "#000000",
+      "normal_border": "#adadad"
+    },
+    "misc": {
+      "border_width": "3",
+      "shape": "rounded_rectangle",
+      "shape_corner_radius": "100"
+    }
+  },
+  "@board-black-piece-king-available": {
+    "images": {
+      "background_image": {
+        "path": "src/data/images/24px/black-king.png"
+      }
+    },
+    "colours": {
+      "dark_bg": "#000000",
+      "normal_border": "#adadad"
     },
     "misc": {
       "border_width": "3",
