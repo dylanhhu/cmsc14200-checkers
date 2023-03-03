@@ -869,6 +869,39 @@ class _AppState:
         """
         return self._num_starting_pieces_per_player
 
+    def get_player_name(self, color: PieceColor) -> str:
+        """
+        Get the name of a player, given their color. If human, this is their
+        inputted name. If a bot, this is the bot's color followed by "bot".
+
+        Args:
+            color (PieceColor): player's color
+
+        Returns:
+            str: player name
+        """
+
+        def get_bot_name() -> str:
+            """
+            Produce a string representing the current bot's name.
+
+            Returns:
+                str: name
+            """
+            return f"{self.get_bot_level(color).value} bot"
+
+        if color == PieceColor.RED:
+            if self.red_type == _PlayerType.HUMAN:
+                return self.red_name
+            else:
+                return get_bot_name()
+        else:
+            # Black player
+            if self.black_type == _PlayerType.HUMAN:
+                return self.black_name
+            else:
+                return get_bot_name()
+
     def current_player_name(self) -> str:
         """
         Get the current player's name. If human, this is their inputted name. If
@@ -877,27 +910,7 @@ class _AppState:
         Returns:
             str: player name
         """
-
-        def current_bot_name() -> str:
-            """
-            Produce a string representing the current bot's name.
-
-            Returns:
-                str: name
-            """
-            return f"{self.current_bot_level().value} bot"
-
-        if self.current_color == PieceColor.RED:
-            if self.red_type == _PlayerType.HUMAN:
-                return self.red_name
-            else:
-                return current_bot_name()
-        else:
-            # Black player
-            if self.black_type == _PlayerType.HUMAN:
-                return self.black_name
-            else:
-                return current_bot_name()
+        return self.get_player_name(self.current_color)
 
     def make_move_msg(self) -> str:
         """
@@ -941,6 +954,20 @@ class _AppState:
 
         raise RuntimeError("Move not found.")
 
+    def is_a_bot(self, color: PieceColor) -> bool:
+        """
+        Determines whether the given player is a bot.
+
+        Args:
+            color (PieceColor): player's color
+
+        Returns:
+            bool: is bot
+        """
+        if color == PieceColor.RED:
+            return self.red_type == _PlayerType.BOT
+        return self.black_type == _PlayerType.BOT
+
     def is_currently_bot(self) -> bool:
         """
         Determines whether the current player is a bot.
@@ -948,9 +975,28 @@ class _AppState:
         Returns:
             bool: is bot
         """
-        if self.current_color == PieceColor.RED:
-            return self.red_type == _PlayerType.BOT
-        return self.black_type == _PlayerType.BOT
+        return self.is_a_bot(self.current_color)
+
+    def get_bot_level(self, color: PieceColor) -> _BotLevel:
+        """
+        Determines the bot level of the given player.
+
+        Args:
+            color (PieceColor): player's color
+
+        Returns:
+            _BotLevel: bot level
+
+        Raises:
+            RuntimeError: if current player is not a bot.
+        """
+        if not self.is_a_bot(color):
+            raise RuntimeError(f"Given player {_color_str(color)} is not a "
+                               f"bot.")
+
+        if color == PieceColor.RED:
+            return self.red_bot_level
+        return self.black_bot_level
 
     def current_bot_level(self) -> _BotLevel:
         """
@@ -962,12 +1008,7 @@ class _AppState:
         Raises:
             RuntimeError: if current player is not a bot.
         """
-        if not self.is_currently_bot():
-            raise RuntimeError("Current player is not a bot.")
-
-        if self.current_color == PieceColor.RED:
-            return self.red_bot_level
-        return self.black_bot_level
+        return self.get_bot_level(self.current_color)
 
     def current_bot_smart_level(self) -> SmartLevel:
         """
@@ -1033,8 +1074,12 @@ class _AppState:
         """
 
         # Select first piece position in dropdown options
-        self.start_pos = self.grid_position_from_string(
-            self.get_dropdown_start_positions()[0])
+        if start_positions := self.get_dropdown_start_positions():
+            # Ensure start positions aren't empty (i.e. lost game)
+            self.start_pos = self.grid_position_from_string(
+                start_positions[0])
+        else:
+            warnings.warn("No start positions available.")
 
     def get_start_piece_positions_set(self) -> Set[Position]:
         """
@@ -1447,16 +1492,8 @@ class GuiApp:
             # Mock game setup
             self._state.red_type = _PlayerType.BOT
             self._state.red_bot_level = _BotLevel.HARD
-            self._state.red_name = "Kevin"
             self._state.black_type = _PlayerType.BOT
             self._state.black_bot_level = _BotLevel.RANDOM
-            self._state.num_rows_per_player = 3
-            self._state.create_board()
-
-            # Directly open Game screen
-            self._state.update_move_options()
-            self._state.screen = _Screens.GAME
-            self._attempt_start_bot_turn()
         else:
             # In production, suppress all console warnings
             warnings.filterwarnings("ignore")
@@ -2464,7 +2501,7 @@ class GuiApp:
                 GameOverDialog(
                     dialog_rel_rect,
                     winner_color_str,
-                    self._state.current_player_name())
+                    self._state.get_player_name(self._state.winner))
 
     # ===============
     # APP WINDOW
@@ -2957,10 +2994,8 @@ class GuiApp:
                 # End of turn for current player: switch to other player.
                 self._state.toggle_color()
 
-            if not self._state.winner:
-                warnings.warn('Prevented updating move options after a win.')
-                # Update the options for the next move
-                self._state.update_move_options()
+            # Update the options for the next move
+            self._state.update_move_options()
 
     def _execute_bot_moves(self, moves: List[Move]) -> None:
         """
@@ -2972,9 +3007,9 @@ class GuiApp:
         Returns:
             None
         """
-        # Check if a winner exists
-        if self._state.winner:
-            # Means this bot has made a winning move: stop move sequence
+        if self._state.winner or (not moves):
+            # Winner exists: stop bot execution
+            warnings.warn("Winner exists: stop bot execution.")
             return
 
         move, *remaining_moves = moves
@@ -3001,7 +3036,13 @@ class GuiApp:
             Returns:
                 bool: is paused
             """
-            return self._state.dialog is not None
+            should_pause = (self._state.dialog is not None) or \
+                           (self._state.winner is not None)
+
+            if should_pause:
+                warnings.warn("Found reason to pause bot.")
+                return True
+            return False
 
         def bot_execute_move() -> None:
             """
