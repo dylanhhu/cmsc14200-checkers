@@ -121,7 +121,7 @@ class CheckersBoard(Board):
         self._game_state = GameStatus.IN_PROGRESS  # the game state
 
         self._moves_since_capture = 0  # number of moves since a capture
-        self._max_moves_since_capture = 40  # maximum moves before stalemate
+        self._max_moves_since_capture = self._calc_draw_timeout(rows_per_player)
 
     def get_captured_pieces(self) -> List[Piece]:
         """
@@ -540,6 +540,23 @@ has an outstanding draw offer."
             PieceColor.BLACK: False,
             PieceColor.RED: False
         }
+
+    def _calc_draw_timeout(self, rows_per_player: int) -> int:
+        """
+        Private method for calculating the maximum number of moves between
+        captures before a stalemate. Roughly set to slightly over the average
+        number of moves between captures in a game.
+
+        Datapoints collected by Junfei. Power function values calculated by
+        Dylan.
+
+        Args:
+            rows_per_player (int): the number of rows per player
+
+        Returns:
+            int: number of moves between captures before stalemate
+        """
+        return round(2.2 * (rows_per_player ** 2.2) + 10)
 
     def _gen_pieces(self, height: Union[int, None] = None,
                     width: Union[int, None] = None) -> Dict[Position, Piece]:
