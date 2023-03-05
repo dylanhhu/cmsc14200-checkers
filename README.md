@@ -2,6 +2,8 @@
 
 Final project for UChicago class CMSC 14200. Project members: Aidan Parker, Dylan Hu, Kevin Gugelmann, and Junfei Sun.
 
+This project implements the board game checkers in Python. We have achieved a fully integrated implementation with a backend game logic that functions with a frontend (GUI or TUI) and bot.
+
 ## Project Responsibilities
 
 * Game logic - Dylan Hu
@@ -19,9 +21,13 @@ We encourage the use of a Python virtual environment to install the dependencies
 python3 -m venv env
 ```
 
-Activate the environment using the following (for POSIX, Windows may differ):
+#### Activate the environment using the following:
 ```shell
 source env/bin/activate
+```
+Or, for Windows:
+```shell
+.\env\Scripts\activate
 ```
 
 Install the required libraries:
@@ -71,6 +77,8 @@ TODO
 
 ## Running the GUI
 
+First, make sure that the [environment is activated](#activate-the-environment-using-the-following).
+
 To run the GUI, run the following from the root of the repository:
 ```shell
 python3 src/gui.py
@@ -94,16 +102,19 @@ python3 src/gui.py
 - Names have maximum length of 25 characters
 - Natural number for rows per player (>= 1)
 
-### Game play
+### Gameplay
 - Black always starts
-- To make a (human) move, use the action bar, located at the bottom of the window
-  - Using the left dropdown box, select the position of the checkers piece you wish to move
-  - Using the right dropdown box, select the destination position you wish to move the selected piece to
+- Making a move:
+  - Use the action bar, located at the bottom of the window
+    - Using the left dropdown box, select the position of the checkers piece you wish to move
+    - Using the right dropdown box, select the destination position you wish to move the selected piece to
+  - Or, click on the piece you want to move and choose from the available moves displayed on the board
 - While a bot is making their move, the other player must wait
 
-### Additional notes
+### Unimplemented Features
+There is no support in the GUI for offering and accepting draws, or for resigning.
 
-#### Performance optimization:
+### Performance optimization
 By design, the GUI displays each bot move with a visual delay. This delay occurs on a thread separate from the main thread, so that the window does not become unresponsive while the bot is 'selecting and making' their move.
 
 ## Testing the bot
