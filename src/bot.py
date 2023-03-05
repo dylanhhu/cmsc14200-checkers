@@ -8,29 +8,50 @@ If the bot is a random bot, it would be picking the sequence of moves randomly,
 but if it's a smart bot, it will implement different strategies based on 
 different smart levels
 
+A brief description of some of the notable classes are listed below:
+- 'Bot': basic construction of a bot
+- 'RandomBot': inheritance from class 'Bot', able to choose a list of moves 
+    randomly
+- 'MoveSequence': used to represent a valid sequence of consecutive moves to    
+    take in a turn
+- 'SmartBot': inheritance from class 'Bot', able to choose a list of moves      
+    with considerations of a list of strategies
+- 'OppoBot': inheritance from class 'SmartBot', used by the SmartBot in some 
+    strategies to predict the moves that the opponent can take
+
 A brief process of the smart bot choosing the list of move to take for one 
 turn is as the following:
+    1) call 'SmartBot._choose_move_list'. This method would call 'SmartBot.
+    _get_mseq_list with the corresponding strategy list with the strategies 
+    that is going to be adopted by the bot
 
-1) call 'SmartBot._choose_move_list'. This method would call 'SmartBot.
-_get_mseq_list with the corresponding strategy list with the strategies that is 
-going to be adopted by the bot
+    2) 'SmartBot._get_mseq_list' would run a depth first search on the current 
+    board to traverse through all the possible sequences of moves: each time 
+    that it reaches the end of a list of moves, it will create a MoveSequence 
+    instance to represent that list of moves, and call 'SmartBot.
+    _assign_priority' with that MoveSequence and a list of strategies to adopt 
+    to assign a priority to that MoveSequence
 
-2) 'SmartBot._get_mseq_list' would run a depth first search on the current 
-board to traverse through all the possible sequences of moves: each time that 
-it reaches the end of a list of moves, it will create a MoveSequence instance 
-to represent that list of moves, and call 'SmartBot._assign_priority' with that 
-MoveSequence and a list of strategies to adopt to assign a priority to that 
-MoveSequence
+    3) 'SmartBot._assign_priority' would assign a priority value to the target 
+    MoveSequence based on all the strategies in the list and store that in an 
+    attribute in the MoveSequence
 
-3) 'SmartBot._assign_priority' would assign a priority value to the target 
-MoveSequence based on all the strategies in the list and store that in an 
-attribute in the MoveSequence
+    4) 'SmartBot._get_mseq_list' will return a list of all the MoveSequences 
+    with their priority assigned to 'SmartBot._choose_move_list'
 
-4) 'SmartBot._get_mseq_list' will return a list of all the MoveSequences with 
-their priority assigned to 'SmartBot._choose_move_list'
+    5) 'SmartBot._choose_move_list' would randomly pick out a MoveSequence with 
+    the highest priority value and return the list of moves in this MoveSequence
 
-5) 'SmartBot._choose_move_list' would randomly pick out a MoveSequence with the 
-highest priority value and return the list of moves in this MoveSequence
+Citations:
+    https://www.ultraboardgames.com/checkers/tips.php
+    https://www.youtube.com/watch?v=Lfo3yfrbUs0
+    https://www.gamblingsites.com/skill-games/checkers/
+    https://medium.com/@theflintquill/checkers-eba4d8862719
+    https://www.programiz.com/python-programming/methods/built-in/max
+    https://stackoverflow.com/questions/57548827/       
+        how-to-get-a-random-maximum-from-a-list
+    
+
 '''
 
 import math
@@ -53,14 +74,11 @@ class SmartLevel(Enum):
 class Bot:
     """
     Represents a fundamental structure of the bot with basic abilities to
-    conduct a move on behave of one player. Provides the method to get all
-    available moves at one turn and complete that move(for test only).
-
-    The bot is expected to only return a list of consecutive that needs to be 
-    completed to the GUI and the GUI will be completing the moves
+    get the next available move of our side and the opponent.
 
     Note that this class in itself doesn't support any choosing of the move
-    from all available moves
+    from all available moves. This Bot will not be functioning on its own but 
+    will be functioning by inherited by SmartBot and RandomBot
     """
 
     def __init__(self, own_color, checkersboard) -> None:
@@ -78,7 +96,8 @@ class Bot:
         self._oppo_color = PieceColor.RED if own_color == PieceColor.BLACK \
             else PieceColor.BLACK
         self._checkersboard = checkersboard
-        # initialize a copy of the checkerboard
+        # initialize a copy of the checkerboard that is used for experimenting
+        # our moves
         self._experimentboard = deepcopy(self._checkersboard)
 
     def _get_avail_moves(self) -> List[Move]:
@@ -131,7 +150,7 @@ class RandomBot(Bot):
 
         Parameters: None
 
-        Return: Union[List[Move]]: the list of move that is chosen, or an empty 
+        Return: List[Move]: the list of move that is chosen, or an empty 
             list when there's no move to take, which means the bot has lost
         """
         # get all the move that can be taken
@@ -157,21 +176,19 @@ class RandomBot(Bot):
 
 class MoveSequence:
     """
-    Represents a sequence of moves that valid to be chosen by the robot
+    Represents a sequence of moves that is  valid to be chosen by the robot
 
-    This class is specially for the smartbot to use for choosing and 
+    This class is specially for the SmartBot to use for choosing and 
     completing moves
     """
 
     def __init__(self, move_list) -> None:
         """
-        construct a movesequence
+        construct a MoveSequence
 
         Parameters:
             move_list(List[Move]): a list of the moves that can be taken 
-                                   consecutively
-            result_board(CheckersBoard): the result board state if the moves in 
-                                         the move list is taken
+                consecutively
 
         Return: None
         """
@@ -186,7 +203,7 @@ class MoveSequence:
 
         Parameters: None
 
-        Return: Tuple[int,int]: (x, y) on the board
+        Return: Position: (x, y) on the board
         """
         return self._move_list[0].get_current_position()
 
@@ -196,7 +213,7 @@ class MoveSequence:
 
         Parameters: None
 
-        Return: Tuple[int,int]: (x, y) on the board
+        Return: Position: (x, y) on the board
         """
         return self._move_list[-1].get_new_position()
 
@@ -206,13 +223,13 @@ class MoveSequence:
 
         Parameters: None
 
-        Return Piece: the piece that is moved
+        Return: Piece: the piece that is moved
         """
         return self._move_list[0].get_piece()
 
     def get_move_list(self) -> List[Move]:
         """
-        getter function of the mseq_list of the MoveSequence
+        getter function of the move_list of the MoveSequence
 
         Parameters: None
 
@@ -226,13 +243,13 @@ class MoveSequence:
 
         Parameters: None
 
-        Return: Float: the priority of the MoveSequence
+        Return: float: the priority of the MoveSequence
         """
         return self._priority
 
     def add_priority(self, add_pri) -> None:
         """
-        change the priority of a move sequence
+        add the priority of a MoveSequence with a certain value
 
         Parameters:
             add_pri(float): the value that is about to be added to the priority
@@ -247,16 +264,18 @@ class SmartBot(Bot):
     Represents a bot that is capable of selecting moves according
     to some strategies in a certain group of strategies, including:
     1) more inclined to attack opponent's double corner
-    2) more inclined to hold two anchor checkers in the base line
+    2) more inclined to hold two anchor checkers in the baseline
     3) more inclined to get kings
     4) more inclined to sacrifice pieces when leading
-    5) more inclined to pick the move that capture the most opponent pieces
-    6) more inclined to push forward
+    5) more inclined to pick the MoveSequence that capture the most opponent 
+        pieces
+    6) more inclined to push forward a Piece that is not a king
     7) more inclined to occupy the center
     8) able to conduct the wining move if possible
     9) able to avoid a losing move if possible
-    10) more inclined to conduct forcing
-    11) more inclined to chase down opponent pieces when leading in the endgame
+    10) more inclined to make our pieces stick together
+    11) more inclined to conduct forcing when possible
+    12) more inclined to chase down opponent pieces when leading in the endgame
 
     citations for the strategies:
     https://www.ultraboardgames.com/checkers/tips.php
@@ -267,12 +286,12 @@ class SmartBot(Bot):
 
     def __init__(self, own_color, checkersboard, level) -> None:
         """
-        construct for a smart bot
+        construct for a SmartBot
 
         Parameters:
             own_color(PieceColor): the color of the piece that
                 the bot is in control of
-            checkerboard(CheckersBoard): the checkerboard
+            checkerboard(CheckersBoard): the current checkerboard
             level(SmartLevel): how smart the bot has to be
 
         Return: None
@@ -285,14 +304,18 @@ class SmartBot(Bot):
         # initialize two containers for 1)an opponent instance 2) a
         # MoveSequence with an induced jump in response to our MoveSequences
         # which is going to be used latter for predicting opponents moves
-        # according to our moves
+        # according to our moves(these two are used internally only in some
+        # strategies)
         self._curr_oppo = None
         self._curr_oppo_induced = None
 
         # initialize a full list of strategies that can be implemented by the
         # bot
         # it comes with the weight that specifies how much influence should be
-        # put into each strategy: List[Tuple(strategy_method, weight)]
+        # put into each strategy: List[Tuple(strategy_method, weight)]. It
+        # should be noted that the weight can be adjusted to improve the
+        # performance of the bot or to make the bot put more or less emphasis
+        # on one or several strategies
         self._strategy_list = [
             (self._winning_priority, None),
             (self._lose_priority, None),
@@ -301,7 +324,7 @@ class SmartBot(Bot):
             (self._baseline_priority, 4),
             (self._push_priority, 1),
             (self._center_priority, 1),
-            (self._sacrifice_priority, 1),
+            (self._sacrifice_priority, 0.05),
             (self._captured_priority, 1),
             (self._corner_priority, 0.7),
             (self._king_priority, 1),
@@ -309,7 +332,8 @@ class SmartBot(Bot):
         ]
         # construct a dict for the list of strategies to adopt for different
         # difficulty levels
-        # 1) simple level bot implements only winning and lose strategies
+        # 1) simple level bot implements only winning and lose strategies,
+        # stick together, and to chase down opponents pieces in the endgame
         # 2) medium bot implements winning and lose strategies to take a winning
         # move or avoid a losing move, but it also has a sense of chasing
         # opponent, holding the baseline and pushing while sticking to other
@@ -321,18 +345,18 @@ class SmartBot(Bot):
             SmartLevel.HARD: self._strategy_list
         }
 
-        # this is just for test, include specific strategies functions that we
-        # want to test
-        self._strategy_list_test = [
-            (self._captured_priority, 1)]
-
     def choose_move_list(self) -> List[Move]:
         """
-        choose the list of move to take
+        choose the list of moves to take in this turn
 
-        A MoveSequence would be chosen according to the smart level of the
+        A list of moves would be chosen according to the smart level of the
         bot, the higher the smart level, the more strategies that the
-        choosing would take into consideration
+        choosing would take into consideration.
+
+        It will choose the list of moves with the largest priority, but if there
+        are multiple lists of moves with the same largest priority. It will 
+        randomly choose one to avoid the Bot acting in a fixed pattern and take 
+        the game to a loop scenario
 
         Parameters: None
 
@@ -347,16 +371,9 @@ class SmartBot(Bot):
 
         # check whether there is any MoveSequence we can take
         if weighted_mseq_list:
-            # return the move list of the MoveSequence with the highest priority
-            # https://www.programiz.com/python-programming/methods/built-in/max
-            # https://stackoverflow.com/questions/57548827/
-            # how-to-get-a-random-maximum-from-a-list
-
-            max_priority_mseq = max(
-                weighted_mseq_list, key=lambda m: m.get_priority())
-
             # get the largest priority
-            max_priority = max_priority_mseq.get_priority()
+            max_priority = max(mseq.get_priority()
+                               for mseq in weighted_mseq_list)
 
             # get a random MoveSequence with the max priority
             return_mseq = random.choice([mseq for mseq in weighted_mseq_list
@@ -365,18 +382,18 @@ class SmartBot(Bot):
 
             return return_mseq.get_move_list()
 
-        # we don't have any move to take, i.e. , we've lost
+        # we don't have any move to take, i.e. we've lost
         return []
 
     def _get_mseq_list(self, strategy_list) -> List[MoveSequence]:
         """
-        initialize a list of MoveSequences that we can take with their priority
+        get a list of MoveSequences that we can take with their priority
         updated according to different strategies
 
         Parameters: 
-            strategy_list(List[Tuple(Functionsm, float)]): a list of functions
+            strategy_list(List[Tuple(Function, float)]): a list of functions
                 that updates the priority of a MoveSequence according to some
-                strategy and their correponding weight
+                strategies and their corresponding weights
 
         Return: List[MoveSequence]:
             A list of all possible MoveSequences with their updated priority
@@ -387,14 +404,13 @@ class SmartBot(Bot):
 
         def helper(move_list, curr_path) -> None:
             """
-            a helper funciton to recursively find out all possible move 
+            a helper function to recursively find out all possible move 
             sequences and update the output_list accordingly
 
             Parameters:
                 move_list(List[Move]): a list of the next step that can be taken
                 curr_path(List[Move]): a list of that keeps track of the current
                     path of moves taken
-                curr_board(CheckersBoard): represent the current board state
 
             Return: None
             """
@@ -410,6 +426,7 @@ class SmartBot(Bot):
                 # MoveSequence
                 self._curr_oppo, self._curr_oppo_induced = None, None
 
+                # assign priority and append the processed mseq into the list
                 self._assign_priority(mseq, strategy_list)
                 Movesequence_list.append(mseq)
 
@@ -417,16 +434,15 @@ class SmartBot(Bot):
             # on a cloned board and recursively call helper
             for nxt_move in deepcopy(move_list):
                 # update the path and the board state
-
                 curr_path.append(deepcopy(nxt_move))
 
                 # complete the next move
-
                 valid_nxt_list = self._experimentboard.complete_move(nxt_move)
 
                 # the recursive step
                 helper(valid_nxt_list, curr_path)
 
+                # restore the experiment board and the curr_path
                 self._experimentboard.undo_move(nxt_move)
                 curr_path.pop()
 
@@ -441,8 +457,8 @@ class SmartBot(Bot):
         strategies
 
         Parameters:
-            mseq(Movesequence): the MoveSequence about to be updated
-            strategy_list(List[Tuple(Functionsm, float)]): a list of 
+            mseq(MoveSequence): the MoveSequence about to be updated
+            strategy_list(List[Tuple(Function, float)]): a list of 
                 functions that are going to be applied for the update of the 
                 priority and their corresponding weights
 
@@ -459,17 +475,15 @@ class SmartBot(Bot):
                     # doesn't have a weight, namely winning_priority and
                     # lose_priority
                     mseq.add_priority(strat_func(mseq))
-            elif mseq.get_priority() == math.inf:
-                # exists a winning MoveSequence, take that to win the game
-                break
             else:
-                # the current MoveSequence is a losing mseq, already set to
-                # -math.inf, pass
-                pass
+                # the current MoveSequence is a losing mseq or winning mseq,
+                # there's nothing that can change the priority of the mseq
+                # anymore
+                break
 
     def _distance(self, pos1, pos2) -> float:
         """
-        Calculated the distane between two position on the board
+        Calculated the distance between two position on the board
 
         Parameters:
             pos1(checkers.Position): the (x, y) on the board of the starting
@@ -713,19 +727,20 @@ class SmartBot(Bot):
 
             # get the initial number of pieces for each side and the current
             # number of pieces for each side
-            num_piece = self._experimentboard.get_board_width()/2 - 1
+            num_piece = (self._experimentboard.get_board_width()/2 - 1) * \
+                self._experimentboard.get_board_width()/2
             my_pieces = self._experimentboard.get_color_avail_pieces(
                 self._own_color)
             oppo_pieces = self._experimentboard.get_color_avail_pieces(
                 self._oppo_color)
 
-            # intialize a list to take the sacrifice score
+            # initialize a list to take the sacrifice score
             score_list = []
-            # traverse through all the induced jump movesequences
+            # traverse through all the induced jump MoveSequences
             for oppo_jump in self._curr_oppo_induced:
                 # depict the difference of the number of pieces between both
-                # sides, always negative, the more pieces we have over the
-                # opponent, the smaller the absolute value.
+                # sides, always positive, the more pieces we have over the
+                # opponent, the smaller the value.
                 difference_factor = num_piece - \
                     (len(my_pieces) - len(oppo_pieces))
                 # sacrifice core is bigger when (1)more pieces are captured (2)
