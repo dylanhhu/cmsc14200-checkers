@@ -44,7 +44,7 @@ deactivate
 
 TODO
 
-## Changes since Milestone 2
+## Implementation Changes since Milestone 2
 
 ### GUI
 
@@ -74,6 +74,10 @@ TODO
 ### Bot
 
 TODO
+
+## Testing the Game Logic
+
+The game logic does not have a test suite of its own as it was completed before the frontends and bot were completed. Thus, use the GUI to test the game logic.
 
 ## Running the GUI
 
