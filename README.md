@@ -55,7 +55,15 @@ TODO
 
 ### Logic
 
-TODO
+#### New Changes
+
+* Created generic `Board` class without checkers logic
+* Number of moves before stalemate scales with the board size
+* Implemented caching of players' moves
+
+#### Bug Fixes
+
+* Fixed jumping into kinging not capturing the piece
 
 ### Bot
 
