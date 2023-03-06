@@ -483,7 +483,7 @@ class SmartBot(Bot):
 
     def _distance(self, pos1, pos2) -> float:
         """
-        Calculated the distance between two position on the board
+        Calculated the distance between two positions on the board
 
         Parameters:
             pos1(checkers.Position): the (x, y) on the board of the starting
@@ -497,7 +497,7 @@ class SmartBot(Bot):
     def _corner_priority(self, mseq, weight) -> float:
         """
         update the priority of the MoveSequence with the consideration of
-        attacking the opponent's double corner when
+        attacking the opponent's double corner
 
         It would only cause our pieces to be more inclined to move attack
         opponent's double corner when opponent's double corner is not vacant
@@ -519,7 +519,6 @@ class SmartBot(Bot):
         # corner according to bot's own piece color
         if self._own_color == PieceColor.RED:
             oppo_double_pos = (0, 0)
-
         elif self._own_color == PieceColor.BLACK:
             oppo_double_pos = (self._experimentboard.get_board_width(),
                                self._experimentboard.get_board_width())
@@ -562,15 +561,14 @@ class SmartBot(Bot):
         origin_pos = mseq.get_original_position()
         # initialize a list that's going to take the anchor positions
         anchor_pos_list = []
-        # get the borad witdh
+        # get the board width
         boardwidth = self._experimentboard.get_board_width()
 
         # determine the anchor positions according to our piece color
         if self._own_color == PieceColor.RED:
             # we control the red piece
             for n in range(boardwidth - 2, -1, -4):
-                anchor_pos_list.append(
-                    (n, boardwidth - 1))
+                anchor_pos_list.append((n, boardwidth - 1))
         elif self._own_color == PieceColor.BLACK:
             # we control the black piece
             for n in range(1, boardwidth, 4):
@@ -600,14 +598,14 @@ class SmartBot(Bot):
         """
         # get a flag that indicates whether the target piece of a moving #
         # sequence is already a king
-        prev_king = mseq.get_target_piece().is_king()
+        prev_king_flag = mseq.get_target_piece().is_king()
 
         # find the baseline row that our side aim at to king
         baseline = {PieceColor.RED: 0,
                     PieceColor.BLACK:
                     self._experimentboard.get_board_width() - 1}
 
-        if (not prev_king) and \
+        if (not prev_king_flag) and \
                 mseq.get_end_position()[1] == baseline[self._own_color]:
             # the MoveSequence is a moving previously non-kinged piece to the
             # kinging row, thus kinging the piece
@@ -625,9 +623,9 @@ class SmartBot(Bot):
         endgame
 
         We only consider this strategy when the opponent has relatively small 
-        number of pieces remain and we are leading! Chasing after oppponent 
+        number of pieces remain and we are leading! Chasing after the opponent 
         when we are not leading is dangerous. Additionally, this will only be 
-        implmented when the boardwidth is >= 8, or chasing would be pointless 
+        implemented when the board width is >= 8, or chasing would be pointless 
         and dangerous
 
         Note that we chase after the piece that is closest to our piece about 
@@ -683,7 +681,7 @@ class SmartBot(Bot):
                                       mseq.get_original_position())
                 if dist < target_tuple[0]:
                     # if the distance is smaller than the previously least
-                    # ditance, update the target_tuple with this new target
+                    # distance, update the target_tuple with this new target
                     # piece
                     target_tuple = (dist, oppo_piece.get_position())
 
@@ -692,67 +690,6 @@ class SmartBot(Bot):
             chase_score = target_tuple[0] - \
                 self._distance(target_tuple[1], mseq.get_end_position())
             return chase_score * weight
-
-    def _sacrifice_priority(self, mseq, weight) -> float:
-        """
-        update the priority of the available MoveSequence with the consideration
-        of sacrifice
-
-        Sometimes making a move means sacrificing the piece we are moving, we 
-        don't want to do this blindly so this function serves as a restricting 
-        method so that we don't blindly sacrifice our pieces for no reason.
-
-        However, we are more willing to sacrifice pieces when we are leading
-
-        Parameters:
-            mseq(MoveSequence): a MoveSequence whose priority is about to be 
-                updated
-            weight(float): a float that determine how much of an influence this 
-                strategy should be playing among all the strategies
-
-        Return: float: the value to add to priority to mseq according to the 
-            sacrificing strategy
-        """
-        # check whether an opponent and its induced jump MoveSequence has
-        # already been constructed for our mseq. If not, construct them
-        if not self._curr_oppo:
-            self._curr_oppo = OppoBot(self._oppo_color,
-                                      self._experimentboard, mseq, self._level)
-        if not self._curr_oppo_induced:
-            self._curr_oppo_induced = self._curr_oppo.get_induced_jump_mseq()
-
-        # check whether the current MoveSequence will lead to a induced jump
-        if self._curr_oppo_induced:
-            # this MoveSequence leads to a sacrifice
-
-            # get the initial number of pieces for each side and the current
-            # number of pieces for each side
-            num_piece = (self._experimentboard.get_board_width()/2 - 1) * \
-                self._experimentboard.get_board_width()/2
-            my_pieces = self._experimentboard.get_color_avail_pieces(
-                self._own_color)
-            oppo_pieces = self._experimentboard.get_color_avail_pieces(
-                self._oppo_color)
-
-            # initialize a list to take the sacrifice score
-            score_list = []
-            # traverse through all the induced jump MoveSequences
-            for oppo_jump in self._curr_oppo_induced:
-                # depict the difference of the number of pieces between both
-                # sides, always positive, the more pieces we have over the
-                # opponent, the smaller the value.
-                difference_factor = num_piece - \
-                    (len(my_pieces) - len(oppo_pieces))
-                # sacrifice core is bigger when (1)more pieces are captured (2)
-                # The more the opponent pieces is more than mine (3) a king is
-                # captured rather than a normal piece
-                score_list.append(self._curr_oppo._captured_priority(
-                    oppo_jump, 1) * difference_factor)
-
-            return - weight * max(score_list)
-
-        # this MoveSequence doesn't lead to a sacrifice
-        return 0
 
     def _captured_priority(self, mseq, weight) -> float:
         """
@@ -782,6 +719,74 @@ class SmartBot(Bot):
 
         return weight * capture_score
 
+    def _sacrifice_priority(self, mseq, weight) -> float:
+        """
+        update the priority of the available MoveSequence with the consideration
+        of sacrifice
+
+        Sometimes making a move means sacrificing the piece we are moving, we 
+        don't want to do this blindly so this function serves as a restricting 
+        method so that we don't blindly sacrifice our pieces for no reason.
+
+        We call the move that the opponent is forced to take which captures the 
+        piece we just moved the "induced jump". Sacrifice would only be counted 
+        if such an induced jump exist and the opponent has no choice but to 
+        conduct this move, i.e. our moved piece would definitely be captured
+
+        However, we are more willing to sacrifice pieces when we are leading
+
+        Parameters:
+            mseq(MoveSequence): a MoveSequence whose priority is about to be 
+                updated
+            weight(float): a float that determine how much of an influence this 
+                strategy should be playing among all the strategies
+
+        Return: float: the value to add to priority to mseq according to the 
+            sacrificing strategy
+        """
+        # check whether an opponent and its induced jump MoveSequence has
+        # already been constructed for our mseq. If not, construct them
+        if not self._curr_oppo:
+            self._curr_oppo = OppoBot(self._oppo_color,
+                                      self._experimentboard, mseq, self._level)
+        if not self._curr_oppo_induced:
+            self._curr_oppo_induced = self._curr_oppo.get_induced_jump_mseq()
+
+        # check whether the current MoveSequence will lead to a induced jump
+        if self._curr_oppo_induced:
+            # this MoveSequence leads to a sacrifice
+
+            # get the initial number of pieces for each side and the current
+            # number of pieces for each side
+            num_piece = (self._experimentboard.get_board_width()/2 - 1) * \
+                self._experimentboard.get_board_width()/2
+            my_avail_pieces = self._experimentboard.get_color_avail_pieces(
+                self._own_color)
+            oppo_avail_pieces = self._experimentboard.get_color_avail_pieces(
+                self._oppo_color)
+
+            # initialize a list to take the sacrifice score
+            score_list = []
+            # traverse through all the induced jump MoveSequences
+            for oppo_jump in self._curr_oppo_induced:
+                # depict the difference of the number of pieces between both
+                # sides, always positive, the more pieces we have over the
+                # opponent, the smaller the value.
+                difference_factor = num_piece - \
+                    (len(my_avail_pieces) - len(oppo_avail_pieces))
+                # sacrifice core is bigger when (1)more pieces are captured (2)
+                # The more the opponent pieces is more than mine (3) a king is
+                # captured rather than a normal piece. This is achieved through
+                # calling _captured_priority on the OppoBot to evaluate how
+                # much is the lost of our sacrifice MoveSequence
+                score_list.append(self._curr_oppo._captured_priority(
+                    oppo_jump, 1) * difference_factor)
+
+            return - weight * max(score_list)
+
+        # this MoveSequence doesn't lead to a sacrifice
+        return 0
+
     def _push_priority(self, mseq, weight) -> float:
         """
         update the priority of the available MoveSequence with the consideration
@@ -807,6 +812,8 @@ class SmartBot(Bot):
         origin_pos = mseq.get_original_position()
         end_pos = mseq.get_end_position()
 
+        # check which side are we on to make sure we make push_score reflecting
+        # the push for each side
         if self._own_color == PieceColor.RED:
             # we control the red piece
             push_score = origin_pos[1] - end_pos[1]

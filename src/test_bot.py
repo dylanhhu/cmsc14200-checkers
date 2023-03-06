@@ -11,12 +11,25 @@ To run the the test, run the command in the following form in the terminal:
 'python3 src/test_bot.py 6 50'
 this stands for running a test with 50 games on a board with 6 rows per player
 
+I will list the average time for each game for different rows per player below 
+for reference:
+    rows per player             average time
+    2                           0.07s
+    3                           0.30s
+    4                           1.52s
+    5                           3.82s
+    6                           1.23s
+    7                           3.19s
+    8                           6.09s
+    9                           11.23s
+
 citations: 
     https://www.geeksforgeeks.org/command-line-arguments-in-python/
     https://www.codecademy.com/resources/docs/python/modules/tqdm
 """
 import sys
 from tqdm import trange
+from typing import Tuple
 from bot import *
 from checkers import GameStatus, PieceColor
 
@@ -54,7 +67,7 @@ def complete_move(bot) -> None:
         bot._checkersboard.complete_move(nxt_move)
 
 
-def bot_test(game_num, row_num) -> float:
+def bot_test(game_num, row_num) -> Tuple[float, float]:
     """
     This function implements test on a bot to get the winning rate under for 
     the SmartBot over the Random Bot on a board over a board with each side 
@@ -65,10 +78,11 @@ def bot_test(game_num, row_num) -> float:
         game_num(int): number of games that are going to be played
         row_num(int): number of rows per player
 
-    Return: float: the winning rate of the row_num
+    Return: Tuple(float, float): the winning rate, draw rate for the row_num
     """
-    # initialize a winning counter for the smart bot
+    # initialize a winning counter and and a draw counter for the smart bot
     smart_win_counter = 0
+    draw_counter = 0
 
     # initialize the smart level of the smart bot corresponding to this row num
     smart_level = size_bot_dict[row_num]
@@ -107,12 +121,14 @@ def bot_test(game_num, row_num) -> float:
                 # change the turn
                 turn = PieceColor.BLACK
 
-        # update the win counter for the smart bot each game
+        # update the win counter and draw counter for the smart bot each game
         if board.get_game_state() == GameStatus.RED_WINS:
             smart_win_counter += 1
+        elif board.get_game_state() == GameStatus.DRAW:
+            draw_counter += 1
 
-    # return the winning rate of the smart bot
-    return smart_win_counter/game_num
+    # return the winning rate and draw rate of the smart bot
+    return (smart_win_counter/game_num, draw_counter/game_num)
 
 
 if __name__ == "__main__":
@@ -127,11 +143,11 @@ if __name__ == "__main__":
             raise ValueError(msg)
 
         # run the test
-        win_rate = bot_test(game_num, row_num)
+        win_rate, draw_rate = bot_test(game_num, row_num)
 
         # gives out result
-        msg = f"winning rate of the smart bot on a board with {row_num} rows \
-            per player: {win_rate}"
+        msg = f"winning rate of the smart bot on a board with {row_num} rows\
+per player: {win_rate}, draw_rate = {draw_rate} "
         print(msg)
 
     else:
