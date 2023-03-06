@@ -40,6 +40,14 @@ To deactivate the virtual environment, run:
 deactivate
 ```
 
+### WSL2 Notes
+
+If, for some reason you are trying to use this under WSL, you'll likely need to install `libsdl2-dev` for PyGame to work properly, otherwise [you'll get segmentation faults](https://github.com/pygame/pygame/issues/3260#issuecomment-1219040389):
+
+```shell
+sudo apt install libsdl2-dev
+```
+
 ## Design changes since Milestone 1
 
 TODO
