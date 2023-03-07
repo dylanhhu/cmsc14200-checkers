@@ -100,7 +100,7 @@ python3 src/gui.py
 
 - 📐 The interface is rendered responsively, so feel free to resize the window by dragging its corners
 - 🦾 Random and smart bot included
-- 🐌 GUI uses PyGame, which has less-than-ideal render performance for large board sizes (keep below 15 rows per player)
+- 🐌 PyGame doesn't handle O(<img src="https://render.githubusercontent.com/render/math?math=n^2">) board rendering efficiently (recommended: < 15 rows per player)
 
 ### Game setup
 
@@ -116,15 +116,20 @@ python3 src/gui.py
 
 ### Gameplay
 - Black always starts
-- Making a move:
-  - Use the action bar, located at the bottom of the window
-    - Using the left dropdown box, select the position of the checkers piece you wish to move
-    - Using the right dropdown box, select the destination position you wish to move the selected piece to
-  - Or, click on the piece you want to move and choose from the available moves displayed on the board
-- While a bot is making their move, the other player must wait
+- Selecting a move:
+  - Use the action bar, located at the bottom of the window:
+    1. Using the left dropdown box, select the position of the checkers piece you wish to move
+    2. Using the right dropdown box, select the destination position you wish to move the selected piece to
+  - Or click:
+    1. On the piece you want to move
+    2. On one of the highlighted available destination squares
+- To execute a move, click on the "Move" button
+- (While a bot is making their move, the other player must wait)
+- Click on the "Menu" button at any time, to open the menu dialog. This pauses gameplay.
 
-### Unimplemented Features
-There is no support in the GUI for offering and accepting draws, or for resigning.
+### N.B. logic class methods
+- There is no support in the GUI for offering and accepting draws.
+- Instead of resignation, players simply start "New game" via game menu
 
 ### Performance optimization
 By design, the GUI displays each bot move with a visual delay. This delay occurs on a thread separate from the main thread, so that the window does not become unresponsive while the bot is 'selecting and making' their move.
