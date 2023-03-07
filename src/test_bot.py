@@ -1,7 +1,9 @@
 """
 This file is for testing the winning rate of the robot. It runs a specified 
-number of games with the random bot vs the smart bot. We only support row 
-numbers from 2 to 9 as this is what's required in the design requirement
+number of games with the random bot vs the smart bot. We highly recommend row 
+numbers from 2 to 9 as this is what's required in the design requirement and 
+there's no guarantee that the bot will finish a game in a relatively small 
+period of time, in which case the bot would be set to SmartLevel of SIMPLE.
 
 The bot's smart level is responsive to the size of the board: the smarter the 
 bot gets, the more time to play the game. Therefore, it makes more sense to
@@ -85,7 +87,12 @@ def bot_test(game_num, row_num) -> Tuple[float, float]:
     draw_counter = 0
 
     # initialize the smart level of the smart bot corresponding to this row num
-    smart_level = size_bot_dict[row_num]
+    if row_num in range(2, 10):
+        # rows per player number in recommended range
+        smart_level = size_bot_dict[row_num]
+    else:
+        # not in recommended range, default the smart level to simple
+        smart_level = SmartLevel.SIMPLE
 
     for i in trange(game_num, file=sys.stdout):
         # initialize a board according to the row num
@@ -136,11 +143,6 @@ if __name__ == "__main__":
         # initialize row_num and game_num
         row_num = int(sys.argv[1])
         game_num = int(sys.argv[2])
-
-        # check whether the row number is valid
-        if row_num not in range(2, 10):
-            msg = 'invalid row number per player, must be in [2, 9]'
-            raise ValueError(msg)
 
         # run the test
         win_rate, draw_rate = bot_test(game_num, row_num)
