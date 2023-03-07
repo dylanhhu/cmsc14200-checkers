@@ -100,7 +100,7 @@ python3 src/gui.py
 
 - 📐 The interface is rendered responsively, so feel free to resize the window by dragging its corners
 - 🦾 Random and smart bot included
-- 🐌 PyGame doesn't handle O(<img src="https://render.githubusercontent.com/render/math?math=n^2">) board rendering efficiently (recommended: < 15 rows per player)
+- 🐌 PyGame doesn't render board efficiently (recommended: < 15 rows per player)
 
 ### Game setup
 
