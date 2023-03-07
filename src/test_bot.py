@@ -147,7 +147,7 @@ if __name__ == "__main__":
 
         # gives out result
         msg = f"winning rate of the smart bot on a board with {row_num} rows\
-per player: {win_rate}, draw_rate = {draw_rate} "
+ per player: {win_rate}, draw_rate = {draw_rate} "
         print(msg)
 
     else:
