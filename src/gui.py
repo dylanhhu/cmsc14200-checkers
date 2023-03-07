@@ -106,7 +106,8 @@ class _Dialogs(Enum):
     An enumeration for the internal representation of each dialog.
     """
     MENU = 0
-    GAME_OVER = 1
+    WIN = 1
+    DRAW = 2
 
 
 class _PlayerType(Enum):
@@ -421,7 +422,7 @@ class _GameElems:
     MENU_DIALOG = "#menu-dialog"
     MENU_DIALOG_CANCEL = "#menu-dialog.#cancel_button"
 
-    # Game Over dialog
+    # Game Over dialog (same for win & draw)
     GAME_OVER_DIALOG = "#game-over-dialog"
     GAME_OVER_DIALOG_CANCEL = "#game-over-dialog.#cancel_button"
 
@@ -509,13 +510,19 @@ class _Theme:
 
 def _color_str(color: PieceColor) -> str:
     """
-    Creates a string representation of a given piece color.
+    Creates a titlecase string representation of a given piece color.
 
     Args:
         color (PieceColor): piece color
 
     Returns:
         str: string representation of piece color
+
+    Examples:
+            >>> _color_str(PieceColor.RED)
+            'Red'
+            >>> _color_str(PieceColor.BLACK)
+            'Black'
     """
     if color == PieceColor.RED:
         return "Red"
@@ -792,6 +799,7 @@ class _AppState:
     # Players
     current_color = PieceColor.BLACK
     winner: Union[PieceColor, None] = None
+    _game_ended: bool = False
 
     # Positions
     _start_pos: Union[Position, None] = None
@@ -1036,6 +1044,36 @@ class _AppState:
         if bot_level == _BotLevel.MEDIUM:
             return SmartLevel.MEDIUM
         return SmartLevel.HARD
+
+    def mark_game_over(self) -> None:
+        """
+        Marks the game as ended. Stops the bot if it is about to make its next
+        move.
+
+        Returns:
+            None
+        """
+        self._game_ended = True
+
+    @property
+    def is_game_over(self) -> bool:
+        """
+        Getter method for whether the game has ended.
+
+        Returns:
+            bool
+        """
+        return self._game_ended
+
+    def soft_reset(self) -> None:
+        """
+        Resets the app state for a new game, while keeping setup values.
+
+        Returns:
+            None
+        """
+        self._game_ended = False
+        self.winner = None
 
     @property
     def start_pos(self) -> Position:
@@ -1431,7 +1469,7 @@ class MenuDialog(UIConfirmationDialog):
                          object_id=_GameElems.MENU_DIALOG)
 
 
-class GameOverDialog(UIConfirmationDialog):
+class WinDialog(UIConfirmationDialog):
     """
     Creating an instance of this class creates a 'game over' dialog for
     declaring a winner.
@@ -1459,6 +1497,30 @@ class GameOverDialog(UIConfirmationDialog):
                          cancel_short_name="Quit",
                          object_id=_GameElems.GAME_OVER_DIALOG)
 
+
+class DrawDialog(UIConfirmationDialog):
+    """
+    Creating an instance of this class creates a 'game over' dialog for
+    declaring a draw.
+    """
+
+    def __init__(self, rel_rect: pygame.Rect) -> None:
+        """
+        Initialize the dialog by overriding parameters of
+        `UIConfirmationDialog`.
+
+        Args:
+            rel_rect (pygame.Rect): relative rectangle for dialog dimensions
+
+        Returns:
+            None
+        """
+        super().__init__(rel_rect,
+                         "Both players drew!",
+                         window_title="Game over",
+                         action_short_name="New game",
+                         cancel_short_name="Quit",
+                         object_id=_GameElems.GAME_OVER_DIALOG)
 
 # ===============
 # GUI APP CLASS
@@ -2495,13 +2557,14 @@ class GuiApp:
             # Check for which dialog should be opened
             if opened_dialog == _Dialogs.MENU:
                 MenuDialog(dialog_rel_rect)
-            elif opened_dialog == _Dialogs.GAME_OVER:
-                winner_color_str = "red" \
-                    if self._state.winner == PieceColor.RED else "black"
-                GameOverDialog(
+            elif opened_dialog == _Dialogs.WIN:
+                winner_color_str = _color_str(self._state.winner).lower()
+                WinDialog(
                     dialog_rel_rect,
                     winner_color_str,
                     self._state.get_player_name(self._state.winner))
+            elif opened_dialog == _Dialogs.DRAW:
+                DrawDialog(dialog_rel_rect)
 
     # ===============
     # APP WINDOW
@@ -2980,13 +3043,16 @@ class GuiApp:
 
         # Check for end of game
         game_state = self._state.board.get_game_state()
-        if game_state in (GameStatus.RED_WINS, GameStatus.BLACK_WINS):
-            # Someone has won the game: find out which player
-            if game_state == GameStatus.RED_WINS:
-                self._state.winner = PieceColor.RED
+        if game_state != GameStatus.IN_PROGRESS:
+            if game_state == GameStatus.DRAW:
+                # Players drew
+                self._state.post_dialog(_Dialogs.DRAW)
             else:
-                self._state.winner = PieceColor.BLACK
-            self._state.post_dialog(_Dialogs.GAME_OVER)
+                # Someone won
+                self._state.winner = PieceColor.RED \
+                    if game_state == GameStatus.RED_WINS else PieceColor.BLACK
+                self._state.post_dialog(_Dialogs.WIN)
+            self._state.mark_game_over()
             self._rebuild_ui()
         else:
             # Check if current player has remaining moves
@@ -3007,9 +3073,9 @@ class GuiApp:
         Returns:
             None
         """
-        if self._state.winner or (not moves):
-            # Winner exists: stop bot execution
-            warnings.warn("Winner exists: stop bot execution.")
+        if self._state.is_game_over or (not moves):
+            # Game over: stop bot execution
+            warnings.warn("Game over: stop bot execution.")
             return
 
         move, *remaining_moves = moves
@@ -3033,11 +3099,16 @@ class GuiApp:
             """
             Check whether gameplay should be paused.
 
+            Will pause if any of the following is true:
+
+            - a dialog is open
+            - game has ended
+
             Returns:
                 bool: is paused
             """
             should_pause = (self._state.dialog is not None) or \
-                           (self._state.winner is not None)
+                           self._state.is_game_over
 
             if should_pause:
                 warnings.warn("Found reason to pause bot.")
@@ -3430,7 +3501,7 @@ class GuiApp:
                 # ===============
                 # Confirmed: START NEW GAME
                 # ===============
-                self._state.winner = None
+                self._state.soft_reset()
                 self._routing_open_screen(_Screens.SETUP)
                 self._rebuild_ui()
         elif event.type == pygame_gui.UI_WINDOW_CLOSE:
