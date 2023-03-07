@@ -722,7 +722,7 @@ class SmartBot(Bot):
     def _sacrifice_priority(self, mseq, weight) -> float:
         """
         update the priority of the available MoveSequence with the consideration
-        of sacrifice
+        of sacrificing pieces
 
         Sometimes making a move means sacrificing the piece we are moving, we 
         don't want to do this blindly so this function serves as a restricting 
@@ -861,7 +861,7 @@ class SmartBot(Bot):
                                 (original_pos[0] + 1, original_pos[1] - 1),
                                 (original_pos[0] + 1, original_pos[1] + 1)]
 
-        # initilize two flags to record whether the target piece was sticked to
+        # initialize two flags to record whether the target piece was sticked to
         # our pieces and currently sticked to our pieces
         past_stick, now_stick = False, False
 
@@ -869,6 +869,14 @@ class SmartBot(Bot):
         # piece
         for piece in \
                 self._experimentboard.get_color_avail_pieces(self._own_color):
+            if piece.get_position() == mseq.get_end_position():
+                # the piece is the moved piece and should be ignored
+                continue
+            if past_stick and now_stick:
+                # found that there exists a piece on our side both in the
+                # original near region and the end region already, directly
+                # return
+                return 0
             if piece.get_position() in original_near_region:
                 # there exists a piece in the original near region
                 past_stick = True
@@ -887,15 +895,15 @@ class SmartBot(Bot):
 
     def _center_priority(self, mseq, weight) -> float:
         """
-        update the priority of the available MoveSeuqnce with the consideration
+        update the priority of the available MoveSequence with the consideration
         of occupying the center
 
         For typical 8 * 8 checkerboards, the center refers to the 8 positions 
         in the center 4 columns and the center 2 columns. We want to push into 
         the center regions because we want to avoid staying on the side of the 
         board Therefore, to generalize this to a w * w checkerboards, the 
-        center region shall be column 3 to column w -2 and the center rows that 
-        are without any pieces at the beginning of the round
+        center region shall be column 3 to column w - 2 and the center rows 
+        that are without any pieces at the beginning of the round
 
         Parameters:
             mseq(MoveSequence): a MoveSequence whose priority is about to be 
@@ -1012,11 +1020,12 @@ class SmartBot(Bot):
         We call the forced jump and consecutive moves of the Opponent the 
         induced jump MoveSequence, and call our MoveSequence that can capture 
         this piece moved by the induced jump MoveSequence in the following 
-        round response MoveSequence.
+        round 'response MoveSequence'.
 
         Note that the induced jump MoveSequence should be unique to be 
         considered in forcing strategy, if the jump is induced by the opponent 
-        has a choice, forcing tends to get really complicated
+        has a choice, forcing tends to get really complicated and we don't 
+        consider this scenario
 
         Parameters:
             mseq(MoveSequence): a MoveSequence whose priority is about to be 
@@ -1043,24 +1052,25 @@ class SmartBot(Bot):
             for move in oppo_move_list:
                 self._experimentboard.complete_move(move)
 
-            induced_piece = self._experimentboard._pieces[
-                oppo_mseq.get_end_position()]
-
             # get what would our available MoveSequence be for the next turn if
             # we forced the Opponent's induced jump MoveSequence
             nxt_turn_mseq = self._get_mseq_list([])
 
-            # initialize a list to take the updated priority of Movesequences
-            # that are respnse MoveSequences
+            # initialize a list to take the updated priority of MoveSequences
+            # that are response MoveSequences
             response_priority = []
             for mseq in nxt_turn_mseq:
                 # get the first move in the MoveSequence
                 first_move = mseq.get_move_list()[0]
                 if isinstance(first_move, Jump):
-                    if first_move.get_captured_piece() == induced_piece:
-                        # this MoveSequence is a response Movesequence, i.e. it
+                    if first_move.get_captured_piece().get_position() ==\
+                            oppo_mseq.get_end_position():
+                        # this MoveSequence is a response MoveSequence, i.e. it
                         # is a jump and capture the piece moved by the opponent
-                        # in its last inducde jump MoveSequence
+                        # in its last induced jump MoveSequence
+
+                        # gives the capture value that will be achieved by this
+                        # response MoveSequence
                         response_priority.append(
                             self._captured_priority(mseq, weight))
 
@@ -1100,20 +1110,20 @@ class OppoBot(SmartBot):
                 control of
             checkerboard(CheckersBoard): the checkerboard
             last_mseq(MoveSequence): represents the move sequence that we 
-                asssumed to be taken by the SmartBot
-            level(SmartLevel) : the SmartLevel that we are giving the Oppobot, 
+                assumed to be taken by the SmartBot
+            level(SmartLevel) : the SmartLevel that we are giving the OppoBot, 
                 should be the same as the SmartBot
 
         Return: None
         """
         super().__init__(own_color, checkersboard, level)
 
-        # initialize a container for the last MoveSquence that the SmartBot was
+        # initialize a container for the last MoveSequence that the SmartBot was
         # assumed to have taken
         self._last_mseq = last_mseq
 
-        # all the available MoveSequences with the conisderation of whether
-        # there exists a winning move
+        # initialize a list to contain all the available MoveSequences with the
+        # consideration of whether there exists a winning move
         self._mseq_list = self._get_mseq_list([(self._winning_priority, None)])
 
     def contains_winning_mseq(self) -> bool:
@@ -1133,20 +1143,20 @@ class OppoBot(SmartBot):
                 return True
         return False
 
-    def get_induced_jump_mseq(self) -> List[Union[MoveSequence, None]]:
+    def get_induced_jump_mseq(self) -> List[MoveSequence]:
         """
         If the MoveSequence assumed to be taken by the SmartBot, which led to 
-        the OppoBot to be having a or more MoveSequence with the first move 
-        being a Jump over the piece that was moved in the MoveSequence by the 
+        the OppoBot to be having a or more MoveSequence with the first move, 
+        is a Jump over the piece that was moved in the MoveSequence by the 
         SmartBot, and those jumps are the only available moves of the Opponent, 
         then return a list of those MoveSequences that contains those jumps, 
-        otherwise, return None
+        otherwise, return an empty list
 
         Parameters: None
 
-        Return: List[Union[MoveSequence, None]]: the MoveSequence with the 
-            first move beingt the jump induced by the last MoveSequence done by 
-            the SmartBot, or None if such induced jump doesn't exist or is not 
+        Return: List[MoveSequence]: the MoveSequence with the 
+            first move being the jump induced by the last MoveSequence done by 
+            the SmartBot, or [] if such induced jump doesn't exist or is not 
             the only available move fro OppoBot
         """
         # initialize an output list
@@ -1155,8 +1165,8 @@ class OppoBot(SmartBot):
             first_move = mseq.get_move_list()[0]
             # check out whether the first move is a jump
             if isinstance(first_move, Jump):
-                if first_move.get_captured_piece() ==\
-                        self._experimentboard._pieces[self._last_mseq.get_end_position()]:
+                if first_move.get_captured_piece().get_position() ==\
+                        self._last_mseq.get_end_position():
                     # the first move of the MoveSequence is a Jump through the
                     # piece just moved by the SmartBot
                     output_list.append(mseq)
