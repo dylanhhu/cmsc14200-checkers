@@ -62,6 +62,7 @@ TODO
 - [x] Check game state (in progress or win)
 - [x] Display captured pieces
 - [x] Maintain previous game setup when starting new game
+- [x] Handle timeout-induced draws
 
 ### TUI
 
@@ -143,9 +144,9 @@ python3 src/gui.py
 - (While a bot is making their move, the other player must wait)
 - Click on the "Menu" button at any time, to open the menu dialog. This pauses gameplay.
 
-### N.B. logic class methods
-- There is no support in the GUI for offering and accepting draws.
-- Instead of resignation, players simply start "New game" via game menu
+### GUI does these differently from Logic Class
+- There is no support for offering draws (however, GUI does handle timeout-induced draws)
+- Instead of resigning, players simply start "New game" via game menu
 
 ### Performance optimization
 By design, the GUI displays each bot move with a visual delay. This delay occurs on a thread separate from the main thread, so that the window does not become unresponsive while the bot is 'selecting and making' their move.
