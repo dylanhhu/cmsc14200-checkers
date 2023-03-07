@@ -145,8 +145,8 @@ python3 src/test_bot.py {rows per player} {number of games}
 ```
 
 replace the {rows per player} above with the number of rows per player and the {number of games} above
-with the number of games that we want to run the test with. It should be noted that the test only suppor
-rows per player within the range of [2, 9]. 
+with the number of games that we want to run the test with. It should be noted that the test is recommended 
+for rows per player within the range of [2, 9]. Otherwise the time to run a game may be more than 15s.
 
 Here is one example command if I want to run the test for 4 rows per player for 50 games:
 ```shell
