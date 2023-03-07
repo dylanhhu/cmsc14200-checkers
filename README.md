@@ -81,7 +81,23 @@ TODO
 
 ### Bot
 
-TODO
+#### New Changes
+
+* OppoBot is now constructed at most once when evaluatating each MoveSequence, raising efficiency
+* Lose_priority now only considered when there are fewer than 4 pieces on bot's side
+* OppoBot now only call `_get_mseq_list` once when it's constructed and share this information for both winning
+move detection and induced jump detection
+* Created `test_bot.py` for testing the bot without using TUI or GUI
+* updated the strategy list and the strategies implemented for different SmartLevels
+* If a MoveSequence is identified as a winning or losing MoveSequence, it would not be processed by 
+other strategies anymore
+* The SmartBot now randomly select a MoveSequence with the highest priority (added randomness)
+
+#### Bug Fixes
+
+* Fixed the problem in `_sacrifice_priority` that the difference factor might get negative and encouraging sacrifice
+* Fixed the problem in `_stick_priority` that it's possible to count the moved piece itself as a piece in the near 
+region of the original position before the piece is moved
 
 ## Testing the Game Logic
 
