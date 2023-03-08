@@ -143,6 +143,7 @@ sudo apt install libsdl2-dev
 
 #### Bug fixes
 - Fixed error where game would not print the winner's color when game ended
+- Fixed fatal issue that would crash game when non-integer input was entered
 
 ### Logic
 
