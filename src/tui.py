@@ -1,8 +1,9 @@
-from bot import SmartLevel, SmartBot, RandomBot
-from checkers import (PieceColor, CheckersBoard, Position, Piece, Move,
-                      GameStatus)
-from colorama import Fore, Back, Style
-    
+from colorama import Back, Fore, Style
+
+from bot import RandomBot, SmartBot, SmartLevel
+from checkers import (CheckersBoard, GameStatus, Move, Piece, PieceColor,
+                      Position)
+
 
 def initialize():
     """
@@ -15,13 +16,14 @@ def initialize():
         None
     """
     print('Welcome to Checkers!')
-    #print("How many rows of pieces would you like to play with today?")
-    #rows = None
-    #while not str(rows) in '12345':
+    # print("How many rows of pieces would you like to play with today?")
+    # rows = None
+    # while not str(rows) in '12345':
     #    rows = input('> ')
     #    if rows == '':
     #        rows = 3
     play_checkers(3, 'human')
+
 
 def print_board(b):
     """
@@ -34,9 +36,10 @@ def print_board(b):
         None
     """
     # column numbers
-    board = '\n    ' + ' '.join(f'{i}' for i in range(b.get_board_width())) + '\n'
+    board = '\n    ' + \
+        ' '.join(f'{i}' for i in range(b.get_board_width())) + '\n'
     # top border
-    board += '    ' + '_' * (b.get_board_width() * 2 ) + '\n'
+    board += '    ' + '_' * (b.get_board_width() * 2) + '\n'
 
     for row in range(b.get_board_height()):
         # row numbers
@@ -49,17 +52,33 @@ def print_board(b):
             if position in b._pieces:
                 piece = b._pieces[position]
                 if piece._color == PieceColor.RED:
-                    board += Back.BLACK + Fore.RED + Style.BRIGHT + '●' +\
-                          Style.RESET_ALL + Back.BLACK + ' '
+                    board += (Back.BLACK
+                              + Fore.RED
+                              + Style.BRIGHT
+                              + '●'
+                              + Style.RESET_ALL
+                              + Back.BLACK
+                              + ' ')
                 else:
-                    board += Back.BLACK + Fore.BLACK+ Style.BRIGHT + '●' +\
-                          Style.RESET_ALL + Back.BLACK + ' '
+                    board += (Back.BLACK
+                              + Fore.BLACK
+                              + Style.BRIGHT
+                              + '●'
+                              + Style.RESET_ALL
+                              + Back.BLACK
+                              + ' ')
             else:
                 # if no piece, fill with black or white
                 if (col % 2) != row % 2:
-                    board += Style.RESET_ALL + Back.BLACK + '  ' + Style.RESET_ALL
+                    board += (Style.RESET_ALL
+                              + Back.BLACK
+                              + '  '
+                              + Style.RESET_ALL)
                 else:
-                    board += Style.RESET_ALL + Back.WHITE + '  ' + Style.RESET_ALL
+                    board += (Style.RESET_ALL
+                              + Back.WHITE
+                              + '  '
+                              + Style.RESET_ALL)
 
         board += Style.RESET_ALL + '|\n'
 
@@ -68,10 +87,11 @@ def print_board(b):
 
     print(board)
 
-def get_move(player_type, moves):
-    #if player_type == 'bot':
 
-    if player_type == 'human': 
+def get_move(player_type, moves):
+    # if player_type == 'bot':
+
+    if player_type == 'human':
         # Ask for a move (and re-ask if a valid move is not provided)
         move = None
         while move is None:
@@ -83,6 +103,7 @@ def get_move(player_type, moves):
             except:
                 pass
     return move
+
 
 def play_checkers(r, opp_type):
     # create the board with r rows
@@ -133,6 +154,7 @@ def play_checkers(r, opp_type):
     else:
         print('''It's a draw!''')
     print('Thanks for playing!')
+
 
 if __name__ == '__main__':
     initialize()
