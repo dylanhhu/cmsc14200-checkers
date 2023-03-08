@@ -238,68 +238,49 @@ python3 src/gui.py -h
 By design, the GUI displays each bot move with a visual delay. This delay occurs on a thread separate from the main thread, so that the window does not become unresponsive while the bot is 'selecting and making' their move.
 
 ## Testing the bot
-To test the Bot without using GUI or TUI, we offer the test file 'test_bot.py' under src directory. 
+To test the Bot without using GUI or TUI, the test file `src/test_bot.py` can be used.
 
-This file enables running games between a random bot (black side) and a smart bot (red side) for a 
-specified number of games on a board with given rows per player. To achieve that, run commands in the
-following form from the root directory
+This file runs games between a random bot (black side) and a smart bot (red side) for a specified number of games on a board with given rows per player. Run the following from the root directory:
 ```shell
 python3 src/test_bot.py {rows per player} {number of games}
 ```
 
-replace the {rows per player} above with the number of rows per player and the {number of games} above
-with the number of games that we want to run the test with. It should be noted that the test is recommended 
-for rows per player within the range of [2, 9]. Otherwise the time to run a game may be more than 15s.
+Replace the `{rows per player}` above with the number of rows per player and the `{number of games}` above with the number of games that we want to run the test with. It should be noted that the test is recommended for rows per player within the range of [2, 9]. Otherwise the time to run a game may be more than 15s.
 
-Here is one example command if I want to run the test for 4 rows per player for 50 games:
+For example, testing 4 rows per player over 50 games:
 ```shell
 python3 src/test_bot.py 4 50
 ```
 
-And the test will give out a result that shows the winning rate of the SmartBot and the draw rate, an
-example output is as the following
+The test output will show the winning rate of the SmartBot along with the draw rate. An example output is the following:
 ```shell
 winning rate of the smart bot on a board with 4 rows per player: 0.94, draw_rate = 0.06
 ```
 
-It's worth noticing that with the board size getting bigger, the time that's going to be taken for
-one game will increase. Therefore, the SmartBot implements fewer strategies as the board size gets 
-bigger to save time by changing the SmartLevel of the SmartBot. A corresponding relationship between
-rows per player and the SmartLevel of the SmartBot is listed below:
+It's worth noticing that with the board size getting bigger, the time that's going to be taken for one game will increase. Therefore, the SmartBot implements fewer strategies as the board size gets bigger to save time by changing the SmartLevel of the SmartBot. A corresponding relationship between rows per player and the SmartLevel of the SmartBot is listed below:
 
-   - 2 rows per player: SmartLevel.HARD,
-   - 3 rows per player: SmartLevel.HARD,
-   - 4 rows per player: SmartLevel.HARD,
-   - 5 rows per player: SmartLevel.HARD,
-   - 6 rows per player: SmartLevel.MEDIUM,
-   - 7 rows per player: SmartLevel.MEDIUM,
-   - 8 rows per player: SmartLevel.SIMPLE,
-   - 9 rows per player: SmartLevel.SIMPLE,
+ - 2-5 rows per player: `SmartLevel.HARD`
+ - 6-7 rows per player: `SmartLevel.MEDIUM`
+ - 8-9 rows per player: `SmartLevel.SIMPLE`
 
 And the corresponding strategies that are implemented by each SmartLevel are listed below:
 
 - SmartLevel.SIMPLE: winning strategy, lose strategy, chase strategy, stick strategy
-- SmartLevel.MEDIUM: winning strategy, lose strategy, chase strategy, stick strategy, 
-                   baseline strategy, push strategy, center strategy
-- SmartLevel.HARD: winning strategy, lose strategy, sacrifice strategy, capture strategy,
-                 corner strategy, baseline strategy, push strategy, king strategy,
-                 stick strategy, center strategy, force strategy
+- SmartLevel.MEDIUM: All strategies in `SmartLevel.SIMPLE` and baseline strategy, push strategy, center strategy
+- SmartLevel.HARD: All strategies in `SmartLevel.MEDIUM` and sacrifice strategy, capture strategy, corner strategy, king strategy, force strategy
 
+Finally, an estimation of the time that's going to take per game for different rows per player if the SmartLevel for each rows per player is in its default is listed as the following for reference (on AMD Zen2 mobile or Intel Comet Lake mobile, other uArch may differ):
 
-Finally, an estimation of the time that's going to take per game for different rows per player
-if the SmartLevel for each rows per player is in its default is listed as the following for 
-reference:
-```
-rows per player             average time
-    2                           0.07s
-    3                           0.30s
-    4                           1.52s
-    5                           3.82s
-    6                           1.23s
-    7                           3.19s
-    8                           6.09s
-    9                           11.23s
-```
+| Rows per player | Average time (s) |
+|-----------------|------------------|
+| 2               | 0.07             |
+| 3               | 0.30             |
+| 4               | 1.52             |
+| 5               | 3.82             |
+| 6               | 1.23             |
+| 7               | 3.19             |
+| 8               | 6.09             |
+| 9               | 11.23            |
 
 ## TUI
 To run the Tui, run the following from the root of the repository:
