@@ -91,7 +91,8 @@ class Board:
             color (PieceColor): the player being queried
 
         Returns:
-            List[Piece]: list of captured pieces for a color"""
+            List[Piece]: list of captured pieces for a color
+        """
         return self._captured[color]
 
     def get_color_avail_pieces(self, color: PieceColor) -> List[Piece]:

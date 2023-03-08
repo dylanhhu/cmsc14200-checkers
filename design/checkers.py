@@ -56,6 +56,8 @@ from typing import Tuple, List, Dict, Union
 
 
 # ===============
+# aux_utils.py
+# ===============
 # Type Aliases
 # ===============
 
@@ -72,21 +74,8 @@ class PieceColor(Enum):
     An enumeration for the internal representation of a piece's color.
     """
 
-    RED = 0
-    BLACK = 1
-
-
-class GameStatus(Enum):
-    """
-    An enumeration for the current game state.
-    """
-    # Same as PieceColor values
-    RED_WINS = 0
-    BLACK_WINS = 1
-
-    # Other statuses
-    IN_PROGRESS = 100
-    DRAW = 101
+    RED = 'r'
+    BLACK = 'b'
 
 
 # ===============
@@ -94,25 +83,24 @@ class GameStatus(Enum):
 # ===============
 
 
-class Piece:
+class GenericPiece:
     """
-    Represents a piece on the board.
+    Represents a generic piece for a generic board game.
     """
 
-    def __init__(self, pos: Position, color: PieceColor,
-                 king: bool = False) -> None:
+    def __init__(self, pos: Position, color: PieceColor) -> None:
         """
         Constructor for a piece.
 
         Args:
             pos (Tuple[int, int]): the position of the piece on the board
             color (PieceColor): The color of the piece
-            king (bool): Is this a king? (Intended for debug scenarios)
         """
+        self._x: int
+        self._y: int
 
         self.set_position(pos)  # initialize piece position
         self._color = color  # the piece's color
-        self._king = king  # is this piece a king?
 
     def get_position(self) -> Position:
         """
@@ -179,48 +167,20 @@ class Piece:
         """
         raise NotImplementedError
 
-    def is_king(self) -> bool:
-        """
-        Getter function that returns whether this piece is a king.
-
-        Args:
-            None
-
-        Returns:
-            True if this is a king otherwise False
-        """
-        raise NotImplementedError
-
-    def to_king(self) -> None:
-        """
-        Update the piece to a king (aka 'kinging'). This can't be undone,
-        please make sure you know what you're doing.
-
-        Args:
-            None
-
-        Returns:
-            None
-        """
-        raise NotImplementedError
-
     def __str__(self) -> str:
         """
-        Returns a string representation of the piece. Returns one character
-        which is uppercase if king otherwise lowercase. Raises RuntimeError if
-        the Piece's color is invalid.
+        Returns a string representation of the piece. Returns the value of the
+        color of the piece (PieceColor.value).
 
-        Red: 'r' or 'R'
-        Black: 'b' or 'B'
+        For example:
+        Red: 'r'
+        Black: 'b'
 
         Args:
             None
 
         Returns:
             str: String representation of the piece
-
-        Raises:
-            RuntimeError: if piece's color is invalid (not in PieceColor)
         """
         raise NotImplementedError
 
@@ -236,24 +196,151 @@ class Piece:
         """
         raise NotImplementedError
 
+    def __eq__(self, other: object) -> bool:
+        """
+        Implements the equality operator for type GenericPiece
+
+        Args:
+           other (object): the object to be compared to
+
+        Returns:
+            bool: True if equal, False if not
+        """
+        raise NotImplementedError
+
+
+class Piece(GenericPiece):
+    """
+    Represents a checkers piece.
+    """
+
+    def __init__(self, pos: Position, color: PieceColor,
+                 king: bool = False) -> None:
+        """
+        Constructor for a piece.
+
+        Args:
+            pos (Tuple[int, int]): the position of the piece on the board
+            color (PieceColor): The color of the piece
+            king (bool): Is this a king? (Intended for debug scenarios)
+        """
+        super().__init__(pos, color)
+
+        self._king = king  # is this piece a king?
+
+    def is_king(self) -> bool:
+        """
+        Getter function that returns whether this piece is a king.
+
+        Args:
+            None
+
+        Returns:
+            True if this is a king otherwise False
+        """
+        raise NotImplementedError
+
+    def to_king(self) -> None:
+        """
+        Update the piece to a king (aka 'kinging').
+
+        Args:
+            None
+
+        Returns:
+            None
+        """
+        raise NotImplementedError
+
+    def unking(self) -> None:
+        """
+        Unset the king state of the piece.
+
+        Args:
+            None
+
+        Returns:
+            None
+        """
+        raise NotImplementedError
+
+    def __str__(self) -> str:
+        """
+        Returns a string representation of the piece. Returns one character
+        which is uppercase if king otherwise lowercase.
+
+        Red: 'r' or 'R'
+        Black: 'b' or 'B'
+
+        Args:
+            None
+
+        Returns:
+            str: String representation of the piece
+        """
+        raise NotImplementedError
+
+    def __repr__(self) -> str:
+        """
+        Returns the representation of this piece. Meant for debugging.
+
+        Args:
+            None
+
+        Returns:
+            str: Debug representation of the piece
+        """
+        raise NotImplementedError
+
+    def __eq__(self, other: object) -> bool:
+        """
+        Implements the equality operator for type Piece
+
+        Args:
+           other (object): the object to be compared to
+
+        Returns:
+            bool: True if equal, False if not
+        """
+        raise NotImplementedError
+
 
 class Move:
     """
     Represents a move that can be done by a piece or a resignation/draw offer.
     """
 
-    def __init__(self, piece: Union[Piece, None], new_pos: Position) -> None:
+    def __init__(self, piece: Union[Piece, None], new_pos: Position,
+                 curr_pos: Union[Position, None] = None) -> None:
         """
         Creates a new move object.
+
+        Stores the piece to be moved, the new position after the move, and the
+        current position of the piece.
+
+        The current position will be either from:
+         1) curr_pos (if provided)
+         2) The piece itself (if provided)
+         3) (-1, -1), but will raise an error when getting (see method below)
 
         Args:
             piece (Piece or None): the piece this move belongs to
             new_pos (Position): the new position after the move
+            curr_pos (Position or None): optional parameter for the current
+                                         position of the piece
         """
         self._piece = piece  # the piece to be moved
 
         # The new position. If it is (-1, -1) then it is not a "move" per se
         self._new_x, self._new_y = new_pos
+
+        # Handle current piece location as specified in docstring
+        if curr_pos:
+            self._curr_x, self._curr_y = curr_pos
+        elif piece:
+            self._curr_x, self._curr_y = piece.get_position()
+        else:
+            self._curr_x, self._curr_y = (-1, -1)
 
     def get_new_position(self, _strict: bool = True) -> Position:
         """
@@ -285,6 +372,52 @@ class Move:
 
         Raises:
             RuntimeError: if this move has no piece
+        """
+        raise NotImplementedError
+
+    def is_kinging(self, board_length: int) -> bool:
+        """
+        Method that determines whether this move will result in the kinging of
+        this piece. Implemented exclusively for the bot, may not work if not
+        used by the bot.
+
+        Args:
+            board_length (int): the length of the board
+
+        Returns:
+            bool: True if this move will result in a kinging else False
+        """
+        raise NotImplementedError
+
+    def get_current_position(self, _strict: bool = True) -> Position:
+        """
+        Getter for the current position of the piece that will be moved. If
+        there is no position stored or if the position is invalid (captured)
+        then this method will raise RuntimeError.
+
+        Does not update the current position if the current position has
+        changed in the piece itself.
+
+        Args:
+            _strict (bool): private argument to disable position validity check
+
+        Returns:
+            Position: current position of the piece
+
+        Raises:
+            RuntimeError: if the position is invalid
+        """
+        raise NotImplementedError
+
+    def __eq__(self, other: object) -> bool:
+        """
+        Implements the equality operator for type Move
+
+        Args:
+           other (object): the object to be compared to
+
+        Returns:
+            bool: True if equal, False if not
         """
         raise NotImplementedError
 
@@ -327,7 +460,8 @@ class Jump(Move):
     def __init__(self,
                  piece: Piece,
                  new_pos: Position,
-                 opponent_piece: Piece) -> None:
+                 opponent_piece: Piece,
+                 curr_pos: Union[Position, None] = None) -> None:
         """
         Creates a new jump object.
 
@@ -336,7 +470,7 @@ class Jump(Move):
             new_pos (Position): the new position after the jump
             opponent_piece (Piece): the piece that will be captured
         """
-        super().__init__(piece, new_pos)
+        super().__init__(piece, new_pos, curr_pos)
 
         # The Piece that would be captured during the move
         self._opponent_piece = opponent_piece
@@ -351,6 +485,18 @@ class Jump(Move):
 
         Returns:
             The Piece that would be captured during the move
+        """
+        raise NotImplementedError
+
+    def __eq__(self, other: object) -> bool:
+        """
+        Implements the equality operator for type Jump
+
+        Args:
+            other (object): the object to be compared to
+
+        Returns:
+            bool: True if equal, False if not
         """
         raise NotImplementedError
 
@@ -397,12 +543,12 @@ class Resignation(Move):
 
         self._resigning_color = color
 
-    def get_new_position(self) -> Position:
+    def get_new_position(self, _strict: bool = True) -> Position:
         """
         Overrides the parent Piece getter function. Raises TypeError.
 
         Args:
-            None
+            _strict (bool): unused as this method only errors
 
         Returns:
             None
@@ -410,7 +556,7 @@ class Resignation(Move):
         Raises:
             TypeError, as this class does not contain valid values to get
         """
-        raise TypeError
+        raise NotImplementedError
 
     def get_piece(self) -> Piece:
         """
@@ -425,7 +571,22 @@ class Resignation(Move):
         Raises:
             TypeError, as this class does not contain valid values to get
         """
-        raise TypeError
+        raise NotImplementedError
+
+    def get_current_position(self, _strict: bool = True) -> None:
+        """
+        Overrides the parent Piece getter function. Raises TypeError.
+
+        Args:
+            _strict (bool): unused argument as this only errors
+
+        Returns:
+            None
+
+        Raises:
+            TypeError, as this class does not contain valid values to get
+        """
+        raise NotImplementedError
 
     def get_resigning_color(self) -> PieceColor:
         """
@@ -436,6 +597,18 @@ class Resignation(Move):
 
         Returns:
             PieceColor: the color of the player that is resigning.
+        """
+        raise NotImplementedError
+
+    def __eq__(self, other: object) -> bool:
+        """
+        Implements the equality operator for type Resignation
+
+        Args:
+            other (object): the object to be compared to
+
+        Returns:
+            bool: True if equal, False if not
         """
         raise NotImplementedError
 
@@ -471,11 +644,12 @@ class DrawOffer(Move):
     When offering a draw, the GUI/TUI must create an instance of this class and
     "play" it along with another "regular" move (move/jump).
 
-    When a draw is offered, the player will recieve it when getting all valid
-    moves for that player.
+    When a draw is offered, the player will receive it when getting all valid
+    moves for that player. The color stored in that DrawOffer will be the
+    recipient player's color, NOT the offering player's color.
 
-    To accept a draw, the GUI/TUI must "play" the draw request. To reject,
-    play any other move.
+    To accept a draw, the GUI/TUI must "play" the draw request provided when
+    getting the player's move. To reject, play any other move.
     """
 
     def __init__(self, offering_color: PieceColor) -> None:
@@ -491,12 +665,12 @@ class DrawOffer(Move):
         # The color of the player offering the draw
         self._offering_color = offering_color
 
-    def get_new_position(self) -> Position:
+    def get_new_position(self, _strict: bool = True) -> Position:
         """
         Overrides the parent Piece getter function. Raises TypeError.
 
         Args:
-            None
+            _strict (bool): unused argument as this only errors
 
         Returns:
             None
@@ -504,7 +678,7 @@ class DrawOffer(Move):
         Raises:
             TypeError, as this class does not contain valid values to get
         """
-        raise TypeError
+        raise NotImplementedError
 
     def get_piece(self) -> Piece:
         """
@@ -519,7 +693,22 @@ class DrawOffer(Move):
         Raises:
             TypeError, as this class does not contain valid values to get
         """
-        raise TypeError
+        raise NotImplementedError
+
+    def get_current_position(self, _strict: bool = True) -> None:
+        """
+        Overrides the parent Piece getter function. Raises TypeError.
+
+        Args:
+            _strict (bool): unused argument as this only errors
+
+        Returns:
+            None
+
+        Raises:
+            TypeError, as this class does not contain valid values to get
+        """
+        raise NotImplementedError
 
     def get_offering_color(self) -> PieceColor:
         """
@@ -530,6 +719,18 @@ class DrawOffer(Move):
 
         Returns:
             PieceColor of the player offering the draw
+        """
+        raise NotImplementedError
+
+    def __eq__(self, other: object) -> bool:
+        """
+        Implements the equality operator for type DrawOffer
+
+        Args:
+            other (object): the object to be compared to
+
+        Returns:
+            bool: True if equal, False if not
         """
         raise NotImplementedError
 
@@ -559,45 +760,47 @@ class DrawOffer(Move):
 
 
 # ===============
-# GAME BOARD CLASS
+# board.py
+# ===============
+# Board Class
 # ===============
 
 
-class CheckersBoard:
+class Board:
     """
-    Represents a checkers game. Provides methods for obtaining valid moves,
-    validating moves, and acting upon moves according to the rules of checkers.
-    Stores the board state along with all pieces, captured or uncaptured.
+    This class represents a generic game board with support for two players.
 
-    The board square grid begins with (0, 0), a light square, at the "top
-    left", where the top rows will contain the black pieces and the bottom rows
-    containing the red pieces.
+    Positions on the board are represented from (0, 0) in the top left corner
+    increasing down and to the right.
     """
 
-    def __init__(self, n: int) -> None:
+    def __init__(self, height: int,
+                 width: Union[int, None] = None,
+                 colors: Tuple[PieceColor, ...] = (PieceColor.BLACK,
+                                                   PieceColor.RED)) -> None:
         """
-        Creates a new Checkers game.
+        Creates a new game board.
 
         Args:
-            n (int): the number of rows of pieces per player
+            height (int): the height of the board or other size metric. The 
+                implementing subclass will ultimately determine the meaning and
+                usage of this argument.
+            width (int or None): the width of the board. The implementing
+                subclass will ultimately determine the meaning and usage of this
+                argument.
+            colors (Tuple of PieceColor): the colors of the pieces on the board
         """
-        # Dictionary of each player's uncaptured pieces and their positions
-        self._pieces: Dict[PieceColor,
-                           Dict[Position, Piece]] = self._generate_pieces(n)
+        # Dictionary of all uncaptured pieces and their positions
+        self._pieces: Dict[Position, Piece] = self._gen_pieces(height, width)
 
         # Each player's pieces that have been captured by the other player
         self._captured: Dict[PieceColor, List[Piece]] = {
-            PieceColor.BLACK: [],
-            PieceColor.RED: []
+            color: [] for color in colors
         }
 
-        # Represents an outstanding draw offer and acceptance
-        self._draw_offer: Dict[PieceColor, bool] = {
-            PieceColor.BLACK: False,
-            PieceColor.RED: False
-        }
-
-        self._game_state = GameStatus.IN_PROGRESS  # the game state
+        # Implementing classes MUST set these attributes to integers
+        self._height = height
+        self._width = width if (width is not None) else height
 
     def get_board_pieces(self) -> List[Piece]:
         """
@@ -613,7 +816,7 @@ class CheckersBoard:
 
     def get_captured_pieces(self) -> List[Piece]:
         """
-        Getter method that reutrns a list of all captured pieces.
+        Getter method that returns a list of all captured pieces.
 
         Args:
             None
@@ -636,7 +839,8 @@ class CheckersBoard:
             color (PieceColor): the player being queried
 
         Returns:
-            List[Piece]: list of captured pieces for a color"""
+            List[Piece]: list of captured pieces for a color
+        """
         raise NotImplementedError
 
     def get_color_avail_pieces(self, color: PieceColor) -> List[Piece]:
@@ -652,13 +856,236 @@ class CheckersBoard:
         """
         raise NotImplementedError
 
+    def get_board_height(self) -> int:
+        """
+        Getter method for the height of the board
+
+        Args:
+            None
+
+        Returns:
+            int: the height of the board
+        """
+        raise NotImplementedError
+
+    def get_board_width(self) -> int:
+        """
+        Getter method for the width of the board
+
+        Args:
+            None
+
+        Returns:
+            int: the width of the board
+        """
+        raise NotImplementedError
+
+    def complete_move(self, move: Move) -> List[Move]:
+        """
+        Method for completing a move. First validates the move using
+        self.validate_move() which validates whether the move is even feasible,
+        or, if overloaded by a subclass, custom validation.
+
+        Args:
+            move (Move): the move to make
+
+        Returns:
+            List[Move]: An empty list of follow-up moves. Implementing 
+                subclasses ultimately determine meaning and usage of this 
+                return. 
+
+        Raises:
+            ValueError: If the move is not valid.
+        """
+        raise NotImplementedError
+
+    def undo_move(self, move: Move) -> None:
+        """
+        Abstract method for undoing a given move.
+
+        Args:
+            move (Move): the move that is to be undone
+
+        Returns:
+            None
+        """
+        raise NotImplementedError
+
+    def validate_move(self, move: Move) -> bool:
+        """
+        Validates a potential move. Only checks if the piece exists, is on the
+        board, and if the new position is valid and not taken by another piece.
+
+        Args:
+            move (Move): the move to validate
+
+        Returns:
+            bool: True if the move is valid otherwise False
+        """
+        raise NotImplementedError
+
+    def _validate_position(self, pos: Position) -> bool:
+        """
+        Helper method for checking if a provided position is on the board.
+
+        Args:
+            pos (Position): the position to validate
+
+        Returns:
+            bool: True if valid otherwise false
+        """
+        raise NotImplementedError
+
+    def _gen_pieces(self, height: Union[int, None] = None,
+                    width: Union[int, None] = None) -> Dict[Position, Piece]:
+        """
+        Abstract method for the generation of the pieces. Children of this class
+        must implement this method according to the rules of their game.
+
+        Args:
+            height (int or None): the height of the board. The implementing
+                subclass will ultimately determine the meaning and usage of this
+                argument.
+            width (int or None): the width of the board. The implementing
+                subclass will ultimately determine the meaning and usage of this
+                argument.
+
+        Returns:
+            Dict[Position, Piece]: Dictionary containing piece locations and
+                                   pieces for both players
+        """
+        raise NotImplementedError
+
+    def __str__(self) -> str:
+        """
+        Returns a string representation of the board only. Assumes that the
+        board space coloring is checkers-like.
+
+        Args:
+            None
+
+        Returns:
+            str: String representation of the board
+        """
+        raise NotImplementedError
+
+    def __repr__(self) -> str:
+        """
+        Returns the representation of the board. Intended for debugging.
+        Includes captured pieces.
+
+        Assumes board space coloring is checkers-like.
+
+        Args:
+            None
+
+        Returns:
+            str: representation of the board
+        """
+        raise NotImplementedError
+
+
+# ===============
+# checkers.py
+# ===============
+# ENUMS
+# ===============
+
+
+class GameStatus(Enum):
+    """
+    An enumeration for the current game state.
+    """
+    # Same as PieceColor values
+    RED_WINS = 0
+    BLACK_WINS = 1
+
+    # Other statuses
+    IN_PROGRESS = 100
+    DRAW = 101
+
+
+# ====================
+# Checkers Game Class
+# ====================
+
+
+class CheckersBoard(Board):
+    """
+    Represents a checkers game. Provides methods for obtaining valid moves,
+    validating moves, and acting upon moves according to the rules of checkers.
+    Stores the board state along with all pieces, captured or uncaptured.
+
+    The board square grid begins with (0, 0), a light square, at the "top
+    left", where the top rows will contain the black pieces and the bottom rows
+    containing the red pieces.
+    """
+
+    def __init__(self, rows_per_player: int, caching: bool = True) -> None:
+        """
+        Creates a new Checkers game.
+
+        Args:
+            rows_per_player (int): the number of rows of pieces per player
+            caching (bool): whether to cache players' moves or not
+        """
+        super().__init__(rows_per_player)
+
+        # ==================================
+        # CheckersBoard Specific Attributes
+        # ==================================
+
+        self._board_size = 2 * (rows_per_player + 1)
+        self._rows_per_player = rows_per_player
+
+        # Override parent definition of width and height
+        self._width = self._board_size
+        self._height = self._board_size
+
+        # Represents an outstanding draw offer and acceptance
+        self._draw_offer: Dict[PieceColor, bool] = {
+            PieceColor.BLACK: False,
+            PieceColor.RED: False
+        }
+
+        self._caching = caching  # is caching enbled?
+        # Cache of the player's available moves XOR jumps. If the cache is None,
+        # then the cache has expired/has not been computed yet. Create this
+        # whether or not the caching is enabled or disabled.
+        self._move_cache: Dict[PieceColor, Union[List[Move], None]] = {
+            PieceColor.BLACK: None,
+            PieceColor.RED: None
+        }
+
+        self._game_state = GameStatus.IN_PROGRESS  # the game state
+
+        self._moves_since_capture = 0  # number of moves since a capture
+        self._max_moves_since_capture = self._calc_draw_timeout(
+            rows_per_player)
+
+    def get_captured_pieces(self) -> List[Piece]:
+        """
+        Getter method that returns a list of all captured pieces.
+
+        Overrides parent function definition since we know that in checkers
+        there are only two defined colors.
+
+        Args:
+            None
+
+        Returns:
+            List[Piece]: list of all captured pieces
+        """
+        raise NotImplementedError
+
     def complete_move(self, move: Move,
-                      draw_offer: Union[DrawOffer, None] = None) -> List[Jump]:
+                      draw_offer: Union[DrawOffer, None] = None) -> List[Move]:
         """
         Complete a move with a piece.
 
         If the move is not valid, a ValueError is raised. This includes when
-        a non-jumping move is attempted when a jump is available.
+        a non-jumping move is attempted when a jump is available. Any provided
+        draw offers processed just before the error is raised will be undone.
 
         Returns a list of possible subsequent jumps, if necessary, that follow
         the provided move. If this list is empty, the player's turn is over.
@@ -672,8 +1099,8 @@ class CheckersBoard:
         To offer a draw, a regular move (move/jump) must be provided along with
         a DrawOffer.
 
-        TODO: Clarify moving into a position with subsequent jumps:
-              Do we return this list or not?
+        To accept the draw offer, play the draw offer in both `move` and in
+        `draw_offer`.
 
         Args:
             move (Move): move to make
@@ -685,16 +1112,29 @@ class CheckersBoard:
         Raises:
             ValueError: If the move is not valid
         """
+        raise NotImplementedError
 
-        # This function would call self.get_piece_moves(jumps_only = True)
-        # for the list of subsequent jumps
+    def undo_move(self, move: Move) -> None:
+        """
+        Undo a provided move (Move or Jump). Implemented for the bot, may not
+        work when not used by the bot.
+
+        Args:
+            move (Move): the move that is to be undone
+
+        Returns:
+            None
+
+        Raises:
+            TypeError: if move is a DrawOffer or Resignation
+        """
         raise NotImplementedError
 
     def get_piece_moves(self, piece: Piece,
                         jumps_only: bool = False) -> List[Move]:
         """
         Returns a list of possible moves (moves and jumps) for a piece. If
-        jump(s) are possible, then only jumps will be returned.
+        jump(s) are possible, then only jumps will be returned
 
         Args:
             piece (Piece): the piece being queried
@@ -714,6 +1154,8 @@ class CheckersBoard:
 
         If there is a draw offer from the other player, a DrawOffer "move"
         will be included.
+
+        This function sets the player move/jump availability cache.
 
         Args:
             color (PieceColor): the player being queried
@@ -752,21 +1194,7 @@ class CheckersBoard:
         """
         raise NotImplementedError
 
-    def _generate_pieces(self,
-                         n: int) -> Dict[PieceColor, Dict[Position, Piece]]:
-        """
-        Private method for setting up the pieces before the game begins.
-
-        Args:
-            n (int): number of rows of pieces per player
-
-        Returns:
-            Dict[PieceColor, Dict[Position, Piece]]: Dictionary containing
-                a dictionary of piece locations and pieces for each player
-        """
-        raise NotImplementedError
-
-    def _handle_draw_offer(self, offer: DrawOffer) -> List:
+    def _handle_draw_offer(self, offer: DrawOffer) -> PieceColor:
         """
         Private method to handle draw offers. Intended to be called by
         complete_move().
@@ -775,31 +1203,77 @@ class CheckersBoard:
             offer (DrawOffer): the draw offer
 
         Returns:
-            An empty list
+            PieceColor: the color of the player offering/accepting the draw
+
+        Raises:
+            ValueError: if the offering color is invalid
+            RuntimeError: if the offering color already has a pending offer
         """
         raise NotImplementedError
 
-    def __str__(self) -> str:
+    def _reset_draw_offers(self) -> None:
         """
-        Returns a string representation of the board only.
+        Private method for resetting draw offers.
 
         Args:
             None
 
         Returns:
-            str: String representation of the board
+            None
         """
         raise NotImplementedError
 
-    def __repr__(self) -> str:
+    def _calc_draw_timeout(self, rows_per_player: int,
+                           _enabled: bool = True) -> int:
         """
-        Returns the representation of the board. Intended for debugging.
-        Includes captured pieces.
+        Private method for calculating the maximum number of moves between
+        captures before a stalemate. Roughly set to slightly over the average
+        number of moves between captures in a game.
+
+        Datapoints collected by Junfei. Power function values calculated by
+        Dylan.
 
         Args:
-            None
+            rows_per_player (int): the number of rows per player
+            _enabled (bool): Uses calculation if true, otherwise returns 40
 
         Returns:
-            str: representation of the board
+            int: number of moves between captures before stalemate
+        """
+        raise NotImplementedError
+
+    def _gen_pieces(self, height: Union[int, None] = None,
+                    width: Union[int, None] = None) -> Dict[Position, Piece]:
+        """
+        Private method for generating all pieces before the game begins.
+
+        Overrides the parent `_gen_pieces()` and thus keeps the same method
+        signature.
+
+        Args:
+            height (int or None): the number of rows per player
+            width (int or None): Unused argument for CheckersBoard
+
+        Returns:
+            Dict[Position, Piece]: Dictionary containing piece locations and
+                                   pieces for both players
+
+        Raises:
+            ValueError: if parameter height is None
+        """
+        raise NotImplementedError
+
+    def _can_player_move(self, color: PieceColor) -> bool:
+        """
+        Private method for getting whether the player has any valid move. Does
+        not consider DrawOffer as a possible move.
+
+        The eventual usage of this method depends on EdStem question #1625.
+
+        Args:
+            color (PieceColor): the color of the player being queried
+
+        Returns:
+            bool: True if the player has a move available otherwise False
         """
         raise NotImplementedError

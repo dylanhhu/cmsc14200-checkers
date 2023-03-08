@@ -119,7 +119,7 @@ class CheckersBoard(Board):
             PieceColor.RED: False
         }
 
-        self._caching = caching
+        self._caching = caching  # is caching enabled?
         # Cache of the player's available moves XOR jumps. If the cache is None,
         # then the cache has expired/has not been computed yet. Create this
         # whether or not the caching is enabled or disabled.
@@ -323,8 +323,6 @@ was invalid.")
         """
         Returns a list of possible moves (moves and jumps) for a piece. If
         jump(s) are possible, then only jumps will be returned.
-
-        TODO: Make sure that the piece can only move forward, unless its a king
 
         Args:
             piece (Piece): the piece being queried
