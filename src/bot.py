@@ -50,8 +50,6 @@ Citations:
     https://www.programiz.com/python-programming/methods/built-in/max
     https://stackoverflow.com/questions/57548827/       
         how-to-get-a-random-maximum-from-a-list
-    
-
 '''
 
 import math
