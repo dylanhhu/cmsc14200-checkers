@@ -48,11 +48,11 @@ If, for some reason you are trying to use this under WSL, you'll likely need to 
 sudo apt install libsdl2-dev
 ```
 
-## Design changes since Milestone 1
+## Design changelog (since Milestone 1)
 
 TODO
 
-## Implementation Changes since Milestone 2
+## Implementation changelog (since Milestone 2)
 
 ### GUI
 
