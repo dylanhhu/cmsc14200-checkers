@@ -187,17 +187,20 @@ class CheckersBoard(Board):
         if isinstance(move, Resignation):
             resign_color = move.get_resigning_color()
 
-            # Set appropriate game state
-            if resign_color == PieceColor.BLACK:
-                self._game_state = GameStatus.RED_WINS
-            elif resign_color == PieceColor.RED:
-                self._game_state = GameStatus.BLACK_WINS
-            else:
+            # Map color to correct GameStatus
+            resign_to_status = {
+                PieceColor.BLACK: GameStatus.RED_WINS,
+                PieceColor.RED: GameStatus.BLACK_WINS
+            }
+
+            try:
+                # Set appropriate game state
+                self._game_state = resign_to_status[resign_color]
+                return []
+            except KeyError as exc:
                 # Shouldn't happen, but what if someone is messing with us?
                 raise ValueError(f"Resignation's color {repr(resign_color)} \
-was invalid.")
-
-            return []  # Resigned, their move's over
+was invalid.") from exc
 
         # Track whether we processed any draw offers. Used if undo is necessary
         draw_offer_changed: Union[PieceColor, None] = None
