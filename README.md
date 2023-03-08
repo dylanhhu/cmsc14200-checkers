@@ -56,14 +56,14 @@ TODO
 
 ### GUI
 
-- [x] Game menu window (to start new game)
-- [x] Click to select a piece and its destination square
-- [x] Display king pieces differently from regular pieces
-- [x] Check game state (in progress or win)
-- [x] Display captured pieces
-- [x] Maintain previous game setup when starting new game
-- [x] Handle timeout-induced draws
-- [x] Command line arguments
+- Game menu window (to start new game)
+- Click to select a piece and its destination square
+- Display king pieces differently from regular pieces
+- Check game state (in progress, win or draw)
+- Generalized dialog opening process
+- Display captured pieces
+- Maintain previous game setup when starting new game
+- Command line arguments
 
 ### TUI
 
