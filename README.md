@@ -107,6 +107,9 @@ The game logic does not have a test suite of its own as it was completed before 
 
 ## Running the GUI
 
+<img width="1057" alt="Screenshot 2023-03-07 at 6 44 51 PM" src="https://user-images.githubusercontent.com/37193648/223589743-21dae611-c02b-4763-ba77-31e84434f83a.png">
+
+
 First, make sure that the [environment is activated](#activate-the-environment-using-the-following).
 
 To run the GUI, run the following from the root of the repository:
