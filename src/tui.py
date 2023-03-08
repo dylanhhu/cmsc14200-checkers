@@ -34,15 +34,15 @@ def print_board(b):
         None
     """
     # column numbers
-    board = '\n    ' + ' '.join(f'{i}' for i in range(b._width)) + '\n'
+    board = '\n    ' + ' '.join(f'{i}' for i in range(b.get_board_width())) + '\n'
     # top border
-    board += '    ' + '_' * (b._width * 2 ) + '\n'
+    board += '    ' + '_' * (b.get_board_width() * 2 ) + '\n'
 
-    for row in range(b._height):
+    for row in range(b.get_board_height()):
         # row numbers
         board += str(row) + '  |'
 
-        for col in range(b._width):
+        for col in range(b.get_board_width()):
             position = (col, row)
 
             # check for a piece in this position
@@ -64,7 +64,7 @@ def print_board(b):
         board += Style.RESET_ALL + '|\n'
 
     # bottom border
-    board += '    ' + '‾' * (b._width * 2) + '\n'
+    board += '    ' + '‾' * (b.get_board_width() * 2) + '\n'
 
     print(board)
 
@@ -76,9 +76,12 @@ def get_move(player_type, moves):
         move = None
         while move is None:
             i = input('> ')
-            if i != '' and int(i) in range(len(moves)):
-                i = int(i)
-                move = i
+            try:
+                if i != '' and int(i) in range(len(moves)):
+                    i = int(i)
+                    move = i
+            except:
+                pass
     return move
 
 def play_checkers(r, opp_type):
