@@ -206,33 +206,33 @@ winning rate of the smart bot on a board with 4 rows per player: 0.94, draw_rate
 ```
 
 It's worth noticing that with the board size getting bigger, the time that's going to be taken for
-one game will increase. Therefore, the SmartBot implement fewer strategies as the board size gets 
+one game will increase. Therefore, the SmartBot implements fewer strategies as the board size gets 
 bigger to save time by changing the SmartLevel of the SmartBot. A corresponding relationship between
 rows per player and the SmartLevel of the SmartBot is listed below:
-```
-    2 rows per player: SmartLevel.HARD,
-    3 rows per player: SmartLevel.HARD,
-    4 rows per player: SmartLevel.HARD,
-    5 rows per player: SmartLevel.HARD,
-    6 rows per player: SmartLevel.MEDIUM,
-    7 rows per player: SmartLevel.MEDIUM,
-    8 rows per player: SmartLevel.SIMPLE,
-    9 rows per player: SmartLevel.SIMPLE,
-```
-And the corresponding strategies that are implemented by each SmartLevel is listed below:
-```
-SmartLevel.SIMPLE: winning strategy, lose strategy, chase strategy, stick strategy
-SmartLevel.MEDIUM: winning strategy, lose strategy, chase strategy, stick strategy, 
+
+   - 2 rows per player: SmartLevel.HARD,
+   - 3 rows per player: SmartLevel.HARD,
+   - 4 rows per player: SmartLevel.HARD,
+   - 5 rows per player: SmartLevel.HARD,
+   - 6 rows per player: SmartLevel.MEDIUM,
+   - 7 rows per player: SmartLevel.MEDIUM,
+   - 8 rows per player: SmartLevel.SIMPLE,
+   - 9 rows per player: SmartLevel.SIMPLE,
+
+And the corresponding strategies that are implemented by each SmartLevel are listed below:
+
+- SmartLevel.SIMPLE: winning strategy, lose strategy, chase strategy, stick strategy
+- SmartLevel.MEDIUM: winning strategy, lose strategy, chase strategy, stick strategy, 
                    baseline strategy, push strategy, center strategy
-SmartLevel.HARD: winning strategy, lose strategy, sacrifice strategy, capture strategy,
+- SmartLevel.HARD: winning strategy, lose strategy, sacrifice strategy, capture strategy,
                  corner strategy, baseline strategy, push strategy, king strategy,
                  stick strategy, center strategy, force strategy
-```
+
 
 Finally, an estimation of the time that's going to take per game for different rows per player
-if the SmartLevel for each rows per player is in it's default is listed as the following for 
+if the SmartLevel for each rows per player is in its default is listed as the following for 
 reference:
-```
+
 rows per player             average time
     2                           0.07s
     3                           0.30s
@@ -242,7 +242,7 @@ rows per player             average time
     7                           3.19s
     8                           6.09s
     9                           11.23s
-```
+
 
 ## TUI
 To run the Tui, run the following from the root of the repository:
