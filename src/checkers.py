@@ -578,7 +578,8 @@ has an outstanding draw offer."
             PieceColor.RED: False
         }
 
-    def _calc_draw_timeout(self, rows_per_player: int) -> int:
+    def _calc_draw_timeout(self, rows_per_player: int,
+                           _enabled: bool = True) -> int:
         """
         Private method for calculating the maximum number of moves between
         captures before a stalemate. Roughly set to slightly over the average
@@ -589,10 +590,14 @@ has an outstanding draw offer."
 
         Args:
             rows_per_player (int): the number of rows per player
+            _enabled (bool): Uses calculation if true, otherwise returns 40
 
         Returns:
             int: number of moves between captures before stalemate
         """
+        if not _enabled:
+            return 40
+
         return round(2.2 * (rows_per_player ** 2.2) + 10)
 
     def _gen_pieces(self, height: Union[int, None] = None,
