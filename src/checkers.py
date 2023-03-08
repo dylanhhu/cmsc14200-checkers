@@ -54,8 +54,8 @@ Examples:
 from enum import Enum
 from typing import Dict, List, Union
 
+from utils.logic.aux_utils import DrawOffer, Jump, Move, Piece, Resignation
 from utils.logic.board import Board, PieceColor, Position
-from utils.logic.aux_utils import Jump, Move, Piece, DrawOffer, Resignation
 
 
 # ===============
@@ -92,12 +92,13 @@ class CheckersBoard(Board):
     containing the red pieces.
     """
 
-    def __init__(self, rows_per_player: int) -> None:
+    def __init__(self, rows_per_player: int, caching: bool = True) -> None:
         """
         Creates a new Checkers game.
 
         Args:
             rows_per_player (int): the number of rows of pieces per player
+            caching (bool): whether to cache players' moves or not
         """
         super().__init__(rows_per_player)
 
@@ -116,6 +117,15 @@ class CheckersBoard(Board):
         self._draw_offer: Dict[PieceColor, bool] = {
             PieceColor.BLACK: False,
             PieceColor.RED: False
+        }
+
+        self._caching = caching
+        # Cache of the player's available moves XOR jumps. If the cache is None,
+        # then the cache has expired/has not been computed yet. Create this
+        # whether or not the caching is enabled or disabled.
+        self._move_cache: Dict[PieceColor, Union[List[Move], None]] = {
+            PieceColor.BLACK: None,
+            PieceColor.RED: None
         }
 
         self._game_state = GameStatus.IN_PROGRESS  # the game state
@@ -232,6 +242,11 @@ was invalid.")
             piece.to_king()
             was_kinging = True
 
+        if self._caching:
+            # Pieces pieces were moved/changed, expire the move cache for both
+            self._move_cache[PieceColor.RED] = None
+            self._move_cache[PieceColor.BLACK] = None
+
         # Handle the capture, if it's a Jump
         if isinstance(move, Jump):
             # Process the capture
@@ -285,6 +300,11 @@ was invalid.")
         # Undo any kinging
         if move.is_kinging(self._board_size):
             target_piece.unking()
+
+        if self._caching:
+            # Pieces pieces were moved/changed, expire the move cache for both
+            self._move_cache[PieceColor.RED] = None
+            self._move_cache[PieceColor.BLACK] = None
 
         # Undo a jump, if necessary
         if isinstance(move, Jump):
@@ -379,6 +399,8 @@ was invalid.")
         If there is a draw offer from the other player, a DrawOffer "move"
         will be included.
 
+        This function sets the player move/jump availability cache.
+
         Args:
             color (PieceColor): the player being queried
 
@@ -386,6 +408,18 @@ was invalid.")
             List[Move]: list of possible moves:
                         ((moves XOR jumps) OR DrawOffer)
         """
+        if self._caching:
+            # Check cache for previously calculated list of moves
+            moves = self._move_cache[color]
+            if moves is not None:
+                # Add any draw offer, if necessary
+                if self._draw_offer[color]:
+                    moves.append(DrawOffer(color))
+
+                return moves
+
+        # Not cached, compute the moves
+
         possible_moves: List[Move] = []
         possible_jumps: List[Move] = []
 
@@ -404,11 +438,17 @@ was invalid.")
             # Otherwise, just add the moves to possible_moves
             possible_moves.extend(piece_moves)
 
+        if self._caching:
+            # Set cache
+            self._move_cache[color] = (possible_jumps
+                                       if possible_jumps
+                                       else possible_moves)
+
         # Check for a draw offer
         if self._draw_offer[color]:
             offer = DrawOffer(color)
 
-            # Check if there are any jumps
+            # Check if we need to append it to the jumps or to moves
             if possible_jumps:
                 possible_jumps.append(offer)
                 return possible_jumps
@@ -436,14 +476,10 @@ was invalid.")
         # To be able to check for other jumps, we must get all moves
         player_moves = self.get_player_moves(move.get_piece().get_color())
 
-        # Make sure that this move is a possible move for the player
-        # Since we already have all the moves, we can just test for membership
+        # Make sure that this move is a possible move for the player.
+        # Since we already have all the moves, we can just test for membership.
+        # If this is a Move when the player must Jump, this will catch it.
         if move not in player_moves:
-            return False
-
-        # Make sure that there's not a Jump otherwise available
-        # We're guaranteed that player_moves isn't empty here from last check
-        if not isinstance(move, Jump) and isinstance(player_moves[0], Jump):
             return False
 
         # We are certain the move is valid!
@@ -472,7 +508,10 @@ was invalid.")
 
             return self._game_state
 
-        # Check for winning states (no moves left impl. no pieces left)
+        # Check for winning states (no moves left impl. no pieces left). This
+        # depends on the answer of EdStem question #1625
+        # TODO: Check edstem
+
         # Check red's state
         if not self.get_player_moves(PieceColor.RED):
             return GameStatus.BLACK_WINS
@@ -608,3 +647,26 @@ has an outstanding draw offer."
                 board[position] = Piece(position, PieceColor.RED)
 
         return board
+
+    def _can_player_move(self, color: PieceColor) -> bool:
+        """
+        Private method for getting whether the player has any valid move. Does
+        not consider DrawOffer as a possible move.
+
+        The eventual usage of this method depends on EdStem question #1625.
+
+        Args:
+            color (PieceColor): the color of the player being queried
+
+        Returns:
+            bool: True if the player has a move available otherwise False
+        """
+        moves = self.get_player_moves(color)  # get the list of Moves
+
+        # Check if there are any valid moves AND check whether the only move is
+        # a DrawOffer (offers are appended to the end, so if the first object
+        # is not a DrawOffer, then we're all good)
+        if moves and not isinstance(moves[0], DrawOffer):
+            return True
+
+        return False
