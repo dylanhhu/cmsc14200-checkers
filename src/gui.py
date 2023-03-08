@@ -901,14 +901,12 @@ class _AppState:
         if color == PieceColor.RED:
             if self.red_type == _PlayerType.HUMAN:
                 return self.red_name
-            else:
-                return get_bot_name()
-        else:
-            # Black player
-            if self.black_type == _PlayerType.HUMAN:
-                return self.black_name
-            else:
-                return get_bot_name()
+            return get_bot_name()
+
+        # Black player
+        if self.black_type == _PlayerType.HUMAN:
+            return self.black_name
+        return get_bot_name()
 
     def current_player_name(self) -> str:
         """
@@ -2728,10 +2726,9 @@ class GuiApp:
             if parent_elem:
                 # Fractional width based on parent element
                 return parent_elem.relative_rect.width * v.value
-            else:
-                # Fractional width based on screen and its padding
-                return (self._get_window_dimensions().width - 2 *
-                        self._get_window_options().get_padding()) * v.value
+            # Fractional width based on screen and its padding
+            return (self._get_window_dimensions().width - 2 *
+                    self._get_window_options().get_padding()) * v.value
 
         def frac_height(v: Fraction) -> float:
             """
@@ -2746,10 +2743,9 @@ class GuiApp:
             if parent_elem:
                 # Fractional height based on parent element
                 return parent_elem.relative_rect.height * v.value
-            else:
-                # Fractional height based on screen and its padding
-                return (self._get_window_dimensions().height - 2 *
-                        self._get_window_options().get_padding()) * v.value
+            # Fractional height based on screen and its padding
+            return (self._get_window_dimensions().height - 2 *
+                    self._get_window_options().get_padding()) * v.value
 
         # Calculate maximum width & height
         max_w, max_h = None, None
@@ -2927,7 +2923,7 @@ class GuiApp:
         # ===============
         # READ ORIGINAL THEME FILE
         # ===============
-        with open(_Theme.SOURCE_FILE_PATH) as theme_file:
+        with open(_Theme.SOURCE_FILE_PATH, encoding='UTF-8') as theme_file:
             theme_json = json.load(theme_file)
 
         # ===============
@@ -2954,7 +2950,7 @@ class GuiApp:
 
                 # Create list of all available king piece PNG sizes (from the
                 # enum)
-                king_piece_sizes = [e for e in _KingPiecePngSize]
+                king_piece_sizes = list(_KingPiecePngSize)
 
                 for king_size_i in range(1, len(king_piece_sizes)):
                     if square_size < float(king_piece_sizes[king_size_i]) * 2:
@@ -2975,7 +2971,8 @@ class GuiApp:
         # ===============
         # UPDATE DYNAMIC JSON FILE
         # ===============
-        with open(_Theme.DYNAMIC_FILE_PATH, "w") as theme_file:
+        with open(_Theme.DYNAMIC_FILE_PATH,
+                  "w", encoding='UTF-8') as theme_file:
             json.dump(theme_json, theme_file)
 
     @lru_cache(maxsize=1)
@@ -3006,12 +3003,12 @@ class GuiApp:
             if self._state.red_type == _PlayerType.HUMAN:
                 if self._state.red_name == "":
                     raise ValueError("Name is empty.")
-                elif len(self._state.red_name) > _GameConsts.MAX_NAME_LEN:
+                if len(self._state.red_name) > _GameConsts.MAX_NAME_LEN:
                     raise ValueError("Name exceeds maximum allowed length.")
             if self._state.black_type == _PlayerType.HUMAN:
                 if self._state.black_name == "":
                     raise ValueError("Name is empty.")
-                elif len(self._state.black_name) > _GameConsts.MAX_NAME_LEN:
+                if len(self._state.black_name) > _GameConsts.MAX_NAME_LEN:
                     raise ValueError("Name exceeds maximum allowed length.")
             if self._state.red_type == _PlayerType.HUMAN and \
                     self._state.black_type == _PlayerType.HUMAN:
@@ -3353,7 +3350,7 @@ class GuiApp:
                                 if selected_type == _PlayerType.BOT \
                                 else ModifyElemCommand.HIDE)
                     return
-                elif event.ui_object_id == bot_difficulty_dropdown_id:
+                if event.ui_object_id == bot_difficulty_dropdown_id:
                     # ===============
                     # Selection: PLAYER BOT DIFFICULTY DROPDOWN
                     # ===============
@@ -3574,7 +3571,7 @@ class GuiApp:
                             self._rebuild_ui()
 
                             break  # stop searching for valid board click
-                        elif click_pos in self._state \
+                        if click_pos in self._state \
                                 .get_dest_piece_positions_set():
                             # Board square is a valid move destination
                             self._state.dest_pos = click_pos
