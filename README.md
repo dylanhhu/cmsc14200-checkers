@@ -201,8 +201,8 @@ python3 src/gui.py -h
 
 ### Overview
 
-- Interface is custom-rendered for responsive , so feel free to resize the window by dragging its corners
-- Choose any combination of two players (human or bot)
+- UI adapts responsively to window resizing
+- Accepts any combination of players (human-human, human-bot, bot-bot)
 
 ### Game setup
 
