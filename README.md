@@ -232,7 +232,7 @@ And the corresponding strategies that are implemented by each SmartLevel are lis
 Finally, an estimation of the time that's going to take per game for different rows per player
 if the SmartLevel for each rows per player is in its default is listed as the following for 
 reference:
-
+```
 rows per player             average time
     2                           0.07s
     3                           0.30s
@@ -242,7 +242,7 @@ rows per player             average time
     7                           3.19s
     8                           6.09s
     9                           11.23s
-
+```
 
 ## TUI
 To run the Tui, run the following from the root of the repository:
