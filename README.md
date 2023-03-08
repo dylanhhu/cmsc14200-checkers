@@ -114,21 +114,21 @@ sudo apt install libsdl2-dev
 ### GUI
 
 #### New
-- Game menu window (to start new game)
+- Game menu window (to start new game) `MenuDialog`
 - Click to select a piece and its destination square
 - Display king pieces differently from regular pieces
-- Check game state (in progress, win or draw)
+- Check game state (in progress, win or draw) `WinDialog`, `DrawDialog`
 - Display captured piece statistics
-- Command line arguments
+- Command line arguments `--debug`, `--padding {COMFORTABLE,TIGHT,ROOMY}`, `--fullscreen`
 
 #### Improvements
-- Generalized dialog opening process
-- Maintain previous game setup when starting new game
+- Generalized dialog opening process `state.post_dialog(...)`, `_check_open_dialog()`, `state.close_dialog()`
+- Maintain previous game setup when starting new game `state.soft_reset()`
 - Organized and documented all code files
 
 #### Bug fixes
-- Fatal error when bot attempts to execute move before UI rebuild
-- King asset size not guaranteed to be correct
+- Fatal error when bot attempts to execute move before UI rebuild `_wait_for_rebuild()`
+- Fix king asset size not guaranteed to be correct `_update_responsive_assets()`
 
 ### TUI
 
@@ -170,7 +170,7 @@ region of the original position before the piece is moved
 
 The game logic does not have a test suite of its own as it was completed before the frontends and bot were completed. Thus, use the [GUI](#running-the-gui) to test the game logic.
 
-## Running the GUI
+## ▶ Running the GUI
 
 <img width="1057" alt="Screenshot 2023-03-07 at 6 44 51 PM" src="https://user-images.githubusercontent.com/37193648/223589743-21dae611-c02b-4763-ba77-31e84434f83a.png">
 
@@ -201,9 +201,8 @@ python3 src/gui.py -h
 
 ### Overview
 
-- 📐 The interface is rendered responsively, so feel free to resize the window by dragging its corners
-- 🦾 Random and smart bot included
-- 🐌 PyGame doesn't render the board efficiently (recommended: < 15 rows per player)
+- Interface is custom-rendered for responsive , so feel free to resize the window by dragging its corners
+- Choose any combination of two players (human or bot)
 
 ### Game setup
 
