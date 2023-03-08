@@ -56,14 +56,21 @@ TODO
 
 ### GUI
 
+#### New
 - Game menu window (to start new game)
 - Click to select a piece and its destination square
 - Display king pieces differently from regular pieces
 - Check game state (in progress, win or draw)
-- Generalized dialog opening process
-- Display captured pieces
-- Maintain previous game setup when starting new game
+- Display captured piece statistics
 - Command line arguments
+
+#### Improvements
+- Generalized dialog opening process
+- Maintain previous game setup when starting new game
+
+#### Bug fixes
+- Fatal error when bot attempts to execute move before UI rebuild
+- King asset size not guaranteed to be correct
 
 ### TUI
 
