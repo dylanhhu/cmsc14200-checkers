@@ -509,9 +509,9 @@ was invalid.") from exc
 
             return self._game_state
 
-        # Check for winning states (no moves left impl. no pieces left). This
-        # depends on the answer of EdStem question #1625
-        # TODO: Check edstem
+        # Check for winning states (no moves left impl. no pieces left and no
+        # DrawOffer). If the player has a DrawOffer, we interpret this as still
+        # having a valid move available.
 
         # Check red's state
         if not self.get_player_moves(PieceColor.RED):
@@ -659,7 +659,8 @@ has an outstanding draw offer."
         Private method for getting whether the player has any valid move. Does
         not consider DrawOffer as a possible move.
 
-        The eventual usage of this method depends on EdStem question #1625.
+        This private method is not used, as we currently interpret having a
+        DrawOffer as being a valid move.
 
         Args:
             color (PieceColor): the color of the player being queried

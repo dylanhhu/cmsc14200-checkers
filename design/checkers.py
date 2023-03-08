@@ -1268,7 +1268,8 @@ class CheckersBoard(Board):
         Private method for getting whether the player has any valid move. Does
         not consider DrawOffer as a possible move.
 
-        The eventual usage of this method depends on EdStem question #1625.
+        This private method is not used, as we currently interpret having a
+        DrawOffer as being a valid move.
 
         Args:
             color (PieceColor): the color of the player being queried
