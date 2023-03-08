@@ -103,7 +103,7 @@ region of the original position before the piece is moved
 
 ## Testing the Game Logic
 
-The game logic does not have a test suite of its own as it was completed before the frontends and bot were completed. Thus, use the GUI to test the game logic.
+The game logic does not have a test suite of its own as it was completed before the frontends and bot were completed. Thus, use the [GUI](#running-the-gui) to test the game logic.
 
 ## Running the GUI
 
