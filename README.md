@@ -132,7 +132,17 @@ sudo apt install libsdl2-dev
 
 ### TUI
 
-TODO
+#### New
+- Added coordinates to board
+- Updated visuals by adding colors
+- Updated visuals by changing symbols for pieces
+- Updated visuals by adding colored squares
+
+#### Improvements
+- Left room for implementation to play versus a bot instead of another human
+
+#### Bug fixes
+- Fixed error where game would not print the winner's color when game ended
 
 ### Logic
 
@@ -236,6 +246,17 @@ python3 src/gui.py -h
 ### Performance optimization
 By design, the GUI displays each bot move with a visual delay. This delay occurs on a thread separate from the main thread, so that the window does not become unresponsive while the bot is 'selecting and making' their move.
 
+## ▶ Running the TUI
+
+To run the TUI, run the following from the root of the repository:
+```shell
+python3 src/tui.py
+```
+
+Select moves by entering the number corresponding to move in the list of moves provided.
+
+Repeat for each player until game has ended.
+
 ## Testing the bot
 To test the Bot without using GUI or TUI, the test file `src/test_bot.py` can be used.
 
@@ -280,12 +301,6 @@ Finally, an estimation of the time that's going to take per game for different r
 | 7               | 3.19             |
 | 8               | 6.09             |
 | 9               | 11.23            |
-
-## TUI
-To run the Tui, run the following from the root of the repository:
-```
-python3 src/tui.py
-```
 
 ## Contributing
 
