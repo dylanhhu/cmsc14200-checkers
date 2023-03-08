@@ -27,6 +27,7 @@ import json
 import random
 import shutil
 import threading
+import time
 import warnings
 from dataclasses import dataclass
 from enum import Enum, IntEnum
@@ -1593,6 +1594,9 @@ class GuiApp:
         Only run this if absolutely necessary, since compute is expensive.
         """
 
+        # Mark UI as rebuilding
+        self._is_rebuilding = True
+
         # Clean slate window
         self._ui_manager.set_window_resolution(
             self._get_window_resolution())
@@ -2447,6 +2451,9 @@ class GuiApp:
                     f"({num_pieces_avail}/{starting_num_avail}):",
                     object_id=_GameElems.PIECES_LEFT_TITLE))
 
+        # Mark UI as finished rebuilding
+        self._is_rebuilding = False
+
     @staticmethod
     def _rebuild_ui_when_ready(
             can_user_move: Union[bool, None] = None) -> None:
@@ -3081,36 +3088,60 @@ class GuiApp:
         def visual_delay() -> float:
             """
             Generates a random number of seconds for a visual delay,
-            between 0.3 and 0.5 (inclusive).
+            between 0.15 and 0.30 (inclusive).
 
             Returns:
                 float: delay in seconds
             """
             if self._debug:
                 # In debug mode, speed-run the bots
-                return 0.005 * pow(self._state.num_rows_per_player, 2.2)
+                return min(0.01 * pow(self._state.num_rows_per_player, 0.8),
+                           0.1)
 
-            # Random float between [0.3, 0.5]
-            return max(random.random() * 0.5, 0.3)
+            # Random float between [0.15, 0.30]
+            return 0.15 + random.random() * 0.15
 
-        def check_for_pause() -> bool:
+        def check_for_freeze(func_name: Union[str, None] = None) -> bool:
             """
-            Check whether gameplay should be paused.
+            Check whether bot gameplay should be frozen.
+            Ensures UI rebuild is complete if no freeze necessary.
 
-            Will pause if any of the following is true:
+            Will freeze if any of the following is true:
 
             - a dialog is open
             - game has ended
 
-            Returns:
-                bool: is paused
-            """
-            should_pause = (self._state.dialog is not None) or \
-                           self._state.is_game_over
+            Args:
+                func_name (str): function this is called from (for debug
+                    purposes)
 
-            if should_pause:
-                warnings.warn("Found reason to pause bot.")
+            Returns:
+                bool: should freeze
+            """
+
+            if (self._state.dialog is not None) or self._state.is_game_over:
+                # Should prevent the bot from continuing its move
+                warnings.warn(f"Found reason to freeze bot. Func: {func_name}")
                 return True
+
+            if self._debug:
+                # Save current timestamp for debugging
+                start = time.process_time()
+
+            # Check once whether rebuild is incomplete
+            must_wait_rebuild = self._is_rebuilding
+
+            # Wait while UI is rebuilding
+            while self._is_rebuilding:
+                pass
+
+            if self._debug and must_wait_rebuild:
+                # Debug print how long the bot waited for rebuild
+                print("Bot waited on rebuild:",
+                      f"{(time.process_time() - start) * 1000} ms",
+                      f"Func: {func_name}")
+
+            # Reached this line -> bot should not be frozen
             return False
 
         def bot_execute_move() -> None:
@@ -3120,7 +3151,7 @@ class GuiApp:
             Returns:
                 None
             """
-            if check_for_pause():
+            if check_for_freeze("bot_execute_move"):
                 # Stop before executing this move
                 return
 
@@ -3145,7 +3176,7 @@ class GuiApp:
             Returns:
                 None
             """
-            if check_for_pause():
+            if check_for_freeze("bot_choose_dest"):
                 # Stop before executing this move
                 return
 
@@ -3161,7 +3192,7 @@ class GuiApp:
             Returns:
                 None
             """
-            if check_for_pause():
+            if check_for_freeze("bot_choose_start_pos"):
                 # Stop before executing this move
                 return
 
@@ -3170,14 +3201,25 @@ class GuiApp:
 
             threading.Timer(visual_delay(), bot_choose_dest).start()
 
-        if check_for_pause():
-            # Stop before executing this move
-            return
+        def prep_bot_execution() -> None:
+            """
+            Prepares the bot execution process.
 
-        # Set up bot's turn by disabling move elements for the user.
-        self._rebuild_ui_when_ready(can_user_move=False)
+            Returns:
+                None
+            """
+            if check_for_freeze("prep_bot_execution"):
+                # Stop before executing this move
+                return
 
-        threading.Timer(visual_delay(), bot_choose_start_pos).start()
+            # Set up bot's turn by disabling move elements for the user.
+            self._rebuild_ui_when_ready(can_user_move=False)
+
+            threading.Timer(visual_delay(), bot_choose_start_pos).start()
+
+        # Start the bot execution on a thread separate from main,
+        # to prevent making the UI unresponsive
+        threading.Thread(target=prep_bot_execution).start()
 
     def _attempt_start_bot_turn(self) -> bool:
         """
