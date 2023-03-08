@@ -2474,6 +2474,36 @@ class GuiApp:
         else:
             pygame.event.post(_UiEvents.REBUILD_DISABLE_MOVE)
 
+    def _wait_for_rebuild(self, func_name: Union[str, None] = None) -> None:
+        """
+        Prevents moving onto the next line of code until the UI has been
+        rebuilt.
+
+        Must be placed in a non-main thread to avoid making the UI unresponsive.
+
+        Args:
+            func_name (str): function this is called from (for debug
+                purposes)
+
+        Returns:
+            None
+        """
+        if self._debug:
+            # Save current timestamp for debugging
+            start = time.process_time()
+
+        # Check once whether rebuild is incomplete
+        must_wait_rebuild = self._is_rebuilding
+
+        # Wait while UI is rebuilding
+        while self._is_rebuilding:
+            pass
+
+        if self._debug and must_wait_rebuild:
+            # Debug print how long the bot waited for rebuild
+            print(f"{func_name} waited on rebuild:",
+                  f"{(time.process_time() - start) * 1000} ms")
+
     # ===============
     # SCREENS AND ROUTING
     # ===============
@@ -2593,7 +2623,7 @@ class GuiApp:
             self._rebuild_ui()
 
             # Update responsive assets
-            self._update_responsive_assets()
+            self._update_responsive_assets(build_guaranteed=True)
 
     def _update_window(self,
                        new_options: Union[WindowOptions, None] = None,
@@ -2912,7 +2942,7 @@ class GuiApp:
     # PYGAME-GUI THEMING
     # ===============
 
-    def _update_responsive_assets(self) -> None:
+    def _update_responsive_assets(self, build_guaranteed: bool = False) -> None:
         """
         Updates the PyGame-GUI theme JSON file so that the size of all assets
         are suitable for the current window dimensions.
@@ -2920,12 +2950,19 @@ class GuiApp:
         This should be called once when initializing the UI, and afterwards only
         when detecting the window has been resized.
 
-        Must be called after updating the window size in memory and
-        rebuilding the UI.
+        If build cannot be guaranteed: must be called on a non-main thread to
+        avoid making the UI unresponsive.
+
+        Args:
+            build_guaranteed (bool): whether it is guaranteed that UI rebuild is
+                complete (i.e. can run on main thread)
 
         Returns:
             None
         """
+        if not build_guaranteed:
+            # Ensure the UI has been rendered, before calculating asset sizes
+            self._wait_for_rebuild("_update_responsive_assets")
 
         # ===============
         # READ ORIGINAL THEME FILE
@@ -2975,25 +3012,15 @@ class GuiApp:
                     "path"] = \
                     f"src/data/images/{get_king_png_size()}px/{color}-king.png"
 
+            if self._debug:
+                print('update king asset size to:', get_king_png_size())
+
         # ===============
         # UPDATE DYNAMIC JSON FILE
         # ===============
         with open(_Theme.DYNAMIC_FILE_PATH,
                   "w", encoding='UTF-8') as theme_file:
             json.dump(theme_json, theme_file)
-
-    @lru_cache(maxsize=1)
-    def _responsive_assets_setup(self) -> None:
-        """
-        Set up responsive PyGame-GUI asset sizing. Throwaway method that is
-        ignored after being called the first time.
-
-        Inspiration for throwaway method: https://stackoverflow.com/a/74062603
-
-        Returns:
-            None
-        """
-        self._update_responsive_assets()
 
     # ===============
     # SETUP-ONLY LOGIC
@@ -3104,7 +3131,7 @@ class GuiApp:
         def check_for_freeze(func_name: Union[str, None] = None) -> bool:
             """
             Check whether bot gameplay should be frozen.
-            Ensures UI rebuild is complete if no freeze necessary.
+            Ensures UI rebuild is complete, if no freeze is necessary.
 
             Will freeze if any of the following is true:
 
@@ -3124,22 +3151,7 @@ class GuiApp:
                 warnings.warn(f"Found reason to freeze bot. Func: {func_name}")
                 return True
 
-            if self._debug:
-                # Save current timestamp for debugging
-                start = time.process_time()
-
-            # Check once whether rebuild is incomplete
-            must_wait_rebuild = self._is_rebuilding
-
-            # Wait while UI is rebuilding
-            while self._is_rebuilding:
-                pass
-
-            if self._debug and must_wait_rebuild:
-                # Debug print how long the bot waited for rebuild
-                print("Bot waited on rebuild:",
-                      f"{(time.process_time() - start) * 1000} ms",
-                      f"Func: {func_name}")
+            self._wait_for_rebuild(func_name)
 
             # Reached this line -> bot should not be frozen
             return False
@@ -3325,6 +3337,7 @@ class GuiApp:
 
                 # Open Game screen
                 self._routing_open_screen(_Screens.GAME)
+                threading.Thread(target=self._update_responsive_assets).start()
 
                 # If starting player is bot, autoplay their turn
                 self._attempt_start_bot_turn()
@@ -3664,9 +3677,6 @@ class GuiApp:
                         # Rebuild option: ENABLE MOVE ELEMENTS
                         # ===============
                         self._enable_move_elems()
-
-        # If this is the first event loop, set up responsive assets
-        self._responsive_assets_setup()
 
         # In every loop, check whether the window has been resized
         self._check_window_dimensions_changed()
