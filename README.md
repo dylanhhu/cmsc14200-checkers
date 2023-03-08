@@ -63,6 +63,7 @@ TODO
 - [x] Display captured pieces
 - [x] Maintain previous game setup when starting new game
 - [x] Handle timeout-induced draws
+- [x] Command line arguments
 
 ### TUI
 
@@ -113,11 +114,28 @@ To run the GUI, run the following from the root of the repository:
 python3 src/gui.py
 ```
 
+### Optional arguments
+
+To change the padding around the window, use `--padding` followed by an option from `{COMFORTABLE,TIGHT,ROOMY}` (default is `COMFORTABLE`):
+```shell
+python3 src/gui.py --padding TIGHT
+```
+
+To open the app in fullscreen mode (not recommended), add the `--fullscreen` flag:
+```shell
+python3 src/gui.py --fullscreen
+```
+
+To see all available command line arguments, run:
+```shell
+python3 src/gui.py -h
+```
+
 ### Overview
 
 - 📐 The interface is rendered responsively, so feel free to resize the window by dragging its corners
 - 🦾 Random and smart bot included
-- 🐌 PyGame doesn't render board efficiently (recommended: < 15 rows per player)
+- 🐌 PyGame doesn't render the board efficiently (recommended: < 15 rows per player)
 
 ### Game setup
 
@@ -144,9 +162,9 @@ python3 src/gui.py
 - (While a bot is making their move, the other player must wait)
 - Click on the "Menu" button at any time, to open the menu dialog. This pauses gameplay.
 
-### GUI does these differently from Logic Class
+### Divergence from the logic class
 - There is no support for offering draws (however, GUI does handle timeout-induced draws)
-- Instead of resigning, players simply start "New game" via game menu
+- Instead of resigning, players simply start a "New game" via the in-game menu
 
 ### Performance optimization
 By design, the GUI displays each bot move with a visual delay. This delay occurs on a thread separate from the main thread, so that the window does not become unresponsive while the bot is 'selecting and making' their move.

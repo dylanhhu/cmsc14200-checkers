@@ -21,7 +21,7 @@ Notable GuiApp methods:
 - responsive PyGame-GUI theming for the king checkers assets
 - executing bot moves recursively with a visual delay (requires multi-threading)
 """
-
+import argparse
 import itertools
 import json
 import random
@@ -1526,6 +1526,7 @@ class DrawDialog(UIConfirmationDialog):
 # GUI APP CLASS
 # ===============
 
+
 class GuiApp:
     """
     The graphical user interface PyGame application for the checkers board game.
@@ -1832,7 +1833,7 @@ class GuiApp:
                             RelPos.CENTER,
                             RelPos.START
                         )),
-                    "Welcome to Checkers!",
+                    f"Welcome to Checkers!{' (debug)' if self._debug else ''}",
                     object_id=_SetupElems.WELCOME_TEXT))
 
             # ===============
@@ -3665,9 +3666,45 @@ class GuiApp:
 
 
 if __name__ == "__main__":
+    # Padding options
+    PADDING_COMFORTABLE = "COMFORTABLE"
+    PADDING_TIGHT = "TIGHT"
+    PADDING_ROOMY = "ROOMY"
+    PADDING_OPTIONS = [PADDING_COMFORTABLE, PADDING_TIGHT, PADDING_ROOMY]
+
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(
+        prog="gui.py",
+        description="PyGame interface for playing the checkers board game. "
+                    "Designed and built by Kevin Gugelmann.")
+    parser.add_argument("-d", "--debug",
+                        action="store_true",
+                        help="Debug mode")
+    parser.add_argument("-f", "--fullscreen",
+                        action="store_true",
+                        help="Fullscreen mode")
+    parser.add_argument("-p", "--padding",
+                        choices=PADDING_OPTIONS,
+                        default=PADDING_COMFORTABLE,
+                        help="Screen padding")
+    args = parser.parse_args()
+
+    # Get padding choice
+    padding = args.padding
+    if padding == PADDING_COMFORTABLE:
+        padding_size = _Sizes.XXL
+    elif padding == PADDING_TIGHT:
+        padding_size = _Sizes.S
+    else:
+        # PADDING_ROOMY
+        padding_size = _Sizes.MEGA + _Sizes.M
+
     app = GuiApp(
         window_options=WindowOptions(
             min_dimensions=Dimensions(800, 600),
-        )
+            fullscreen=args.fullscreen,
+            padding=padding_size
+        ),
+        debug=args.debug
     )
     app.run()
