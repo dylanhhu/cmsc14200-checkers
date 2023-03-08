@@ -25,7 +25,7 @@ python3 -m venv env
 ```shell
 source env/bin/activate
 ```
-Or, for Windows:
+Or, for Windows in `cmd.exe`:
 ```shell
 .\env\Scripts\activate
 ```
@@ -50,8 +50,65 @@ sudo apt install libsdl2-dev
 
 ## Design changelog (since Milestone 1)
 
-TODO
+### Overview of changes
 
+* Generalized game board and pieces into `Board` and `GenericPiece` classes
+  * `Piece` class inherits `GenericPiece`
+  * `CheckersBoard` class inherits `Board`
+* Added various methods for better bot support
+* Added various attributes for caching of players' moves in `CheckersBoard`
+
+### Details of changes
+
+* `Piece` class changes
+  * Added `.unking()` to unset king
+  * Added `.__eq__()`
+* `Move` class changes
+  * Added `_curr_x` and `_curr_y` attributes
+  * Added `.__init__(curr_pos)` argument
+  * Added `.is_kinging()`
+  * Added `.get_current_position()`
+  * Added `.__eq__()`
+* `Jump` class changes
+  * Added `.__init__(curr_pos)` argument to reflect `Move` class changes
+  * Added `.__eq__()`
+* `Resignation` class changes
+  * Updated `.get_new_position()` signature to reflect parent's signature
+  * Added `.get_current_position()` to reflect `Move` class changes
+  * Added `.__eq__()`
+* `DrawOffer` class changes
+  * Updated class docstring to clarify usage
+  * Updated `.get_new_position()` signature to reflect parent's signature
+  * Added `.get_current_position()` to reflect `Move` class changes
+  * Added `.__eq__()`
+* New: `Board` class
+  * Supports arbitrary rectangular sizes
+  * Handles setting/gettting pieces
+  * Handles basic completion of moves
+  * Handles basic validation of moves
+  * Handles `.__str__()` and `.__repr__()`
+  * Added `.get_board_height()`
+  * Added `.get_board_width()`
+  * Added abstract method `.undo_move()`
+* `CheckersBoard` class changes
+  * Inherits `Board` class
+  * `.__init__()` changes
+    * Added argument `caching: bool` to enable or disable player move caching
+    * Overrides `Board` class initializer to accept only one argument (`rows_per_player: int`)
+    * Stores board size
+    * Stores board size as the height and width of the board (overrides parent definition)
+    * Creates dictionary of a list of moves to cache the generated list of available moves for each player
+    * Creates a private attribute to store the number of moves since a capture
+    * Calls `._calc_draw_timeout(rows_per_player)` to determine the number of moves without capture before a stalemate
+  * `.get_captured_pieces()` overrides parent method for speed efficiency
+  * `.complete_move()` overrides parent method
+  * `.undo_move()` implements abstract parent method
+  * Added `._handle_draw_offer()` to handle `DrawOffer`s
+  * Added `._calc_draw_timeout()` to scale the number of moves between captures to board size, such that larger boards don't end in stalemate unneccessarily
+  * `._gen_piece()` implements abstract parent method
+  * Removed `.__str__()` and `.__repr__()` to use parent's generic methods instead
+  * Added `._can_player_move()`
+  
 ## Implementation changelog (since Milestone 2)
 
 ### GUI
