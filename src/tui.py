@@ -1,8 +1,8 @@
+import sys
+
 from colorama import Back, Fore, Style
 
-from bot import RandomBot, SmartBot, SmartLevel
-from checkers import (CheckersBoard, GameStatus, Move, Piece, PieceColor,
-                      Position)
+from checkers import CheckersBoard, GameStatus, PieceColor
 
 
 def initialize():
@@ -51,7 +51,7 @@ def print_board(b):
             # check for a piece in this position
             if position in b._pieces:
                 piece = b._pieces[position]
-                if piece._color == PieceColor.RED:
+                if piece.get_color() == PieceColor.RED:
                     board += (Back.BLACK
                               + Fore.RED
                               + Style.BRIGHT
@@ -101,7 +101,10 @@ def get_move(player_type, moves):
                     i = int(i)
                     move = i
             except:
-                pass
+                if i == 'exit' or i == 'quit':
+                    print("Goodbye, thanks for playing!")
+                    sys.exit(0)
+
     return move
 
 
