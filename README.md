@@ -67,6 +67,7 @@ TODO
 #### Improvements
 - Generalized dialog opening process
 - Maintain previous game setup when starting new game
+- Organized and documented all code files
 
 #### Bug fixes
 - Fatal error when bot attempts to execute move before UI rebuild
